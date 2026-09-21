@@ -565,6 +565,22 @@ function Calendar({
                   </div>
                 </div>
               ))}
+
+              {(() => {
+                const totals = lockedDayMacros(day.slots)
+                const hasAnything = totals.calories > 0
+                if (!hasAnything) return null
+                return (
+                  <div className="main-btn p-15 flex flex-col gap-5">
+                    <span className="text-14 font-title font-bold uppercase">
+                      {Math.round(totals.calories).toLocaleString('en-US')} KCAL
+                    </span>
+                    <span className="text-14 font-title text-neutral-500">Protein {Math.round(totals.protein)}g</span>
+                    <span className="text-14 font-title text-neutral-500">Carbs: {Math.round(totals.carbs)}g</span>
+                    <span className="text-14 font-title text-neutral-500">Fat: {Math.round(totals.fat)}g</span>
+                  </div>
+                )
+              })()}
             </div>
           ))}
         </div>

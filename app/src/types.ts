@@ -9,6 +9,45 @@ export const UNITS: { value: Unit; label: string }[] = [
 
 export type Ingredient = { name: string; amount: number; unit: Unit }
 
+// Grocery-aisle grouping for the shopping list — lets it read like an actual
+// list ("Vegetables: ...", "Fruits: ...") instead of one flat A-Z dump.
+export type GroceryCategory =
+  | 'vegetables'
+  | 'fruits'
+  | 'meat'
+  | 'fish'
+  | 'dairy'
+  | 'dairyAlternatives'
+  | 'grains'
+  | 'legumes'
+  | 'nuts'
+  | 'oils'
+  | 'condiments'
+  | 'sweeteners'
+  | 'herbsSpices'
+  | 'beverages'
+  | 'protein'
+  | 'other'
+
+export const GROCERY_CATEGORIES: { value: GroceryCategory; label: string }[] = [
+  { value: 'vegetables', label: 'Vegetables' },
+  { value: 'fruits', label: 'Fruits' },
+  { value: 'meat', label: 'Meat & Poultry' },
+  { value: 'fish', label: 'Fish & Seafood' },
+  { value: 'dairy', label: 'Dairy & Eggs' },
+  { value: 'dairyAlternatives', label: 'Dairy Alternatives' },
+  { value: 'grains', label: 'Grains & Starches' },
+  { value: 'legumes', label: 'Legumes' },
+  { value: 'nuts', label: 'Nuts & Seeds' },
+  { value: 'oils', label: 'Oils & Fats' },
+  { value: 'condiments', label: 'Condiments & Sauces' },
+  { value: 'sweeteners', label: 'Sweeteners & Baking' },
+  { value: 'herbsSpices', label: 'Herbs & Spices' },
+  { value: 'beverages', label: 'Beverages' },
+  { value: 'protein', label: 'Protein Supplements' },
+  { value: 'other', label: 'Other' },
+]
+
 // The ingredient catalog is user data (like recipes/weeks) — picked from a
 // <select> so the same ingredient always has the exact same spelling and
 // correctly sums up across recipes, but it's editable/extendable at runtime,
@@ -17,6 +56,7 @@ export type Ingredient = { name: string; amount: number; unit: Unit }
 // and the user can add, edit or delete any entry.
 export type IngredientDef = {
   name: string
+  category: GroceryCategory
   caloriesPer100g: number
   proteinPer100g: number
   carbsPer100g: number

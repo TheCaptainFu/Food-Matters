@@ -90,6 +90,10 @@ function initIngredientCatalog(): IngredientDef[] {
     const fallback = defaultsByName.get(raw.name.toLowerCase())
     return {
       name: raw.name,
+      // Ingredients saved before shopping-list categories existed don't
+      // have one — backfill from the matching default entry, or "Other"
+      // for something the user added themselves.
+      category: raw.category ?? fallback?.category ?? 'other',
       caloriesPer100g: raw.caloriesPer100g ?? fallback?.caloriesPer100g ?? 0,
       proteinPer100g: raw.proteinPer100g ?? fallback?.proteinPer100g ?? 0,
       carbsPer100g: raw.carbsPer100g ?? fallback?.carbsPer100g ?? 0,
@@ -222,7 +226,7 @@ function App() {
           setActiveWeekId={setActiveWeekId}
         />
       )}
-      {activeTab === 'market' && <Market recipes={recipes} weeks={weeks} />}
+      {activeTab === 'market' && <Market recipes={recipes} weeks={weeks} ingredientCatalog={ingredientCatalog} />}
       {activeTab === 'leftovers' && (
         <Leftovers recipes={recipes} ingredientCatalog={ingredientCatalog} onOpenRecipe={setOpenRecipeId} />
       )}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { IngredientDef } from '../types'
+import type { GroceryCategory, IngredientDef } from '../types'
+import { GROCERY_CATEGORIES } from '../types'
 
 type IngredientPickerModalProps = {
   catalog: IngredientDef[]
@@ -27,6 +28,7 @@ function IngredientPickerModal({
   const [formProtein, setFormProtein] = useState('')
   const [formCarbs, setFormCarbs] = useState('')
   const [formFat, setFormFat] = useState('')
+  const [formCategory, setFormCategory] = useState<GroceryCategory>('other')
 
   const filtered = catalog.filter((c) => c.name.toLowerCase().includes(search.trim().toLowerCase()))
 
@@ -37,6 +39,7 @@ function IngredientPickerModal({
     setFormProtein('')
     setFormCarbs('')
     setFormFat('')
+    setFormCategory('other')
     setIsFormOpen(true)
   }
 
@@ -47,6 +50,7 @@ function IngredientPickerModal({
     setFormProtein(String(def.proteinPer100g))
     setFormCarbs(String(def.carbsPer100g))
     setFormFat(String(def.fatPer100g))
+    setFormCategory(def.category)
     setIsFormOpen(true)
   }
 
@@ -62,6 +66,7 @@ function IngredientPickerModal({
 
     const def: IngredientDef = {
       name: trimmedName,
+      category: formCategory,
       caloriesPer100g: Number(formCalories) || 0,
       proteinPer100g: Number(formProtein) || 0,
       carbsPer100g: Number(formCarbs) || 0,
@@ -120,6 +125,21 @@ function IngredientPickerModal({
                 className="border-3 border-black px-10 py-5 font-title"
                 autoFocus
               />
+            </label>
+
+            <label className="flex flex-col gap-5">
+              <span className="text-14 font-title font-bold">Category</span>
+              <select
+                value={formCategory}
+                onChange={(e) => setFormCategory(e.target.value as GroceryCategory)}
+                className="bg-white border-3 border-black px-10 py-5 text-14 font-title"
+              >
+                {GROCERY_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="flex flex-col gap-5">
