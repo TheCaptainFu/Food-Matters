@@ -9,7 +9,7 @@ import RecipeDetailModal from './components/RecipeDetailModal'
 import AddRecipeModal from './components/AddRecipeModal'
 import ConfirmModal from './components/ConfirmModal'
 import { useEffect, useState } from 'react'
-import type { Recipe, Week, IngredientDef } from './types'
+import type { Recipe, Week, IngredientDef, Ingredient } from './types'
 import { SLOT_KEYS } from './types'
 import type { Profile } from './nutrition'
 import { normalizeProfile } from './nutrition'
@@ -35,6 +35,11 @@ const CURRENT_RECIPES_VERSION = 2
 
 const ALL_SLOT_KEYS = SLOT_KEYS.map((s) => s.value)
 
+function ingredientsMatch(a: Ingredient[], b: Ingredient[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((ing, i) => ing.name === b[i].name && ing.amount === b[i].amount && ing.unit === b[i].unit)
+}
+
 function initRecipes(): Recipe[] {
   const stored = loadFromStorage<Recipe[] | null>(RECIPES_KEY, null)
   if (!stored) return SAMPLE_RECIPES
@@ -46,8 +51,21 @@ function initRecipes(): Recipe[] {
   // for mealTypes on recipes the user made themselves) instead of crashing
   // or silently missing the new fields. Never touches a user's own
   // instructions if they already wrote some.
+  //
+  // For a seed recipe the user never edited (its ingredients still match
+  // the sample exactly), we go further and always resync mealTypes/
+  // instructions to the current sample values — so if we later fine-tune a
+  // recipe's meal tagging (e.g. Risotto shouldn't be a breakfast option),
+  // that correction reaches users who already have it saved from an
+  // earlier, less-refined tagging pass. A recipe the user has actually
+  // edited (different ingredients) is left alone — its mealTypes are their
+  // choice, not ours to override.
   const normalized = stored.map((r) => {
     const sample = sampleByTitle.get(r.title.toLowerCase())
+    const isUnmodifiedSeed = !!sample && ingredientsMatch(r.ingredients, sample.ingredients)
+    if (isUnmodifiedSeed) {
+      return { ...r, mealTypes: sample.mealTypes, instructions: sample.instructions ?? r.instructions }
+    }
     return {
       ...r,
       mealTypes: r.mealTypes && r.mealTypes.length > 0 ? r.mealTypes : (sample?.mealTypes ?? ALL_SLOT_KEYS),
