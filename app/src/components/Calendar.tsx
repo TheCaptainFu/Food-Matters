@@ -82,6 +82,15 @@ function Calendar({
     ? filterCompatibleRecipes(recipes, profile.diet, profile.excludedIngredients)
     : recipes
 
+  // Further narrows to recipes tagged for that meal — so breakfast never
+  // gets offered pasta, for instance. Falls back to the full compatible
+  // list if nothing is tagged for that slot yet (e.g. a brand-new recipe
+  // library), rather than offering nothing at all.
+  function recipesForSlot(slotKey: SlotKey): Recipe[] {
+    const tagged = compatibleRecipes.filter((r) => r.mealTypes.includes(slotKey))
+    return tagged.length > 0 ? tagged : compatibleRecipes
+  }
+
   function toggleEditDay(dayIndex: number) {
     setEditingDays((prev) => {
       const next = new Set(prev)
@@ -215,13 +224,13 @@ function Calendar({
     )
   }
 
-  // Top 3 recipes in the same category whose full macro profile (calories,
-  // protein, carbs, fat) is closest to the given recipe's — candidates for
-  // an "I don't feel like this one" swap that doesn't throw off the day's
-  // targets.
-  function getAlternatives(current: Recipe): Recipe[] {
+  // Top 3 recipes in the same category (and still fit for that meal) whose
+  // full macro profile (calories, protein, carbs, fat) is closest to the
+  // given recipe's — candidates for an "I don't feel like this one" swap
+  // that doesn't throw off the day's targets.
+  function getAlternatives(current: Recipe, slotKey: SlotKey): Recipe[] {
     const currentMacros = recipeMacros(current, ingredientCatalog)
-    return compatibleRecipes
+    return recipesForSlot(slotKey)
       .filter((r) => r.id !== current.id && r.category === current.category)
       .sort(
         (a, b) =>
@@ -285,7 +294,7 @@ function Calendar({
       }
       const score = (r: Recipe) =>
         macroDistance(recipeMacros(r, ingredientCatalog), slotBudget) + (usageCounts.get(r.id) ?? 0) * REPEAT_PENALTY
-      const ranked = [...compatibleRecipes].sort((a, b) => score(a) - score(b))
+      const ranked = [...recipesForSlot(slot.key)].sort((a, b) => score(a) - score(b))
       shortlists.set(slot.key, ranked.slice(0, Math.min(CANDIDATES_PER_SLOT, ranked.length)))
     })
 
@@ -406,7 +415,7 @@ function Calendar({
             ))}
           </div>
 
-          <div className="flex gap-10">
+          <div className="flex flex-wrap gap-10">
             <button
               type="button"
               onClick={generateWeek}
@@ -576,7 +585,7 @@ function Calendar({
 
                     {editingDays.has(dayIndex) && (
                       <SlotPicker
-                        recipes={compatibleRecipes}
+                        recipes={recipesForSlot(slot.key)}
                         onAdd={(recipeIds) => addRecipesToSlot(dayIndex, slot.key, recipeIds)}
                       />
                     )}
@@ -603,7 +612,7 @@ function Calendar({
       {suggestTarget && suggestCurrentRecipe && (
         <SuggestAlternativesModal
           current={suggestCurrentRecipe}
-          alternatives={getAlternatives(suggestCurrentRecipe)}
+          alternatives={getAlternatives(suggestCurrentRecipe, suggestTarget.slotKey)}
           ingredientCatalog={ingredientCatalog}
           onSelect={(newId) => {
             replaceRecipeInSlot(suggestTarget.dayIndex, suggestTarget.slotKey, suggestTarget.recipeIndex, newId)

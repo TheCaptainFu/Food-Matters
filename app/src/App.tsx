@@ -89,6 +89,15 @@ function App() {
     return stored ? normalizeProfile(stored) : null
   })
 
+  // Mobile-only nav drawer, toggled by the burger button (hidden on
+  // desktop, where the tab row is always visible).
+  const [isNavOpen, setIsNavOpen] = useState(false)
+
+  function handleTabChange(tab: TabKey) {
+    setActiveTab(tab)
+    setIsNavOpen(false)
+  }
+
   function handleAddIngredientDef(def: IngredientDef) {
     setIngredientCatalog((prev) =>
       prev.some((c) => c.name.toLowerCase() === def.name.toLowerCase())
@@ -146,8 +155,13 @@ function App() {
 
   return (
     <>
-      <Header/>
-      <Subheader activeTab={activeTab} onChange={setActiveTab} />
+      <Header isMenuOpen={isNavOpen} onToggleMenu={() => setIsNavOpen((v) => !v)} />
+      <Subheader
+        activeTab={activeTab}
+        onChange={handleTabChange}
+        isOpen={isNavOpen}
+        onClose={() => setIsNavOpen(false)}
+      />
       {activeTab === 'recipes' && (
         <Recipes
           recipes={recipes}

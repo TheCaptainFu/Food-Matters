@@ -35,13 +35,23 @@ export const CATEGORIES: { value: Category; label: string; color: string }[] = [
   { value: 'dessert', label: 'Dessert', color: 'bg-main-blue' },
 ]
 
+export type SlotKey = 'breakfast' | 'lunch' | 'afternoon' | 'dinner'
+
+export const SLOT_KEYS: { value: SlotKey; label: string }[] = [
+  { value: 'breakfast', label: 'Breakfast' },
+  { value: 'lunch', label: 'Lunch' },
+  { value: 'afternoon', label: 'Afternoon' },
+  { value: 'dinner', label: 'Dinner' },
+]
+
 export type Recipe = {
   id: string
   title: string
   category: Category
+  // Which meal(s) this recipe fits — so a plan doesn't suggest, say, pasta
+  // for breakfast. Defaults to every slot for older/legacy data.
+  mealTypes: SlotKey[]
   ingredients: Ingredient[]
 }
-
-export type SlotKey = 'breakfast' | 'lunch' | 'afternoon' | 'dinner'
 export type Day = { label: string; slots: Record<SlotKey, string[]> }
 export type Week = { id: string; label: string; days: Day[] }

@@ -132,8 +132,13 @@ export type MacroTargets = { calories: number; protein: number; carbs: number; f
 // advice from a doctor or dietitian. Protein is prioritized (higher for
 // people who work out, and a bit higher still on a cut to protect muscle;
 // a bit higher again if supplementing, since hitting that target is easier
-// with a shake in the mix), fat gets a flat per-kg baseline, and carbs fill
+// with a shake in the mix). Fat is set as a share of total calories — the
+// Academy of Nutrition and Dietetics range is 20-30% of calories, not a
+// flat amount per kg (a flat per-kg number can end up way outside that
+// range for someone with a very high or low calorie target). Carbs fill
 // whatever calories remain.
+const FAT_SHARE_OF_CALORIES = 0.28
+
 export function suggestedMacroTargets(profile: VitalStats): MacroTargets {
   const calories = calculateDailyTarget(profile)
 
@@ -141,8 +146,7 @@ export function suggestedMacroTargets(profile: VitalStats): MacroTargets {
   if (profile.takesProtein) proteinPerKg += 0.2
   const protein = Math.round(profile.weightKg * proteinPerKg)
 
-  const fatPerKg = 0.8
-  const fat = Math.round(profile.weightKg * fatPerKg)
+  const fat = Math.round((calories * FAT_SHARE_OF_CALORIES) / 9)
 
   const remaining = calories - protein * 4 - fat * 9
   const carbs = Math.max(0, Math.round(remaining / 4))
