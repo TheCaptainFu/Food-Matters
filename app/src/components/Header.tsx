@@ -1,19 +1,43 @@
+import type { User } from '@supabase/supabase-js'
 import Logo from './Logo'
 
 type HeaderProps = {
   isMenuOpen: boolean
   onToggleMenu: () => void
+  user: User | null
+  onOpenProfile: () => void
 }
 
-function Header({ isMenuOpen, onToggleMenu }: HeaderProps) {
+function ProfileIcon({ user }: { user: User | null }) {
+  if (user?.user_metadata?.avatar_url) {
+    return <img src={user.user_metadata.avatar_url} alt="Your profile" className="w-full h-full object-cover" />
+  }
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8" r="4" fill="black" />
+      <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="black" />
+    </svg>
+  )
+}
+
+function Header({ isMenuOpen, onToggleMenu, user, onOpenProfile }: HeaderProps) {
   return (
     <header className="py-20 border-b-3">
       <div className="container flex items-center gap-20">
-        <div className="w-40 shrink-0 tab:hidden" aria-hidden="true" />
+        <div className="w-100 shrink-0 tab:hidden" aria-hidden="true" />
 
         <h1 className="flex-1">
           <Logo />
         </h1>
+
+        <button
+          type="button"
+          aria-label="Your profile"
+          onClick={onOpenProfile}
+          className="appearance-none main-btn flex items-center justify-center w-40 h-40 p-0 shrink-0 overflow-hidden"
+        >
+          <ProfileIcon user={user} />
+        </button>
 
         <button
           type="button"

@@ -9,7 +9,8 @@ import RecipeDetailModal from './components/RecipeDetailModal'
 import AddRecipeModal from './components/AddRecipeModal'
 import ConfirmModal from './components/ConfirmModal'
 import LoginScreen from './components/LoginScreen'
-import { useAuth, signOut } from './useAuth'
+import ProfileModal from './components/ProfileModal'
+import { useAuth } from './useAuth'
 import { supabase } from './supabaseClient'
 import { useEffect, useState } from 'react'
 import type { Recipe, Week, IngredientDef, Ingredient } from './types'
@@ -151,6 +152,11 @@ function App() {
   // desktop, where the tab row is always visible).
   const [isNavOpen, setIsNavOpen] = useState(false)
 
+  // Opens automatically for a brand-new visitor (no profile yet) regardless
+  // of which tab they land on, same as the old Calories-only wizard did —
+  // just not tied to being on that specific tab anymore.
+  const [isProfileOpen, setIsProfileOpen] = useState(!profile)
+
   function handleTabChange(tab: TabKey) {
     setActiveTab(tab)
     setIsNavOpen(false)
@@ -228,21 +234,12 @@ function App() {
 
   return (
     <>
-      {supabase && user && (
-        <div className="bg-neutral-100 border-b-3 border-black py-5">
-          <div className="container flex items-center justify-end gap-15">
-            <span className="text-12 font-title text-neutral-500">{user.email}</span>
-            <button
-              type="button"
-              onClick={() => signOut()}
-              className="text-12 font-title font-bold underline hover:text-main-red"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      )}
-      <Header isMenuOpen={isNavOpen} onToggleMenu={() => setIsNavOpen((v) => !v)} />
+      <Header
+        isMenuOpen={isNavOpen}
+        onToggleMenu={() => setIsNavOpen((v) => !v)}
+        user={user}
+        onOpenProfile={() => setIsProfileOpen(true)}
+      />
       <Subheader
         activeTab={activeTab}
         onChange={handleTabChange}
@@ -282,8 +279,17 @@ function App() {
           weeks={weeks}
           ingredientCatalog={ingredientCatalog}
           profile={profile}
-          onSaveProfile={setProfile}
           onOpenRecipe={setOpenRecipeId}
+        />
+      )}
+
+      {isProfileOpen && (
+        <ProfileModal
+          profile={profile}
+          ingredientCatalog={ingredientCatalog}
+          user={user}
+          onSaveProfile={setProfile}
+          onClose={() => setIsProfileOpen(false)}
         />
       )}
 
