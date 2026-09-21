@@ -40,10 +40,21 @@ function macroStatusClass(actual: number, targetVal: number): string {
   return 'text-main-red'
 }
 
+// A logged "what you actually ate" entry overrides the plan for that slot,
+// so these totals (and everything derived from them below) reflect real
+// intake, not just what was scheduled.
 function dayMacros(day: Day, recipes: Recipe[], catalog: IngredientDef[]): Macros {
   const total: Macros = { calories: 0, protein: 0, carbs: 0, fat: 0 }
-  Object.values(day.slots).forEach((recipeIds) => {
-    recipeIds.forEach((recipeId) => {
+  SLOTS.forEach((slot) => {
+    const actual = day.actual?.[slot.key]
+    if (actual) {
+      total.calories += actual.calories
+      total.protein += actual.protein
+      total.carbs += actual.carbs
+      total.fat += actual.fat
+      return
+    }
+    day.slots[slot.key].forEach((recipeId) => {
       const recipe = recipes.find((r) => r.id === recipeId)
       if (!recipe) return
       recipe.ingredients.forEach((ing) => {
@@ -737,6 +748,7 @@ function Calories({ recipes, weeks, ingredientCatalog, profile, onSaveProfile, o
               <div className="flex flex-col gap-20">
                 {SLOTS.map((slot) => {
                   const recipeIds = selectedDay.slots[slot.key]
+                  const actual = selectedDay.actual?.[slot.key]
                   return (
                     <div key={slot.key} className="flex flex-col gap-10">
                       <span
@@ -744,7 +756,27 @@ function Calories({ recipes, weeks, ingredientCatalog, profile, onSaveProfile, o
                       >
                         {slot.label}
                       </span>
-                      {recipeIds.length === 0 ? (
+                      {actual ? (
+                        <div className="main-btn flex items-center gap-10 p-10 bg-main-yellow/20">
+                          {actual.photo && (
+                            <img
+                              src={actual.photo}
+                              alt=""
+                              className="w-40 h-40 object-cover border-2 border-black shrink-0"
+                            />
+                          )}
+                          <span className="flex flex-col">
+                            <span className="text-12 font-title font-bold uppercase text-neutral-500">
+                              Actually ate
+                            </span>
+                            <span className="text-14 font-title font-bold">{actual.description}</span>
+                            <span className="text-12 font-title text-neutral-500">
+                              {Math.round(actual.calories)} kcal · P {Math.round(actual.protein)}g · C{' '}
+                              {Math.round(actual.carbs)}g · F {Math.round(actual.fat)}g
+                            </span>
+                          </span>
+                        </div>
+                      ) : recipeIds.length === 0 ? (
                         <p className="text-14 font-title text-neutral-500">Nothing planned.</p>
                       ) : (
                         <div className="flex flex-col gap-10">

@@ -8,6 +8,9 @@ import Calories from './components/Calories'
 import RecipeDetailModal from './components/RecipeDetailModal'
 import AddRecipeModal from './components/AddRecipeModal'
 import ConfirmModal from './components/ConfirmModal'
+import LoginScreen from './components/LoginScreen'
+import { useAuth, signOut } from './useAuth'
+import { supabase } from './supabaseClient'
 import { useEffect, useState } from 'react'
 import type { Recipe, Week, IngredientDef, Ingredient } from './types'
 import { SLOT_KEYS } from './types'
@@ -109,7 +112,21 @@ function initIngredientCatalog(): IngredientDef[] {
   return [...normalized, ...missing].sort((a, b) => a.name.localeCompare(b.name))
 }
 
+function initWeeks(): Week[] {
+  const stored = loadFromStorage<Week[] | null>(WEEKS_KEY, null)
+  if (!stored) return [makeWeek('Week 1')]
+
+  // Weeks saved before "what you actually ate" existed have days without an
+  // `actual` field — backfill an empty one so logging works immediately.
+  return stored.map((week) => ({
+    ...week,
+    days: week.days.map((day) => ({ ...day, actual: day.actual ?? {} })),
+  }))
+}
+
 function App() {
+  const { user, isLoading: isAuthLoading } = useAuth()
+
   // A brand-new visitor (no profile saved yet) lands on Calories, where the
   // profile wizard opens automatically — not on an empty Calendar with no
   // explanation of what to do next.
@@ -120,7 +137,7 @@ function App() {
 
   // New users start with an empty Week 1 — no demo meals already assigned —
   // so the plan they see is only ever one they (or Generate Week) built.
-  const [weeks, setWeeks] = useState<Week[]>(() => loadFromStorage(WEEKS_KEY, [makeWeek('Week 1')]))
+  const [weeks, setWeeks] = useState<Week[]>(initWeeks)
   const [activeWeekId, setActiveWeekId] = useState(weeks[0].id)
 
   const [ingredientCatalog, setIngredientCatalog] = useState<IngredientDef[]>(initIngredientCatalog)
@@ -194,8 +211,37 @@ function App() {
     setRecipes((prev) => prev.filter((r) => r.id !== id))
   }
 
+  // Accounts are opt-in at the infrastructure level: until Supabase is
+  // configured (env vars set), the app behaves exactly as before — local
+  // only, no login required.
+  if (supabase && isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="font-title font-bold text-16">Loading…</p>
+      </div>
+    )
+  }
+
+  if (supabase && !user) {
+    return <LoginScreen />
+  }
+
   return (
     <>
+      {supabase && user && (
+        <div className="bg-neutral-100 border-b-3 border-black py-5">
+          <div className="container flex items-center justify-end gap-15">
+            <span className="text-12 font-title text-neutral-500">{user.email}</span>
+            <button
+              type="button"
+              onClick={() => signOut()}
+              className="text-12 font-title font-bold underline hover:text-main-red"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
       <Header isMenuOpen={isNavOpen} onToggleMenu={() => setIsNavOpen((v) => !v)} />
       <Subheader
         activeTab={activeTab}

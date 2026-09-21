@@ -6,6 +6,7 @@ export function makeDay(label: string): Day {
   return {
     label,
     slots: { breakfast: [], lunch: [], afternoon: [], dinner: [] },
+    actual: {},
   }
 }
 

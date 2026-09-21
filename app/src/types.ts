@@ -96,5 +96,22 @@ export type Recipe = {
   // just don't show a "how to make it" section instead of breaking.
   instructions?: string
 }
-export type Day = { label: string; slots: Record<SlotKey, string[]> }
+// What you actually ate for a slot, when it differs from (or confirms) the
+// plan — logged separately so the plan itself stays untouched and day
+// totals can be recalculated from what really happened.
+export type ActualEntry = {
+  description: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  // A resized/compressed data URL, kept small enough for localStorage.
+  photo?: string
+}
+
+export type Day = {
+  label: string
+  slots: Record<SlotKey, string[]>
+  actual: Partial<Record<SlotKey, ActualEntry>>
+}
 export type Week = { id: string; label: string; days: Day[] }

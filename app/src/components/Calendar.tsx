@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
+import type { ActualEntry, Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
 import type { Macros, Profile } from '../nutrition'
 import { calculateMacroTargets, recipeMacros } from '../nutrition'
 import { filterCompatibleRecipes } from '../dietaryRestrictions'
@@ -7,6 +7,7 @@ import { makeWeek } from '../weekUtils'
 import ConfirmModal from './ConfirmModal'
 import RecipePickerModal from './RecipePickerModal'
 import SuggestAlternativesModal from './SuggestAlternativesModal'
+import ActualEntryModal from './ActualEntryModal'
 
 // Normalized distance across calories + all three macros, so "closest
 // match" accounts for hitting protein/carbs/fat, not just total calories.
@@ -56,6 +57,7 @@ type PendingConfirm = {
 }
 
 type SuggestTarget = { dayIndex: number; slotKey: SlotKey; recipeIndex: number }
+type ActualTarget = { dayIndex: number; slotKey: SlotKey }
 
 function Calendar({
   recipes,
@@ -71,6 +73,7 @@ function Calendar({
   const [dragOverKey, setDragOverKey] = useState<string | null>(null)
   const [editingDays, setEditingDays] = useState<Set<number>>(new Set())
   const [suggestTarget, setSuggestTarget] = useState<SuggestTarget | null>(null)
+  const [actualTarget, setActualTarget] = useState<ActualTarget | null>(null)
 
   const dailyMacroTargets = profile ? calculateMacroTargets(profile) : null
   const dailyTarget = dailyMacroTargets?.calories ?? null
@@ -226,6 +229,40 @@ function Calendar({
     )
   }
 
+  // Logs (or clears) what was actually eaten for a slot — independent of
+  // the plan sitting there, so correcting today never edits the plan
+  // itself.
+  function setActualEntry(dayIndex: number, slotKey: SlotKey, entry: ActualEntry) {
+    setWeeks((prev) =>
+      prev.map((week) => {
+        if (week.id !== activeWeekId) return week
+        return {
+          ...week,
+          days: week.days.map((day, i) =>
+            i !== dayIndex ? day : { ...day, actual: { ...day.actual, [slotKey]: entry } },
+          ),
+        }
+      }),
+    )
+  }
+
+  function clearActualEntry(dayIndex: number, slotKey: SlotKey) {
+    setWeeks((prev) =>
+      prev.map((week) => {
+        if (week.id !== activeWeekId) return week
+        return {
+          ...week,
+          days: week.days.map((day, i) => {
+            if (i !== dayIndex) return day
+            const nextActual = { ...day.actual }
+            delete nextActual[slotKey]
+            return { ...day, actual: nextActual }
+          }),
+        }
+      }),
+    )
+  }
+
   // Top 3 recipes in the same category (and still fit for that meal) whose
   // full macro profile (calories, protein, carbs, fat) is closest to the
   // given recipe's — candidates for an "I don't feel like this one" swap
@@ -249,6 +286,36 @@ function Calendar({
     return SLOTS.reduce<Macros>(
       (sum, slot) => {
         slots[slot.key].forEach((id) => {
+          const r = recipes.find((rec) => rec.id === id)
+          if (!r) return
+          const m = recipeMacros(r, ingredientCatalog)
+          sum.calories += m.calories
+          sum.protein += m.protein
+          sum.carbs += m.carbs
+          sum.fat += m.fat
+        })
+        return sum
+      },
+      { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    )
+  }
+
+  // What the day actually adds up to: a logged "what you ate" entry
+  // overrides the plan for that slot, and any slot without one still counts
+  // toward the total using its planned recipes — so the total always
+  // reflects reality, not just the parts you corrected.
+  function dayTotalMacros(day: Day): Macros {
+    return SLOTS.reduce<Macros>(
+      (sum, slot) => {
+        const actual = day.actual[slot.key]
+        if (actual) {
+          sum.calories += actual.calories
+          sum.protein += actual.protein
+          sum.carbs += actual.carbs
+          sum.fat += actual.fat
+          return sum
+        }
+        day.slots[slot.key].forEach((id) => {
           const r = recipes.find((rec) => rec.id === id)
           if (!r) return
           const m = recipeMacros(r, ingredientCatalog)
@@ -562,12 +629,58 @@ function Calendar({
                         onAdd={(recipeIds) => addRecipesToSlot(dayIndex, slot.key, recipeIds)}
                       />
                     )}
+
+                    {day.actual[slot.key] &&
+                      (() => {
+                        const entry = day.actual[slot.key]!
+                        const content = (
+                          <>
+                            {entry.photo && (
+                              <img
+                                src={entry.photo}
+                                alt=""
+                                className="w-40 h-40 object-cover border-2 border-black shrink-0"
+                              />
+                            )}
+                            <span className="flex flex-col">
+                              <span className="text-12 font-title font-bold uppercase text-neutral-500">
+                                Actually ate
+                              </span>
+                              <span className="text-14 font-title font-bold">{entry.description}</span>
+                              <span className="text-12 font-title text-neutral-500">
+                                {Math.round(entry.calories)} kcal
+                              </span>
+                            </span>
+                          </>
+                        )
+                        return editingDays.has(dayIndex) ? (
+                          <button
+                            type="button"
+                            onClick={() => setActualTarget({ dayIndex, slotKey: slot.key })}
+                            className="main-btn flex items-center gap-10 p-10 bg-main-yellow/20 text-left"
+                          >
+                            {content}
+                          </button>
+                        ) : (
+                          <div className="main-btn flex items-center gap-10 p-10 bg-main-yellow/20">{content}</div>
+                        )
+                      })()}
+
+                    {editingDays.has(dayIndex) && !day.actual[slot.key] && (
+                      <button
+                        type="button"
+                        onClick={() => setActualTarget({ dayIndex, slotKey: slot.key })}
+                        className="main-btn font-title font-bold text-12 px-10 py-5 self-start text-neutral-500"
+                      >
+                        + Log what you ate
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
 
               {(() => {
-                const totals = lockedDayMacros(day.slots)
+                const totals = dayTotalMacros(day)
                 const hasAnything = totals.calories > 0
                 if (!hasAnything) return null
                 return (
@@ -608,6 +721,24 @@ function Calendar({
             setSuggestTarget(null)
           }}
           onClose={() => setSuggestTarget(null)}
+        />
+      )}
+
+      {actualTarget && (
+        <ActualEntryModal
+          slotLabel={SLOTS.find((s) => s.key === actualTarget.slotKey)?.label ?? ''}
+          recipes={recipes}
+          ingredientCatalog={ingredientCatalog}
+          initial={activeWeek.days[actualTarget.dayIndex]?.actual[actualTarget.slotKey] ?? null}
+          onSave={(entry) => {
+            setActualEntry(actualTarget.dayIndex, actualTarget.slotKey, entry)
+            setActualTarget(null)
+          }}
+          onDelete={() => {
+            clearActualEntry(actualTarget.dayIndex, actualTarget.slotKey)
+            setActualTarget(null)
+          }}
+          onClose={() => setActualTarget(null)}
         />
       )}
     </div>

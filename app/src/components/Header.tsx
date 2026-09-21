@@ -1,15 +1,4 @@
-// Builds a stack of 1px-incrementing text-shadow layers so the letters
-// look like a solid 3D extruded block instead of a single flat shadow copy.
-function buildExtrudeShadow(steps: number, color: string) {
-  const layers: string[] = []
-  for (let i = 1; i <= steps; i++) {
-    layers.push(`-${i}px ${i}px 0 ${color}`)
-  }
-  return layers.join(', ')
-}
-
-const EXTRUDE_DEPTH = 14
-const extrudeShadow = buildExtrudeShadow(EXTRUDE_DEPTH, '#000')
+import Logo from './Logo'
 
 type HeaderProps = {
   isMenuOpen: boolean
@@ -22,17 +11,8 @@ function Header({ isMenuOpen, onToggleMenu }: HeaderProps) {
       <div className="container flex items-center gap-20">
         <div className="w-40 shrink-0 tab:hidden" aria-hidden="true" />
 
-        <h1
-          className="flex-1 text-52 font-title font-black uppercase text-white text-center leading-none"
-          style={{
-            WebkitTextStroke: '3px black',
-            paintOrder: 'stroke fill',
-            textShadow: extrudeShadow,
-          }}
-        >
-          Food
-          <br />
-          Matters
+        <h1 className="flex-1">
+          <Logo />
         </h1>
 
         <button
