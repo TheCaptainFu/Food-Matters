@@ -506,7 +506,7 @@ function Calendar({
           </p>
         )}
 
-        <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-20 overflow-x-auto sm:overflow-visible touch-pan-x snap-x snap-proximity pb-10 sm:pb-0 -mx-20 px-20 sm:mx-0 sm:px-0">
+        <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-20 overflow-x-auto sm:overflow-visible touch-pan-x touch-pan-y snap-x snap-proximity pb-10 sm:pb-0 -mx-20 px-20 sm:mx-0 sm:px-0">
           {activeWeek.days.map((day, dayIndex) => (
             <div
               key={day.label}

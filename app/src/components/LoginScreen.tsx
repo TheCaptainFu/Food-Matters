@@ -29,7 +29,7 @@ function LoginScreen() {
     <div className="min-h-screen flex items-center justify-center p-20">
       <div className="main-btn bg-white p-30 flex flex-col gap-20 w-full max-w-[400px]">
         <div className="flex flex-col gap-15">
-          <Logo className="text-46" />
+          <Logo className="text-46 text-center" />
           <p className="text-14 font-title text-neutral-500 text-center">
             Sign in to save your recipes, plans and profile to your account.
           </p>

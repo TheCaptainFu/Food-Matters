@@ -18,7 +18,7 @@ type LogoProps = {
 function Logo({ className }: LogoProps) {
   return (
     <div
-      className={`font-title font-black uppercase text-white text-center leading-none ${className ?? 'text-52'}`}
+      className={`font-title font-black uppercase text-white leading-none ${className ?? 'text-52 text-center'}`}
       style={{
         WebkitTextStroke: '3px black',
         paintOrder: 'stroke fill',
