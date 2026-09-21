@@ -26,6 +26,7 @@ function AddRecipeModal({
   const [title, setTitle] = useState(initialRecipe?.title ?? '')
   const [category, setCategory] = useState<Category>(initialRecipe?.category ?? CATEGORIES[0].value)
   const [mealTypes, setMealTypes] = useState<SlotKey[]>(initialRecipe?.mealTypes ?? [])
+  const [instructions, setInstructions] = useState(initialRecipe?.instructions ?? '')
   const [ingredients, setIngredients] = useState<Ingredient[]>(initialRecipe?.ingredients ?? [])
   const [isPickerOpen, setIsPickerOpen] = useState(false)
 
@@ -73,6 +74,7 @@ function AddRecipeModal({
       category,
       mealTypes,
       ingredients: cleanIngredients,
+      instructions: instructions.trim() || undefined,
     })
   }
 
@@ -86,7 +88,7 @@ function AddRecipeModal({
           <form
             onSubmit={handleSubmit}
             onClick={(e) => e.stopPropagation()}
-            className="border-3 bg-white p-30 flex flex-col gap-20 w-full max-w-[400px]"
+            className="border-3 bg-white p-30 flex flex-col gap-20 w-full max-w-[400px] max-h-[85vh] overflow-y-auto"
           >
             <h2 className="text-20 font-title font-bold uppercase">
               {initialRecipe ? 'Edit Recipe' : 'New Recipe'}
@@ -184,6 +186,17 @@ function AddRecipeModal({
                 + Ingredient
               </button>
             </div>
+
+            <label className="flex flex-col gap-10">
+              <span className="text-16 font-title font-bold uppercase">Instructions (optional)</span>
+              <textarea
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                placeholder="How do you make it?"
+                rows={5}
+                className="border-3 border-black px-15 py-10 font-title resize-y"
+              />
+            </label>
 
             <div className="flex gap-10 justify-end">
               <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">

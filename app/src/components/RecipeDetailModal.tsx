@@ -22,7 +22,7 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="main-btn bg-white p-30 flex flex-col gap-20 w-full max-w-md"
+        className="main-btn bg-white p-30 flex flex-col gap-20 w-full max-w-md max-h-[85vh] overflow-y-auto"
       >
         <h2 className="text-20 font-title font-bold uppercase">{recipe.title}</h2>
 
@@ -47,6 +47,13 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
             </div>
           ))}
         </div>
+
+        {recipe.instructions && (
+          <div className="flex flex-col gap-10">
+            <span className="text-16 font-title font-bold uppercase">How to make it</span>
+            <p className="text-14 font-title whitespace-pre-line leading-relaxed">{recipe.instructions}</p>
+          </div>
+        )}
 
         <div className="main-btn p-15 flex flex-col gap-5">
           <span className="text-14 font-title font-bold uppercase">

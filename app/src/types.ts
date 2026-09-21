@@ -52,6 +52,9 @@ export type Recipe = {
   // for breakfast. Defaults to every slot for older/legacy data.
   mealTypes: SlotKey[]
   ingredients: Ingredient[]
+  // How to actually make it — optional so older/legacy recipes without one
+  // just don't show a "how to make it" section instead of breaking.
+  instructions?: string
 }
 export type Day = { label: string; slots: Record<SlotKey, string[]> }
 export type Week = { id: string; label: string; days: Day[] }

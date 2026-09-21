@@ -87,7 +87,9 @@ function Calendar({
   // list if nothing is tagged for that slot yet (e.g. a brand-new recipe
   // library), rather than offering nothing at all.
   function recipesForSlot(slotKey: SlotKey): Recipe[] {
-    const tagged = compatibleRecipes.filter((r) => r.mealTypes.includes(slotKey))
+    // Guard against recipes saved before mealTypes existed (no field on
+    // them yet) — treat those as fitting every slot rather than crashing.
+    const tagged = compatibleRecipes.filter((r) => (r.mealTypes ?? []).includes(slotKey))
     return tagged.length > 0 ? tagged : compatibleRecipes
   }
 
@@ -340,28 +342,9 @@ function Calendar({
     })
   }
 
-  // Same idea as autoFillDay, but across the whole week at once — variety
-  // is tracked across all 7 days, so it won't just repeat the same closest
-  // match for every slot.
-  function generateWeek() {
-    if (dailyMacroTargets === null) return
-    const usageCounts = new Map<string, number>()
-
-    activeWeek.days.forEach((day, dayIndex) => {
-      const picks = pickFillsForDay(day.slots, usageCounts)
-      SLOTS.forEach((slot) => {
-        const recipe = picks[slot.key]
-        if (!recipe) return
-        usageCounts.set(recipe.id, (usageCounts.get(recipe.id) ?? 0) + 1)
-        addRecipesToSlot(dayIndex, slot.key, [recipe.id])
-      })
-    })
-  }
-
   // Clears every slot in the week first, then fills the whole thing from
-  // scratch — unlike Generate Week, this also replaces whatever's already
-  // planned, so the result actually tracks the current targets instead of
-  // leaving old picks (e.g. from the demo week) sitting there unmatched.
+  // scratch, so the result actually tracks the current targets instead of
+  // leaving old or mismatched picks sitting there.
   function regenerateWeek() {
     if (dailyMacroTargets === null) return
     setPendingConfirm({
@@ -413,22 +396,12 @@ function Calendar({
                 {week.label}
               </button>
             ))}
+            <button type="button" onClick={addWeek} className="main-btn font-title font-bold px-15 py-10">
+              + Week
+            </button>
           </div>
 
           <div className="flex flex-wrap gap-10">
-            <button
-              type="button"
-              onClick={generateWeek}
-              disabled={dailyTarget === null}
-              title={
-                dailyTarget === null
-                  ? 'Set your profile in Calories first'
-                  : "Fill every empty slot this week to match your daily target"
-              }
-              className="main-btn font-title font-bold px-15 py-10 bg-main-blue text-white disabled:opacity-30 disabled:pointer-events-none"
-            >
-              Generate Week
-            </button>
             <button
               type="button"
               onClick={regenerateWeek}
@@ -438,12 +411,9 @@ function Calendar({
                   ? 'Set your profile in Calories first'
                   : 'Clear this week and regenerate it entirely to match your targets'
               }
-              className="main-btn font-title font-bold px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
+              className="main-btn font-title font-bold px-15 py-10 bg-main-blue text-white disabled:opacity-30 disabled:pointer-events-none"
             >
               Regenerate Week
-            </button>
-            <button type="button" onClick={addWeek} className="main-btn font-title font-bold px-15 py-10">
-              + Week
             </button>
             <button
               type="button"
@@ -469,9 +439,12 @@ function Calendar({
           </p>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-20">
+        <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-20 overflow-x-auto sm:overflow-visible touch-pan-x snap-x snap-proximity pb-10 sm:pb-0 -mx-20 px-20 sm:mx-0 sm:px-0">
           {activeWeek.days.map((day, dayIndex) => (
-            <div key={day.label} className="main-btn flex flex-col gap-30 p-20">
+            <div
+              key={day.label}
+              className="main-btn flex flex-col gap-30 p-20 shrink-0 w-[85vw] sm:w-auto snap-center"
+            >
               <div className="flex items-center justify-between gap-10">
                 <h3 className="font-title font-bold uppercase text-18">{day.label}</h3>
                 <div className="flex gap-10">
@@ -537,7 +510,7 @@ function Calendar({
                       return (
                         <div
                           key={recipeIndex}
-                          draggable
+                          draggable={editingDays.has(dayIndex)}
                           onDragStart={(e) => {
                             e.dataTransfer.setData(
                               'application/json',

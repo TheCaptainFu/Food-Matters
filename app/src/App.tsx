@@ -10,6 +10,7 @@ import AddRecipeModal from './components/AddRecipeModal'
 import ConfirmModal from './components/ConfirmModal'
 import { useEffect, useState } from 'react'
 import type { Recipe, Week, IngredientDef } from './types'
+import { SLOT_KEYS } from './types'
 import type { Profile } from './nutrition'
 import { normalizeProfile } from './nutrition'
 import { SAMPLE_RECIPES } from './sampleRecipes'
@@ -32,16 +33,34 @@ const CURRENT_CATALOG_VERSION = 2
 // Same idea, but for the seeded recipe library.
 const CURRENT_RECIPES_VERSION = 2
 
+const ALL_SLOT_KEYS = SLOT_KEYS.map((s) => s.value)
+
 function initRecipes(): Recipe[] {
   const stored = loadFromStorage<Recipe[] | null>(RECIPES_KEY, null)
   if (!stored) return SAMPLE_RECIPES
 
-  const version = loadFromStorage(RECIPES_VERSION_KEY, 0)
-  if (version >= CURRENT_RECIPES_VERSION) return stored
+  const sampleByTitle = new Map(SAMPLE_RECIPES.map((r) => [r.title.toLowerCase(), r]))
 
-  const existingTitles = new Set(stored.map((r) => r.title.toLowerCase()))
+  // Recipes saved before mealTypes/instructions existed don't have them —
+  // backfill from the matching seed recipe (or fall back to "every meal"
+  // for mealTypes on recipes the user made themselves) instead of crashing
+  // or silently missing the new fields. Never touches a user's own
+  // instructions if they already wrote some.
+  const normalized = stored.map((r) => {
+    const sample = sampleByTitle.get(r.title.toLowerCase())
+    return {
+      ...r,
+      mealTypes: r.mealTypes && r.mealTypes.length > 0 ? r.mealTypes : (sample?.mealTypes ?? ALL_SLOT_KEYS),
+      instructions: r.instructions ?? sample?.instructions,
+    }
+  })
+
+  const version = loadFromStorage(RECIPES_VERSION_KEY, 0)
+  if (version >= CURRENT_RECIPES_VERSION) return normalized
+
+  const existingTitles = new Set(normalized.map((r) => r.title.toLowerCase()))
   const missing = SAMPLE_RECIPES.filter((r) => !existingTitles.has(r.title.toLowerCase()))
-  return [...stored, ...missing]
+  return [...normalized, ...missing]
 }
 
 function initIngredientCatalog(): IngredientDef[] {
