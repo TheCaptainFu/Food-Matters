@@ -5,7 +5,7 @@ export const SAMPLE_RECIPES: Recipe[] = [
     id: 'seed-1',
     title: 'Greek Salad',
     category: 'vegetarian',
-    mealTypes: ['lunch', 'dinner', 'afternoon'],
+    mealTypes: ['lunch', 'dinner'],
     instructions:
       'Chop the tomato and cucumber into chunks. Combine in a bowl with the crumbled feta and olives. Drizzle with a little olive oil if you like and serve immediately.',
     ingredients: [
@@ -45,7 +45,7 @@ export const SAMPLE_RECIPES: Recipe[] = [
     id: 'seed-4',
     title: 'Omelette',
     category: 'vegetarian',
-    mealTypes: ['breakfast', 'afternoon'],
+    mealTypes: ['breakfast'],
     instructions:
       'Whisk the eggs in a bowl. Melt the butter in a pan over medium heat, pour in the eggs, and sprinkle the cheese on top. Fold in half once the edges set and cook until the center is just firm.',
     ingredients: [
@@ -222,7 +222,7 @@ export const SAMPLE_RECIPES: Recipe[] = [
     id: 'seed-17',
     title: 'Pasta Salad',
     category: 'pasta',
-    mealTypes: ['lunch', 'afternoon'],
+    mealTypes: ['lunch'],
     instructions:
       'Boil the pasta and let it cool. Toss with the chopped tomato, cucumber and crumbled feta cheese, then chill briefly before serving.',
     ingredients: [
@@ -305,7 +305,7 @@ export const SAMPLE_RECIPES: Recipe[] = [
     id: 'seed-23',
     title: 'BBQ Chicken Wings',
     category: 'meat',
-    mealTypes: ['lunch', 'dinner', 'afternoon'],
+    mealTypes: ['lunch', 'dinner'],
     instructions:
       'Toss the chicken wings with half the BBQ sauce. Bake at 200°C for about 30-35 minutes, turning halfway, then toss with the remaining sauce before serving.',
     ingredients: [
@@ -501,7 +501,7 @@ export const SAMPLE_RECIPES: Recipe[] = [
     id: 'seed-38',
     title: 'Squid Rings',
     category: 'fish',
-    mealTypes: ['lunch', 'dinner', 'afternoon'],
+    mealTypes: ['lunch', 'dinner'],
     instructions:
       'Slice the squid into rings and dust with flour. Fry in hot olive oil for 1-2 minutes until golden — don\'t overcook or they\'ll turn rubbery.',
     ingredients: [
@@ -555,7 +555,7 @@ export const SAMPLE_RECIPES: Recipe[] = [
     id: 'seed-42',
     title: 'Falafel Wrap',
     category: 'vegetarian',
-    mealTypes: ['lunch', 'afternoon'],
+    mealTypes: ['lunch'],
     instructions:
       'Warm the falafel through (pan-fry or bake). Spread hummus over the tortilla, add the falafel, and roll up into a wrap.',
     ingredients: [
@@ -620,7 +620,7 @@ export const SAMPLE_RECIPES: Recipe[] = [
     id: 'seed-47',
     title: 'Quinoa Salad',
     category: 'vegetarian',
-    mealTypes: ['lunch', 'afternoon'],
+    mealTypes: ['lunch'],
     instructions:
       'Cook the quinoa and let it cool. Toss with the diced cucumber and crumbled feta cheese.',
     ingredients: [
@@ -687,7 +687,7 @@ export const SAMPLE_RECIPES: Recipe[] = [
     id: 'seed-52',
     title: 'Chocolate Mousse',
     category: 'dessert',
-    mealTypes: ['afternoon', 'dinner'],
+    mealTypes: ['dinner'],
     instructions:
       'Melt the dark chocolate gently. Whip the cream, separate the eggs, and fold the yolks into the melted chocolate, then fold in the whipped cream. Chill for at least an hour before serving.',
     ingredients: [
@@ -713,7 +713,7 @@ export const SAMPLE_RECIPES: Recipe[] = [
     id: 'seed-54',
     title: 'Apple Pie',
     category: 'dessert',
-    mealTypes: ['afternoon', 'dinner'],
+    mealTypes: ['dinner'],
     instructions:
       'Slice the apples and toss with a little sugar. Make a simple butter-and-flour pastry, line a dish, fill with the apples, top with more pastry, and bake at 190°C for about 35-40 minutes until golden.',
     ingredients: [
@@ -726,7 +726,7 @@ export const SAMPLE_RECIPES: Recipe[] = [
     id: 'seed-55',
     title: 'Rice Pudding',
     category: 'dessert',
-    mealTypes: ['afternoon', 'dinner'],
+    mealTypes: ['dinner'],
     instructions:
       'Combine the rice, milk and sugar in a pot. Simmer gently, stirring often, for about 25-30 minutes until thickened and creamy.',
     ingredients: [
@@ -791,7 +791,7 @@ export const SAMPLE_RECIPES: Recipe[] = [
     id: 'seed-60',
     title: 'Baklava',
     category: 'dessert',
-    mealTypes: ['afternoon'],
+    mealTypes: ['dinner'],
     instructions:
       'Layer chopped walnuts between sheets of pastry, brushing each layer with melted butter. Bake at 180°C until golden, then pour warm honey over the top and let it soak in before serving.',
     ingredients: [
