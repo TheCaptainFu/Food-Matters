@@ -383,7 +383,15 @@ function Calories({ recipes, weeks, ingredientCatalog, profile, onSaveProfile, o
               onClick={(e) => e.stopPropagation()}
               className="main-btn bg-white p-30 flex flex-col gap-15 w-full max-w-[400px]"
             >
-              <h2 className="text-20 font-title font-bold uppercase">Your Profile</h2>
+              <h2 className="text-20 font-title font-bold uppercase">
+                {profile ? 'Your Profile' : 'Welcome to Food Matters'}
+              </h2>
+              {!profile && (
+                <p className="text-14 font-title text-neutral-500 -mt-5">
+                  Tell us about yourself so we can work out your daily targets and build a meal plan that fits
+                  you.
+                </p>
+              )}
 
               <label className="flex flex-col gap-5">
                 <span className="text-14 font-title font-bold">Age</span>

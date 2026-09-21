@@ -13,7 +13,7 @@ import type { Recipe, Week, IngredientDef } from './types'
 import type { Profile } from './nutrition'
 import { normalizeProfile } from './nutrition'
 import { SAMPLE_RECIPES } from './sampleRecipes'
-import { makeSeededWeek } from './weekUtils'
+import { makeWeek } from './weekUtils'
 import { DEFAULT_INGREDIENT_CATALOG } from './ingredientCatalog'
 import { loadFromStorage, saveToStorage } from './storage'
 
@@ -69,12 +69,17 @@ function initIngredientCatalog(): IngredientDef[] {
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabKey>('calendar')
+  // A brand-new visitor (no profile saved yet) lands on Calories, where the
+  // profile wizard opens automatically — not on an empty Calendar with no
+  // explanation of what to do next.
+  const [activeTab, setActiveTab] = useState<TabKey>(() =>
+    loadFromStorage<Partial<Profile> | null>(PROFILE_KEY, null) ? 'calendar' : 'calories',
+  )
   const [recipes, setRecipes] = useState<Recipe[]>(initRecipes)
 
-  const [weeks, setWeeks] = useState<Week[]>(() =>
-    loadFromStorage(WEEKS_KEY, [makeSeededWeek('Week 1')]),
-  )
+  // New users start with an empty Week 1 — no demo meals already assigned —
+  // so the plan they see is only ever one they (or Generate Week) built.
+  const [weeks, setWeeks] = useState<Week[]>(() => loadFromStorage(WEEKS_KEY, [makeWeek('Week 1')]))
   const [activeWeekId, setActiveWeekId] = useState(weeks[0].id)
 
   const [ingredientCatalog, setIngredientCatalog] = useState<IngredientDef[]>(initIngredientCatalog)
