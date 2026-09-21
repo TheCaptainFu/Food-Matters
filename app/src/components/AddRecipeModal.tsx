@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { Recipe, Ingredient, Unit, Category, IngredientDef, SlotKey } from '../types'
 import { UNITS, CATEGORIES, SLOT_KEYS } from '../types'
+import { spoonHint } from '../nutrition'
 import IngredientPickerModal from './IngredientPickerModal'
 
 type AddRecipeModalProps = {
@@ -141,42 +142,48 @@ function AddRecipeModal({
             <div className="flex flex-col gap-10">
               <span className="text-16 font-title font-bold uppercase">Ingredients</span>
 
-              {ingredients.map((ing, i) => (
-                <div key={i} className="flex flex-wrap gap-10">
-                  <span className="flex-1 min-w-100 bg-white border-3 border-black px-10 py-5 font-title font-bold flex items-center truncate">
-                    {ing.name}
-                  </span>
-                  <div className="flex gap-10">
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="Qty"
-                      value={ing.amount || ''}
-                      onChange={(e) => updateIngredient(i, 'amount', e.target.value)}
-                      className="border-3 border-black px-10 py-5 w-90 font-title"
-                    />
-                    <select
-                      value={ing.unit}
-                      onChange={(e) => updateIngredient(i, 'unit', e.target.value)}
-                      className="bg-white border-3 border-black pl-10 pr-30 py-5 text-14 font-title"
-                    >
-                      {UNITS.map((u) => (
-                        <option key={u.value} value={u.value}>
-                          {u.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => removeIngredientRow(i)}
-                      className="main-btn px-10"
-                      aria-label="Remove ingredient"
-                    >
-                      ✕
-                    </button>
+              {ingredients.map((ing, i) => {
+                const hint = ing.unit === 'g' ? spoonHint(ing.amount) : null
+                return (
+                  <div key={i} className="flex flex-wrap gap-10">
+                    <span className="flex-1 min-w-100 bg-white border-3 border-black px-10 py-5 font-title font-bold flex items-center truncate">
+                      {ing.name}
+                    </span>
+                    <div className="flex flex-col gap-5">
+                      <div className="flex gap-10">
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Qty"
+                          value={ing.amount || ''}
+                          onChange={(e) => updateIngredient(i, 'amount', e.target.value)}
+                          className="border-3 border-black px-10 py-5 w-90 font-title"
+                        />
+                        <select
+                          value={ing.unit}
+                          onChange={(e) => updateIngredient(i, 'unit', e.target.value)}
+                          className="bg-white border-3 border-black pl-10 pr-30 py-5 text-14 font-title"
+                        >
+                          {UNITS.map((u) => (
+                            <option key={u.value} value={u.value}>
+                              {u.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => removeIngredientRow(i)}
+                          className="main-btn px-10"
+                          aria-label="Remove ingredient"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      {hint && <span className="text-12 font-title text-neutral-500">{hint}</span>}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
 
               <button
                 type="button"

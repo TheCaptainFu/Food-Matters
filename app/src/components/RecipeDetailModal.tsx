@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom'
 import type { IngredientDef, Recipe } from '../types'
 import { UNITS, CATEGORIES } from '../types'
-import { recipeMacros } from '../nutrition'
+import { recipeMacros, spoonHint } from '../nutrition'
 
 type RecipeDetailModalProps = {
   recipe: Recipe
@@ -41,8 +41,13 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
               className="flex items-center justify-between gap-5 bg-white border-2 border-black font-bold px-10 py-5"
             >
               <span className="text-14 text-black font-title">{ing.name}</span>
-              <span className="text-14 text-black font-title">
+              <span className="text-14 text-black font-title text-right">
                 {ing.amount} {UNITS.find((u) => u.value === ing.unit)?.label ?? ing.unit}
+                {ing.unit === 'g' && spoonHint(ing.amount) && (
+                  <span className="block text-12 text-neutral-500 font-normal normal-case">
+                    {spoonHint(ing.amount)}
+                  </span>
+                )}
               </span>
             </div>
           ))}

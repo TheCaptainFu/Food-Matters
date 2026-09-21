@@ -15,6 +15,29 @@ function gramsFor(amount: number, unit: Unit): number {
   }
 }
 
+// Nearest half-unit, formatted with a fraction glyph instead of "1.5" so it
+// reads like a recipe card ("1½ tbsp") rather than a calculator output.
+function formatSpoonCount(value: number): string {
+  const whole = Math.floor(value)
+  const isHalf = value - whole >= 0.25 && value - whole < 0.75
+  if (whole === 0) return isHalf ? '½' : `${Math.round(value)}`
+  return isHalf ? `${whole}½` : `${Math.round(value)}`
+}
+
+// A gram amount doesn't mean much to someone without a kitchen scale, so we
+// offer a rough spoon-based reading alongside it — same 5g/tsp, 15g/tbsp
+// approximation already used for the calorie estimate above. It's an
+// estimate (spoon size varies by ingredient), so we only show it as a hint.
+export function spoonHint(grams: number): string | null {
+  if (grams < 2.5) return null
+  if (grams < 12.5) {
+    const tsp = Math.round((grams / 5) * 2) / 2
+    return `≈ ${formatSpoonCount(tsp)} tsp`
+  }
+  const tbsp = Math.round((grams / 15) * 2) / 2
+  return `≈ ${formatSpoonCount(tbsp)} tbsp`
+}
+
 export type Macros = { calories: number; protein: number; carbs: number; fat: number }
 
 // Nutrition values come from the user's own ingredient catalog — an
