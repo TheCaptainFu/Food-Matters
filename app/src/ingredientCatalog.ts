@@ -3,7 +3,7 @@ import type { IngredientDef } from './types'
 // Starting point only — the user can add, edit, or delete any entry, and
 // their changes get saved alongside this. Nothing here is fixed. Values are
 // rough, widely-published per-100g estimates (not exact nutrition tracking).
-export const DEFAULT_INGREDIENT_CATALOG: IngredientDef[] = [
+const RAW_INGREDIENT_CATALOG: IngredientDef[] = [
   // Meat & poultry
   { name: 'Chicken Breast', category: 'meat', caloriesPer100g: 165, proteinPer100g: 31, carbsPer100g: 0, fatPer100g: 3.6 },
   { name: 'Chicken Thigh', category: 'meat', caloriesPer100g: 209, proteinPer100g: 26, carbsPer100g: 0, fatPer100g: 11 },
@@ -199,4 +199,6 @@ export const DEFAULT_INGREDIENT_CATALOG: IngredientDef[] = [
 
   // Misc protein
   { name: 'Protein Powder (Whey)', category: 'protein', caloriesPer100g: 400, proteinPer100g: 80, carbsPer100g: 8, fatPer100g: 5 },
-].sort((a, b) => a.name.localeCompare(b.name))
+]
+
+export const DEFAULT_INGREDIENT_CATALOG = RAW_INGREDIENT_CATALOG.sort((a, b) => a.name.localeCompare(b.name))
