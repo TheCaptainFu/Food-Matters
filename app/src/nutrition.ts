@@ -72,12 +72,19 @@ export function recipeMacros(recipe: Recipe, catalog: IngredientDef[]): Macros {
 export type Sex = 'male' | 'female'
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
 
-export const ACTIVITY_LEVELS: { value: ActivityLevel; label: string; multiplier: number }[] = [
-  { value: 'sedentary', label: 'Sedentary (little exercise)', multiplier: 1.2 },
-  { value: 'light', label: 'Light exercise', multiplier: 1.375 },
-  { value: 'moderate', label: 'Moderate exercise', multiplier: 1.55 },
-  { value: 'active', label: 'Active', multiplier: 1.725 },
-  { value: 'very_active', label: 'Very active', multiplier: 1.9 },
+export const ACTIVITY_LEVELS: { value: ActivityLevel; label: string; description: string; multiplier: number }[] = [
+  // Descriptions spell out the frequency each standard multiplier assumes,
+  // so people can place themselves instead of guessing what "active" means.
+  { value: 'sedentary', label: 'Sedentary', description: 'Desk job, little or no exercise', multiplier: 1.2 },
+  { value: 'light', label: 'Lightly active', description: 'Exercise 1–3 days a week', multiplier: 1.375 },
+  { value: 'moderate', label: 'Moderately active', description: 'Exercise 3–5 days a week', multiplier: 1.55 },
+  { value: 'active', label: 'Very active', description: 'Hard exercise 6–7 days a week', multiplier: 1.725 },
+  {
+    value: 'very_active',
+    label: 'Extremely active',
+    description: 'Physical job, or training twice a day',
+    multiplier: 1.9,
+  },
 ]
 
 export type Goal = 'lose' | 'maintain' | 'gain'
@@ -175,6 +182,16 @@ export function suggestedMacroTargets(profile: VitalStats): MacroTargets {
   const carbs = Math.max(0, Math.round(remaining / 4))
 
   return { calories, protein, carbs, fat }
+}
+
+// 35ml per kg of body weight is a commonly used dietitian rule of thumb for
+// daily water intake, plus extra for anyone working out regularly to cover
+// sweat loss. Rounded to the nearest 100ml so it reads like a real target,
+// not a lab measurement.
+export function calculateWaterTargetMl(profile: Pick<Profile, 'weightKg' | 'worksOut'>): number {
+  const base = profile.weightKg * 35
+  const withExercise = profile.worksOut ? base + 500 : base
+  return Math.round(withExercise / 100) * 100
 }
 
 // The targets actually used across the app: the suggested values, unless

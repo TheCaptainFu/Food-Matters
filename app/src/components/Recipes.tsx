@@ -1,7 +1,17 @@
 import { useState } from 'react'
 import AddRecipeModal from './AddRecipeModal'
-import type { Recipe, IngredientDef } from '../types'
-import { CATEGORIES } from '../types'
+import IngredientsManager from './IngredientsManager'
+import type { Recipe, IngredientDef, SlotKey } from '../types'
+import { CATEGORIES, SLOT_KEYS } from '../types'
+
+// Same colours as each meal's badge on the Calendar. Literal class strings
+// (not interpolated) so the Tailwind build picks them up.
+const MEAL_ACTIVE: Record<SlotKey, string> = {
+  breakfast: 'bg-main-yellow text-black',
+  lunch: 'bg-main-orange text-black',
+  afternoon: 'bg-main-teal text-black',
+  dinner: 'bg-main-blue text-white',
+}
 
 type RecipesProps = {
   recipes: Recipe[]
@@ -23,6 +33,11 @@ function Recipes({
   onOpenRecipe,
 }: RecipesProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  // Recipes and the ingredients they're built from live on one page, as
+  // two tabs — the ingredients tab is where ingredients get edited.
+  const [view, setView] = useState<'recipes' | 'ingredients'>('recipes')
+  // Two independent filters: which meal it's for, and what kind of dish.
+  const [mealFilter, setMealFilter] = useState<'all' | SlotKey>('all')
   const [categoryFilter, setCategoryFilter] = useState<'all' | Recipe['category']>('all')
   const [search, setSearch] = useState('')
 
@@ -32,24 +47,91 @@ function Recipes({
   }
 
   const visibleRecipes = recipes.filter((recipe) => {
+    const matchesMeal = mealFilter === 'all' || (recipe.mealTypes ?? []).includes(mealFilter)
     const matchesCategory = categoryFilter === 'all' || recipe.category === categoryFilter
     const matchesSearch = recipe.title.toLowerCase().includes(search.trim().toLowerCase())
-    return matchesCategory && matchesSearch
+    return matchesMeal && matchesCategory && matchesSearch
   })
 
   return (
     <div className="py-20">
-      <div className="container flex flex-col gap-40">
-        <div className="flex flex-wrap items-center justify-between gap-15">
-          <div className="flex flex-wrap gap-10">
+      <div className="container flex flex-col gap-25">
+        <div className="flex flex-wrap items-end justify-between gap-x-20 gap-y-10 border-b-3 border-black">
+          <div className="flex gap-10">
+          {(
+            [
+              { key: 'recipes', label: 'Recipes' },
+              { key: 'ingredients', label: 'Ingredients' },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setView(tab.key)}
+              className={
+                view === tab.key
+                  ? 'font-title font-bold uppercase text-18 px-15 py-10 -mb-[3px] border-3 border-b-0 border-black bg-white cursor-pointer'
+                  : 'font-title font-bold uppercase text-18 px-15 py-10 text-neutral-500 hover:text-black cursor-pointer'
+              }
+            >
+              {tab.label}
+            </button>
+          ))}
+          </div>
+          {view === 'recipes' && (
+            <input
+              type="search"
+              placeholder="Search recipes…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="border-3 border-black px-15 py-5 mb-10 font-title w-full sm:w-[260px]"
+            />
+          )}
+        </div>
+
+        {view === 'ingredients' ? (
+          <IngredientsManager
+            catalog={ingredientCatalog}
+            recipes={recipes}
+            onAdd={onAddIngredientDef}
+            onEdit={onEditIngredientDef}
+            onDelete={onDeleteIngredientDef}
+          />
+        ) : (
+        <>
+        {/* Two filters side by side: which meal it's for, and what kind of dish. */}
+        <div className="flex flex-wrap items-center gap-x-30 gap-y-15">
+          <div className="flex flex-wrap items-center gap-10">
+            <span className="text-14 font-title font-bold uppercase text-neutral-500 w-[50px]">Meal</span>
+            <button
+              type="button"
+              onClick={() => setMealFilter('all')}
+              className={mealFilter === 'all' ? 'main-btn font-title font-bold text-14 px-10 py-5 bg-black text-white' : 'main-btn font-title font-bold text-14 px-10 py-5'}
+            >
+              All
+            </button>
+            {SLOT_KEYS.map((slot) => (
+              <button
+                key={slot.value}
+                type="button"
+                onClick={() => setMealFilter(slot.value)}
+                className={
+                  mealFilter === slot.value ? `main-btn font-title font-bold text-14 px-10 py-5 ${MEAL_ACTIVE[slot.value]}` : 'main-btn font-title font-bold text-14 px-10 py-5'
+                }
+              >
+                {slot.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="hidden lg:block w-[2px] self-stretch bg-neutral-200" />
+
+          <div className="flex flex-wrap items-center gap-10">
+            <span className="text-14 font-title font-bold uppercase text-neutral-500 w-[50px] lg:w-auto">Type</span>
             <button
               type="button"
               onClick={() => setCategoryFilter('all')}
-              className={
-                categoryFilter === 'all'
-                  ? 'main-btn font-title font-bold bg-main-blue text-white px-15 py-10'
-                  : 'main-btn font-title font-bold px-15 py-10'
-              }
+              className={categoryFilter === 'all' ? 'main-btn font-title font-bold text-14 px-10 py-5 bg-black text-white' : 'main-btn font-title font-bold text-14 px-10 py-5'}
             >
               All
             </button>
@@ -59,26 +141,42 @@ function Recipes({
                 type="button"
                 onClick={() => setCategoryFilter(c.value)}
                 className={
-                  categoryFilter === c.value
-                    ? `main-btn font-title font-bold text-black px-15 py-10 ${c.color}`
-                    : 'main-btn font-title font-bold px-15 py-10'
+                  categoryFilter === c.value ? `main-btn font-title font-bold text-14 text-black px-10 py-5 ${c.color}` : 'main-btn font-title font-bold text-14 px-10 py-5'
                 }
               >
                 {c.label}
               </button>
             ))}
           </div>
-
-          <input
-            type="text"
-            placeholder="Search recipes…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="border-3 border-black px-15 py-10 font-title w-full sm:w-auto"
-          />
         </div>
 
+        {visibleRecipes.length === 0 && (
+          <p className="text-14 font-title text-neutral-500">
+            No recipes match these filters.{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setMealFilter('all')
+                setCategoryFilter('all')
+                setSearch('')
+              }}
+              className="font-bold text-black underline cursor-pointer"
+            >
+              Clear filters
+            </button>
+          </p>
+        )}
+
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-20">
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            aria-label="Add recipe"
+            className="main-btn flex items-center justify-center p-20 min-h-100 text-4xl font-title font-bold"
+          >
+            +
+          </button>
+
           {visibleRecipes.map((recipe) => {
             const categoryColor = CATEGORIES.find((c) => c.value === recipe.category)?.color ?? 'bg-neutral-200'
             return (
@@ -96,21 +194,15 @@ function Recipes({
             )
           })}
 
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="main-btn flex items-center justify-center p-20 min-h-100 text-4xl font-title font-bold"
-          >
-            +
-          </button>
         </div>
+
+        </>
+        )}
 
         {isModalOpen && (
           <AddRecipeModal
             ingredientCatalog={ingredientCatalog}
             onAddIngredientDef={onAddIngredientDef}
-            onEditIngredientDef={onEditIngredientDef}
-            onDeleteIngredientDef={onDeleteIngredientDef}
             onClose={() => setIsModalOpen(false)}
             onSave={handleAddRecipe}
           />

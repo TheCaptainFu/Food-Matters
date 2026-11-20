@@ -1,13 +1,16 @@
-import { useState } from 'react'
-import type { ActualEntry, Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
+import { createPortal } from 'react-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
 import type { Macros, Profile } from '../nutrition'
 import { calculateMacroTargets, recipeMacros } from '../nutrition'
 import { filterCompatibleRecipes } from '../dietaryRestrictions'
-import { makeWeek } from '../weekUtils'
+import { addDays, dayDate, formatDayDate, makeWeek, mondayOf, parseISODate, sortWeeks, toISODate, todayISO } from '../weekUtils'
 import ConfirmModal from './ConfirmModal'
+import AddRecipeModal from './AddRecipeModal'
 import RecipePickerModal from './RecipePickerModal'
 import SuggestAlternativesModal from './SuggestAlternativesModal'
-import ActualEntryModal from './ActualEntryModal'
+import Toast, { type ToastData } from './Toast'
+import { downloadWeekTemplate, importWeekFromExcel } from '../excelImport'
 
 // Normalized distance across calories + all three macros, so "closest
 // match" accounts for hitting protein/carbs/fat, not just total calories.
@@ -46,8 +49,13 @@ type CalendarProps = {
   onOpenRecipe: (id: string) => void
   weeks: Week[]
   setWeeks: React.Dispatch<React.SetStateAction<Week[]>>
-  activeWeekId: string
-  setActiveWeekId: (id: string) => void
+  // The shown week's Monday ("YYYY-MM-DD").
+  activeWeekStart: string
+  setActiveWeekStart: (startDate: string) => void
+  onOpenProfile: () => void
+  // For "Create new recipe" from the Swap dialog.
+  onAddRecipe: (recipe: Recipe) => void
+  onAddIngredientDef: (def: IngredientDef) => void
 }
 
 type PendingConfirm = {
@@ -57,7 +65,6 @@ type PendingConfirm = {
 }
 
 type SuggestTarget = { dayIndex: number; slotKey: SlotKey; recipeIndex: number }
-type ActualTarget = { dayIndex: number; slotKey: SlotKey }
 
 function Calendar({
   recipes,
@@ -66,14 +73,88 @@ function Calendar({
   onOpenRecipe,
   weeks,
   setWeeks,
-  activeWeekId,
-  setActiveWeekId,
+  activeWeekStart,
+  setActiveWeekStart,
+  onOpenProfile,
+  onAddRecipe,
+  onAddIngredientDef,
 }: CalendarProps) {
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
   const [dragOverKey, setDragOverKey] = useState<string | null>(null)
-  const [editingDays, setEditingDays] = useState<Set<number>>(new Set())
   const [suggestTarget, setSuggestTarget] = useState<SuggestTarget | null>(null)
-  const [actualTarget, setActualTarget] = useState<ActualTarget | null>(null)
+  // The meal a brand-new recipe will replace once it's saved.
+  const [createTarget, setCreateTarget] = useState<SuggestTarget | null>(null)
+  // The recipe being moved with "Move to…" — the touch-friendly way to move
+  // a meal (drag & drop only works with a mouse).
+  const [moveTarget, setMoveTarget] = useState<SuggestTarget | null>(null)
+  // The week is read-only by default so the plan stays easy to scan; one
+  // Edit button reveals the add/swap/remove controls on every day.
+  const [isEditing, setIsEditing] = useState(false)
+
+  const [toast, setToast] = useState<ToastData | null>(null)
+  const closeToast = useCallback(() => setToast(null), [])
+  function showToast(data: Omit<ToastData, 'id'>) {
+    // A fresh id per toast restarts its auto-hide timer even for repeated text.
+    setToast((prev) => ({ ...data, id: (prev?.id ?? 0) + 1 }))
+  }
+
+  // The days row has no visible scrollbar, so ‹ › buttons page through it
+  // for mouse users (touch and trackpads can just swipe).
+  const daysRowRef = useRef<HTMLDivElement>(null)
+  // Moves exactly one day: lines up the next/previous card with the left
+  // edge, based on whichever card is currently first in view.
+  function scrollDays(direction: 1 | -1) {
+    const row = daysRowRef.current
+    if (!row) return
+    const cards = Array.from(row.children) as HTMLElement[]
+    const lefts = cards.map((card) => card.offsetLeft - row.offsetLeft - 20)
+    const current = lefts.findIndex((left) => left >= row.scrollLeft - 5)
+    const target = Math.min(cards.length - 1, Math.max(0, (current === -1 ? cards.length - 1 : current) + direction))
+    row.scrollTo({ left: lefts[target], behavior: 'smooth' })
+  }
+
+  // Click-and-drag to scroll the days with a mouse (touch already swipes).
+  // Starts only past a few pixels of movement, so plain clicks on recipes
+  // and buttons still work; skipped on draggable recipes, which in Edit mode
+  // are dragged between meals instead.
+  const dragRef = useRef<{ startX: number; startScroll: number; moved: boolean } | null>(null)
+  const [isDraggingDays, setIsDraggingDays] = useState(false)
+
+  function handleDaysPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return
+    if ((e.target as HTMLElement).closest('[draggable="true"], input, select, textarea')) return
+    dragRef.current = { startX: e.clientX, startScroll: e.currentTarget.scrollLeft, moved: false }
+  }
+
+  function handleDaysPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current
+    if (!drag) return
+    const dx = e.clientX - drag.startX
+    if (!drag.moved && Math.abs(dx) < 5) return
+    if (!drag.moved) {
+      drag.moved = true
+      setIsDraggingDays(true)
+    }
+    e.currentTarget.scrollLeft = drag.startScroll - dx
+  }
+
+  function endDaysDrag() {
+    if (!dragRef.current) return
+    // Keep "moved" until the click that follows this mouseup has been
+    // swallowed (see onClickCapture), then forget the drag.
+    const wasMoved = dragRef.current.moved
+    setIsDraggingDays(false)
+    if (!wasMoved) dragRef.current = null
+    else window.setTimeout(() => (dragRef.current = null), 0)
+  }
+
+  function handleDaysClickCapture(e: React.MouseEvent) {
+    if (dragRef.current?.moved) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+  }
 
   const dailyMacroTargets = profile ? calculateMacroTargets(profile) : null
   const dailyTarget = dailyMacroTargets?.calories ?? null
@@ -96,171 +177,182 @@ function Calendar({
     return tagged.length > 0 ? tagged : compatibleRecipes
   }
 
-  function toggleEditDay(dayIndex: number) {
-    setEditingDays((prev) => {
-      const next = new Set(prev)
-      if (next.has(dayIndex)) next.delete(dayIndex)
-      else next.add(dayIndex)
-      return next
+  // The shown week is picked by date with ‹ › arrows, not from a growing
+  // row of tabs. A week nobody has planned yet isn't stored: it's shown
+  // empty, and saved the first time something is added to it.
+  const storedWeek = weeks.find((w) => w.startDate === activeWeekStart) ?? null
+  const emptyWeek = useMemo(() => makeWeek(activeWeekStart), [activeWeekStart])
+  const activeWeek = storedWeek ?? emptyWeek
+  const thisWeekStart = toISODate(mondayOf(new Date()))
+  const weekOffset = Math.round(
+    (parseISODate(activeWeekStart).getTime() - parseISODate(thisWeekStart).getTime()) / (7 * 86_400_000),
+  )
+  const weekHint =
+    weekOffset === 0 ? 'This week' : weekOffset === 1 ? 'Next week' : weekOffset === -1 ? 'Last week' : null
+
+  // Entering the page (or switching back to the current week) starts the
+  // days row at today, so the day you care about is the first one you see.
+  useEffect(() => {
+    const row = daysRowRef.current
+    if (!row) return
+    const todayIndex = Math.round(
+      (parseISODate(todayISO()).getTime() - parseISODate(activeWeekStart).getTime()) / 86_400_000,
+    )
+    if (todayIndex < 0 || todayIndex > 6) {
+      row.scrollLeft = 0
+      return
+    }
+    const card = row.children[todayIndex] as HTMLElement | undefined
+    if (card) row.scrollLeft = card.offsetLeft - row.offsetLeft - 20
+  }, [activeWeekStart])
+
+  function goToWeek(offset: number) {
+    setActiveWeekStart(toISODate(addDays(parseISODate(activeWeekStart), offset * 7)))
+  }
+
+  // Applies a change to the week starting on startDate — creating it first
+  // if it's one of the empty, not-yet-saved weeks.
+  function updateWeekAt(startDate: string, update: (week: Week) => Week) {
+    setWeeks((prev) => {
+      const existing = prev.find((w) => w.startDate === startDate)
+      if (existing) return prev.map((w) => (w === existing ? update(w) : w))
+      return sortWeeks([...prev, update(makeWeek(startDate))])
     })
   }
 
-  const activeWeek = weeks.find((w) => w.id === activeWeekId) ?? weeks[0]
-
-  function addWeek() {
-    const week = makeWeek(`Week ${weeks.length + 1}`)
-    setWeeks((prev) => [...prev, week])
-    setActiveWeekId(week.id)
+  function updateDay(dayIndex: number, update: (day: Day) => Day) {
+    updateWeekAt(activeWeekStart, (week) => ({
+      ...week,
+      days: week.days.map((day, i) => (i === dayIndex ? update(day) : day)),
+    }))
   }
 
-  function deleteWeek() {
-    if (weeks.length <= 1) return
+  const weekHasMeals = activeWeek.days.some((day) => SLOTS.some((slot) => day.slots[slot.key].length > 0))
+
+  // Imports into the week on screen. Logged meals are kept; only the plan
+  // is replaced, and only after asking if there's a plan to lose.
+  async function handleImportExcel(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setIsImporting(true)
+    try {
+      const startDate = activeWeekStart
+      const { week: imported, skipped } = await importWeekFromExcel(file, recipes, startDate)
+      const apply = () => {
+        updateWeekAt(startDate, (week) => ({
+          ...week,
+          days: week.days.map((day, i) => ({ ...day, slots: imported.days[i]?.slots ?? day.slots })),
+        }))
+        showToast(
+          skipped.length > 0
+            ? {
+                message: `Imported ${imported.label}. These recipes weren't found in your Recipes list and were skipped:\n${skipped.join(', ')}`,
+              }
+            : { message: `Imported ${imported.label}.`, autoHideMs: 4000 },
+        )
+      }
+      if (weekHasMeals) {
+        setPendingConfirm({
+          message: `Replace the meals planned for ${imported.label} with the ones from this file?`,
+          confirmLabel: 'Replace',
+          onConfirm: apply,
+        })
+      } else {
+        apply()
+      }
+    } catch {
+      showToast({
+        tone: 'error',
+        message: "Couldn't read that file. Make sure it's an .xlsx, .xls or .csv made from the downloaded template.",
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  function clearWeek() {
+    if (!storedWeek) return
+    const startDate = activeWeekStart
     setPendingConfirm({
-      message: `Delete "${activeWeek.label}"? This cannot be undone.`,
-      onConfirm: () => {
-        const remaining = weeks
-          .filter((w) => w.id !== activeWeekId)
-          // renumber default "Week N" labels so they stay sequential after
-          // a delete (e.g. Week 1/2/3 → delete Week 2 → Week 1/2, not 1/3)
-          .map((w, i) => (/^Week \d+$/.test(w.label) ? { ...w, label: `Week ${i + 1}` } : w))
-        setWeeks(remaining)
-        setActiveWeekId(remaining[0].id)
-      },
+      message: `Clear ${activeWeek.label}? This removes its planned meals and anything logged that week. This cannot be undone.`,
+      confirmLabel: 'Clear week',
+      onConfirm: () => setWeeks((prev) => prev.filter((w) => w.startDate !== startDate)),
     })
   }
 
   function addRecipesToSlot(dayIndex: number, slotKey: SlotKey, recipeIds: string[]) {
-    setWeeks((prev) =>
-      prev.map((week) => {
-        if (week.id !== activeWeekId) return week
-        return {
-          ...week,
-          days: week.days.map((day, i) => {
-            if (i !== dayIndex) return day
-            return {
-              ...day,
-              slots: { ...day.slots, [slotKey]: [...day.slots[slotKey], ...recipeIds] },
-            }
-          }),
-        }
-      }),
-    )
+    updateDay(dayIndex, (day) => ({
+      ...day,
+      slots: { ...day.slots, [slotKey]: [...day.slots[slotKey], ...recipeIds] },
+    }))
   }
 
   function moveRecipe(
     from: { dayIndex: number; slotKey: SlotKey; recipeIndex: number },
     to: { dayIndex: number; slotKey: SlotKey },
   ) {
-    setWeeks((prev) =>
-      prev.map((week) => {
-        if (week.id !== activeWeekId) return week
-        const recipeId = week.days[from.dayIndex]?.slots[from.slotKey][from.recipeIndex]
-        if (!recipeId) return week
+    updateWeekAt(activeWeekStart, (week) => {
+      const recipeId = week.days[from.dayIndex]?.slots[from.slotKey][from.recipeIndex]
+      if (!recipeId) return week
 
-        const afterRemoval = week.days.map((day, i) => {
-          if (i !== from.dayIndex) return day
-          return {
-            ...day,
-            slots: {
-              ...day.slots,
-              [from.slotKey]: day.slots[from.slotKey].filter((_, idx) => idx !== from.recipeIndex),
-            },
-          }
-        })
+      const afterRemoval = week.days.map((day, i) => {
+        if (i !== from.dayIndex) return day
+        return {
+          ...day,
+          slots: {
+            ...day.slots,
+            [from.slotKey]: day.slots[from.slotKey].filter((_, idx) => idx !== from.recipeIndex),
+          },
+        }
+      })
 
-        const afterAdd = afterRemoval.map((day, i) => {
-          if (i !== to.dayIndex) return day
-          return {
-            ...day,
-            slots: { ...day.slots, [to.slotKey]: [...day.slots[to.slotKey], recipeId] },
-          }
-        })
+      const afterAdd = afterRemoval.map((day, i) => {
+        if (i !== to.dayIndex) return day
+        return {
+          ...day,
+          slots: { ...day.slots, [to.slotKey]: [...day.slots[to.slotKey], recipeId] },
+        }
+      })
 
-        return { ...week, days: afterAdd }
-      }),
-    )
+      return { ...week, days: afterAdd }
+    })
   }
 
+  // Removes straight away (we're already in Edit mode, so a confirm on every
+  // ✕ is just friction) and offers Undo instead.
   function removeRecipeFromSlot(dayIndex: number, slotKey: SlotKey, recipeIndex: number) {
-    setPendingConfirm({
-      message: 'Remove this recipe from the slot?',
-      confirmLabel: 'Remove',
-      onConfirm: () => {
-        setWeeks((prev) =>
-          prev.map((week) => {
-            if (week.id !== activeWeekId) return week
-            return {
-              ...week,
-              days: week.days.map((day, i) => {
-                if (i !== dayIndex) return day
-                return {
-                  ...day,
-                  slots: {
-                    ...day.slots,
-                    [slotKey]: day.slots[slotKey].filter((_, idx) => idx !== recipeIndex),
-                  },
-                }
-              }),
-            }
-          }),
-        )
+    const startDate = activeWeekStart
+    const recipeId = activeWeek.days[dayIndex]?.slots[slotKey][recipeIndex]
+    if (!recipeId) return
+    const updateSlot = (update: (ids: string[]) => string[]) =>
+      updateWeekAt(startDate, (week) => ({
+        ...week,
+        days: week.days.map((day, i) =>
+          i !== dayIndex ? day : { ...day, slots: { ...day.slots, [slotKey]: update(day.slots[slotKey]) } },
+        ),
+      }))
+
+    updateSlot((ids) => ids.filter((_, idx) => idx !== recipeIndex))
+    const title = recipes.find((r) => r.id === recipeId)?.title ?? 'Recipe'
+    showToast({
+      message: `Removed ${title}.`,
+      autoHideMs: 5000,
+      action: {
+        label: 'Undo',
+        onClick: () => updateSlot((ids) => [...ids.slice(0, recipeIndex), recipeId, ...ids.slice(recipeIndex)]),
       },
     })
   }
 
   function replaceRecipeInSlot(dayIndex: number, slotKey: SlotKey, recipeIndex: number, newRecipeId: string) {
-    setWeeks((prev) =>
-      prev.map((week) => {
-        if (week.id !== activeWeekId) return week
-        return {
-          ...week,
-          days: week.days.map((day, i) => {
-            if (i !== dayIndex) return day
-            return {
-              ...day,
-              slots: {
-                ...day.slots,
-                [slotKey]: day.slots[slotKey].map((id, idx) => (idx === recipeIndex ? newRecipeId : id)),
-              },
-            }
-          }),
-        }
-      }),
-    )
-  }
-
-  // Logs (or clears) what was actually eaten for a slot — independent of
-  // the plan sitting there, so correcting today never edits the plan
-  // itself.
-  function setActualEntry(dayIndex: number, slotKey: SlotKey, entry: ActualEntry) {
-    setWeeks((prev) =>
-      prev.map((week) => {
-        if (week.id !== activeWeekId) return week
-        return {
-          ...week,
-          days: week.days.map((day, i) =>
-            i !== dayIndex ? day : { ...day, actual: { ...day.actual, [slotKey]: entry } },
-          ),
-        }
-      }),
-    )
-  }
-
-  function clearActualEntry(dayIndex: number, slotKey: SlotKey) {
-    setWeeks((prev) =>
-      prev.map((week) => {
-        if (week.id !== activeWeekId) return week
-        return {
-          ...week,
-          days: week.days.map((day, i) => {
-            if (i !== dayIndex) return day
-            const nextActual = { ...day.actual }
-            delete nextActual[slotKey]
-            return { ...day, actual: nextActual }
-          }),
-        }
-      }),
-    )
+    updateDay(dayIndex, (day) => ({
+      ...day,
+      slots: {
+        ...day.slots,
+        [slotKey]: day.slots[slotKey].map((id, idx) => (idx === recipeIndex ? newRecipeId : id)),
+      },
+    }))
   }
 
   // Top 3 recipes in the same category (and still fit for that meal) whose
@@ -409,18 +501,52 @@ function Calendar({
     })
   }
 
-  // Clears every slot in the week first, then fills the whole thing from
-  // scratch, so the result actually tracks the current targets instead of
-  // leaving old or mismatched picks sitting there.
-  function regenerateWeek() {
+  const weekHasEmptySlot = activeWeek.days.some((day) => SLOTS.some((slot) => day.slots[slot.key].length === 0))
+
+  // Fills only the empty meals of the week, leaving anything already
+  // planned (by hand or by an earlier fill) untouched — so it's always safe
+  // to press. Each day is balanced around what's already in it.
+  function fillWeek() {
+    if (dailyMacroTargets === null) return
+    if (!weekHasEmptySlot) {
+      showToast({ message: 'Every meal this week is already planned.', autoHideMs: 4000 })
+      return
+    }
+    // Seed with what's already planned so fills favor variety around it.
+    const usageCounts = new Map<string, number>()
+    activeWeek.days.forEach((day) =>
+      SLOTS.forEach((slot) =>
+        day.slots[slot.key].forEach((id) => usageCounts.set(id, (usageCounts.get(id) ?? 0) + 1)),
+      ),
+    )
+    const filledDays = activeWeek.days.map((day) => {
+      const picks = pickFillsForDay(day.slots, usageCounts)
+      const slots = { ...day.slots }
+      SLOTS.forEach((slot) => {
+        const recipe = picks[slot.key]
+        if (!recipe) return
+        usageCounts.set(recipe.id, (usageCounts.get(recipe.id) ?? 0) + 1)
+        slots[slot.key] = [recipe.id]
+      })
+      return { ...day, slots }
+    })
+    updateWeekAt(activeWeekStart, (week) => ({
+      ...week,
+      days: week.days.map((day, i) => ({ ...day, slots: filledDays[i].slots })),
+    }))
+  }
+
+  // Throws away the whole week's plan and builds a new one from scratch —
+  // the destructive version, kept in the ⋯ menu and behind a confirm.
+  function replanWeek() {
     if (dailyMacroTargets === null) return
     setPendingConfirm({
-      message: `Clear and regenerate all of "${activeWeek.label}" to match your targets? This cannot be undone.`,
-      confirmLabel: 'Regenerate',
+      message: `Replace every meal in ${activeWeek.label} with a brand-new plan? Meals you picked yourself will be replaced too. This cannot be undone.`,
+      confirmLabel: 'Replan week',
       onConfirm: () => {
         const usageCounts = new Map<string, number>()
         const emptySlots: Day['slots'] = { breakfast: [], lunch: [], afternoon: [], dinner: [] }
-        const filledDays = activeWeek.days.map((day) => {
+        const newSlots = activeWeek.days.map(() => {
           const picks = pickFillsForDay(emptySlots, usageCounts)
           const slots: Day['slots'] = { breakfast: [], lunch: [], afternoon: [], dinner: [] }
           SLOTS.forEach((slot) => {
@@ -429,10 +555,12 @@ function Calendar({
             usageCounts.set(recipe.id, (usageCounts.get(recipe.id) ?? 0) + 1)
             slots[slot.key] = [recipe.id]
           })
-          return { ...day, slots }
+          return slots
         })
-
-        setWeeks((prev) => prev.map((week) => (week.id === activeWeekId ? { ...week, days: filledDays } : week)))
+        updateWeekAt(activeWeekStart, (week) => ({
+          ...week,
+          days: week.days.map((day, i) => ({ ...day, slots: newSlots[i] })),
+        }))
       },
     })
   }
@@ -444,260 +572,346 @@ function Calendar({
     ? (recipes.find((r) => r.id === suggestCurrentRecipeId) ?? null)
     : null
 
+  const today = todayISO()
+
   return (
     <div className="py-20">
       <div className="container flex flex-col gap-20">
-        <div className="flex flex-wrap items-center justify-between gap-10">
-          <div className="flex flex-wrap gap-10">
-            {weeks.map((week) => (
-              <button
-                key={week.id}
-                type="button"
-                onClick={() => setActiveWeekId(week.id)}
-                className={
-                  week.id === activeWeekId
-                    ? 'main-btn font-title font-bold bg-main-blue text-white px-15 py-10'
-                    : 'main-btn font-title font-bold px-15 py-10'
-                }
-              >
-                {week.label}
-              </button>
-            ))}
-            <button type="button" onClick={addWeek} className="main-btn font-title font-bold px-15 py-10">
-              + Week
+        <div className="flex flex-col gap-5">
+          <h2 className="text-26 font-title font-bold uppercase">Meal Plan</h2>
+          <p className="text-14 font-title text-neutral-500">
+            Press Edit to change meals, or Fill Week to plan the empty ones for you.
+          </p>
+        </div>
+
+        {!profile && (
+          <div className="bg-main-yellow border-3 border-black shadow-[4px_4px_0_0_#000] p-15 flex flex-wrap items-center justify-between gap-10">
+            <span className="text-14 font-title font-bold">
+              Set up your profile to see daily calorie targets and fill your week automatically.
+            </span>
+            <button type="button" onClick={onOpenProfile} className="main-btn font-title font-bold px-15 py-10">
+              Set up profile
             </button>
           </div>
+        )}
 
-          <div className="flex flex-wrap gap-10">
+        <div className="flex flex-wrap items-center justify-between gap-10">
+          <div className="flex items-center gap-10">
             <button
               type="button"
-              onClick={regenerateWeek}
+              onClick={() => goToWeek(-1)}
+              aria-label="Previous week"
+              className="main-btn font-title font-bold text-20 w-40 h-40 flex items-center justify-center"
+            >
+              ‹
+            </button>
+            <div className="flex flex-col items-center min-w-[140px]">
+              <span className="font-title font-bold text-20 leading-tight">{activeWeek.label}</span>
+              {weekHint && <span className="text-14 font-title text-neutral-500 leading-tight">{weekHint}</span>}
+            </div>
+            <button
+              type="button"
+              onClick={() => goToWeek(1)}
+              aria-label="Next week"
+              className="main-btn font-title font-bold text-20 w-40 h-40 flex items-center justify-center"
+            >
+              ›
+            </button>
+            {weekOffset !== 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveWeekStart(thisWeekStart)}
+                className="text-14 font-title font-bold underline cursor-pointer ml-5"
+              >
+                Back to this week
+              </button>
+            )}
+          </div>
+
+          <div className="flex gap-10">
+            <button
+              type="button"
+              onClick={() => setIsEditing((v) => !v)}
+              className={
+                isEditing
+                  ? 'main-btn font-title font-bold px-15 py-10 bg-main-blue text-white'
+                  : 'main-btn font-title font-bold px-15 py-10'
+              }
+            >
+              {isEditing ? 'Done' : 'Edit'}
+            </button>
+            <button
+              type="button"
+              onClick={fillWeek}
               disabled={dailyTarget === null}
               title={
                 dailyTarget === null
-                  ? 'Set your profile in Calories first'
-                  : 'Clear this week and regenerate it entirely to match your targets'
+                  ? 'Set up your profile first'
+                  : 'Fill the empty meals of this week to match your daily targets (planned meals stay)'
               }
-              className="main-btn font-title font-bold px-15 py-10 bg-main-blue text-white disabled:opacity-30 disabled:pointer-events-none"
-            >
-              Regenerate Week
-            </button>
-            <button
-              type="button"
-              onClick={deleteWeek}
-              disabled={weeks.length <= 1}
               className="main-btn font-title font-bold px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
             >
-              Delete Week
+              Fill Week
             </button>
+            <WeekMenu
+              isImporting={isImporting}
+              canClear={!!storedWeek}
+              canReplan={dailyTarget !== null && weekHasMeals}
+              onReplan={replanWeek}
+              onDownloadTemplate={() => downloadWeekTemplate(recipes)}
+              onImport={handleImportExcel}
+              onClear={clearWeek}
+            />
           </div>
         </div>
 
-        {profile && (profile.diet !== 'none' || profile.excludedIngredients.length > 0) && (
-          <p className="text-12 font-title text-neutral-500">
-            Auto-fill and suggestions respect your{' '}
-            {profile.diet !== 'none' && <span className="font-bold text-black">{profile.diet}</span>}
-            {profile.diet !== 'none' && profile.excludedIngredients.length > 0 && ' diet and '}
-            {profile.diet === 'none' && profile.excludedIngredients.length > 0 && 'exclusions for '}
-            {profile.excludedIngredients.length > 0 && (
-              <span className="font-bold text-black">{profile.excludedIngredients.join(', ')}</span>
-            )}
-            {' — edit this in Calories → Edit Profile.'}
-          </p>
+        {isEditing && (
+          <div className="bg-main-blue text-white border-3 border-black px-15 py-10 flex flex-wrap items-center justify-between gap-10">
+            <span className="text-14 font-title font-bold">
+              Editing: add, swap, remove or drag meals. Changes save automatically.
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsEditing(false)}
+              className="main-btn font-title font-bold text-14 px-15 py-5"
+            >
+              Done
+            </button>
+          </div>
         )}
 
-        <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-20 overflow-x-auto sm:overflow-visible touch-pan-x touch-pan-y snap-x snap-proximity pb-10 sm:pb-0 -mx-20 px-20 sm:mx-0 sm:px-0">
-          {activeWeek.days.map((day, dayIndex) => (
-            <div
-              key={day.label}
-              className="main-btn flex flex-col gap-30 p-20 shrink-0 w-[85vw] sm:w-auto snap-center"
-            >
-              <div className="flex items-center justify-between gap-10">
-                <h3 className="font-title font-bold uppercase text-18">{day.label}</h3>
-                <div className="flex gap-10">
-                  {editingDays.has(dayIndex) && (
-                    <button
-                      type="button"
-                      onClick={() => autoFillDay(dayIndex)}
-                      disabled={dailyTarget === null}
-                      title={dailyTarget === null ? 'Set your profile in Calories first' : 'Fill empty slots to match your daily target'}
-                      className="main-btn font-title font-bold px-10 py-5 text-12 disabled:opacity-30 disabled:pointer-events-none"
-                    >
-                      Auto-fill
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => toggleEditDay(dayIndex)}
-                    className="main-btn font-title font-bold px-10 py-5 text-12"
-                  >
-                    {editingDays.has(dayIndex) ? 'Done' : 'Edit'}
-                  </button>
+        <div className="hidden sm:flex justify-end gap-10 -mb-10">
+          <button
+            type="button"
+            onClick={() => scrollDays(-1)}
+            aria-label="Previous day"
+            className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollDays(1)}
+            aria-label="Next day"
+            className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
+          >
+            ›
+          </button>
+        </div>
+
+        <div
+          ref={daysRowRef}
+          onPointerDown={handleDaysPointerDown}
+          onPointerMove={handleDaysPointerMove}
+          onPointerUp={endDaysDrag}
+          onPointerLeave={endDaysDrag}
+          onClickCapture={handleDaysClickCapture}
+          className={
+            isDraggingDays
+              ? 'flex gap-20 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden select-none cursor-grabbing pt-5 pb-20 -mx-20 px-20'
+              : 'flex gap-20 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-x touch-pan-y snap-x snap-proximity cursor-grab pt-5 pb-20 -mx-20 px-20 scroll-px-20'
+          }
+        >
+          {activeWeek.days.map((day, dayIndex) => {
+            const date = dayDate(activeWeek, dayIndex)
+            const isToday = toISODate(date) === today
+            // Past days are dimmed to keep the eye on today — but not while editing,
+            // when every day needs to be fully readable.
+            const isPast = !isEditing && toISODate(date) < today
+            const totals = dayTotalMacros(day)
+            const hasEmptySlot = SLOTS.some((slot) => day.slots[slot.key].length === 0)
+
+            return (
+              <div
+                key={day.label}
+                className={
+                  isToday
+                    ? 'bg-white border-3 border-main-blue shadow-[4px_4px_0_0_#5e81d1] flex flex-col gap-15 p-20 shrink-0 w-[85vw] sm:w-[300px] snap-start'
+                    : isPast
+                      ? 'bg-white border-3 border-black shadow-[4px_4px_0_0_#000] flex flex-col gap-15 p-20 shrink-0 w-[85vw] sm:w-[300px] snap-start opacity-50 hover:opacity-100 transition-opacity'
+                      : 'bg-white border-3 border-black shadow-[4px_4px_0_0_#000] flex flex-col gap-15 p-20 shrink-0 w-[85vw] sm:w-[300px] snap-start'
+                }
+              >
+                <div className="flex items-center justify-between gap-10">
+                  <h3 className="font-title font-bold uppercase text-18 flex items-center gap-10">
+                    {day.label}
+                    <span className="text-14 font-normal normal-case text-neutral-500">{formatDayDate(date)}</span>
+                    {isToday && (
+                      <span className="bg-main-blue text-white text-12 px-5 py-[2px] normal-case">Today</span>
+                    )}
+                  </h3>
+                  {isEditing && dailyTarget !== null && hasEmptySlot && (
+                      <button
+                        type="button"
+                        onClick={() => autoFillDay(dayIndex)}
+                        title="Fill this day's empty meals to match your daily target"
+                        className="main-btn font-title font-bold px-10 py-5 text-12"
+                      >
+                        Auto-fill
+                      </button>
+                    )}
                 </div>
-              </div>
 
-              {SLOTS.map((slot, slotIndex) => (
-                <div
-                  key={slot.key}
-                  className={
-                    slotIndex < SLOTS.length - 1
-                      ? 'flex flex-col gap-30 pb-30 border-b border-neutral-200'
-                      : 'flex flex-col gap-30'
-                  }
-                >
-                  <span
-                    className={`main-btn inline-block self-start px-10 py-5 text-16 font-title font-bold uppercase ${slot.badge}`}
-                  >
-                    {slot.label}
-                  </span>
+                <DayProgress
+                  totals={totals}
+                  targets={dailyMacroTargets}
+                  takesProtein={!!profile?.takesProtein}
+                />
 
-                  <div
-                    onDragOver={(e) => {
-                      e.preventDefault()
-                      setDragOverKey(`${dayIndex}-${slot.key}`)
-                    }}
-                    onDragLeave={() => setDragOverKey(null)}
-                    onDrop={(e) => {
-                      e.preventDefault()
-                      setDragOverKey(null)
-                      const raw = e.dataTransfer.getData('application/json')
-                      if (!raw) return
-                      const from = JSON.parse(raw) as { dayIndex: number; slotKey: SlotKey; recipeIndex: number }
-                      moveRecipe(from, { dayIndex, slotKey: slot.key })
-                    }}
-                    className={
-                      dragOverKey === `${dayIndex}-${slot.key}`
-                        ? 'flex flex-col gap-15 bg-main-yellow/20 outline-3 outline-dashed outline-black -outline-offset-2'
-                        : 'flex flex-col gap-15'
-                    }
-                  >
-                    {day.slots[slot.key].map((recipeId, recipeIndex) => {
-                      const recipe = recipes.find((r) => r.id === recipeId)
-                      if (!recipe) return null
-                      return (
-                        <div
-                          key={recipeIndex}
-                          draggable={editingDays.has(dayIndex)}
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData(
-                              'application/json',
-                              JSON.stringify({ dayIndex, slotKey: slot.key, recipeIndex }),
-                            )
-                          }}
-                          className="flex items-center justify-between gap-5 bg-white border-2 border-black px-10 py-5 cursor-grab active:cursor-grabbing hover:bg-neutral-50 font-bold"
+                {SLOTS.map((slot) => {
+                  const dropKey = `${dayIndex}-${slot.key}`
+                  const entry = day.actual[slot.key]
+                  // Eaten exactly as planned — flagged by "✓ Ate this", or (for
+                  // entries logged before that flag existed) same name as the plan.
+                  const plannedTitles = day.slots[slot.key]
+                    .map((id) => recipes.find((r) => r.id === id)?.title)
+                    .filter(Boolean)
+                    .join(', ')
+                  const eatenAsPlanned =
+                    !!entry && (!!entry.fromPlan || (plannedTitles !== '' && entry.description === plannedTitles))
+                  return (
+                    <div
+                      key={slot.key}
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        setDragOverKey(dropKey)
+                      }}
+                      onDragLeave={() => setDragOverKey(null)}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        setDragOverKey(null)
+                        const raw = e.dataTransfer.getData('application/json')
+                        if (!raw) return
+                        const from = JSON.parse(raw) as { dayIndex: number; slotKey: SlotKey; recipeIndex: number }
+                        moveRecipe(from, { dayIndex, slotKey: slot.key })
+                      }}
+                      className={
+                        dragOverKey === dropKey
+                          ? 'flex flex-col gap-10 pt-15 border-t border-neutral-200 bg-main-yellow/20 outline-3 outline-dashed outline-black -outline-offset-2'
+                          : 'flex flex-col gap-10 pt-15 border-t border-neutral-200'
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-10">
+                        <span
+                          className={`inline-block px-5 py-[2px] text-12 font-title font-bold uppercase border-2 border-black ${slot.badge}`}
                         >
-                          <span
-                            onClick={() => onOpenRecipe(recipe.id)}
-                            className="text-14 text-black font-title"
+                          {slot.label}
+                        </span>
+                        {isEditing && day.slots[slot.key].length > 0 && (
+                          <SlotPicker
+                            compact
+                            recipes={recipesForSlot(slot.key)}
+                            onAdd={(recipeIds) => addRecipesToSlot(dayIndex, slot.key, recipeIds)}
+                          />
+                        )}
+                      </div>
+
+                      {/* Eaten exactly as planned: the log row below says it all —
+                          don't also list the same recipe struck through. */}
+                      {!(eatenAsPlanned && !isEditing) && day.slots[slot.key].map((recipeId, recipeIndex) => {
+                        const recipe = recipes.find((r) => r.id === recipeId)
+                        if (!recipe) return null
+                        return (
+                          <div
+                            key={recipeIndex}
+                            draggable={isEditing}
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData(
+                                'application/json',
+                                JSON.stringify({ dayIndex, slotKey: slot.key, recipeIndex }),
+                              )
+                            }}
+                            className={
+                              entry && !eatenAsPlanned
+                                ? 'flex items-center justify-between gap-5 bg-white border-2 border-black px-10 py-5 opacity-50 line-through'
+                                : isEditing
+                                  ? 'flex items-center justify-between gap-5 bg-white border-2 border-black px-10 py-5 cursor-grab active:cursor-grabbing hover:bg-neutral-50'
+                                  : 'flex items-center justify-between gap-5 bg-white border-2 border-black px-10 py-5'
+                            }
                           >
-                            {recipe.title}
-                          </span>
-                          {editingDays.has(dayIndex) && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenRecipe(recipe.id)}
+                              className="text-14 text-black font-title font-bold text-left hover:underline cursor-pointer"
+                            >
+                              {recipe.title}
+                            </button>
+                            {isEditing && (
                             <div className="flex items-center gap-10 shrink-0">
                               <button
                                 type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setSuggestTarget({ dayIndex, slotKey: slot.key, recipeIndex })
-                                }}
-                                aria-label="Suggest alternatives"
-                                title="Suggest alternatives"
-                                className="main-btn font-title font-bold text-12 leading-none w-20 h-20 flex items-center justify-center p-0"
+                                onClick={() => setMoveTarget({ dayIndex, slotKey: slot.key, recipeIndex })}
+                                aria-label="Move to another day or meal"
+                                title="Move to another day or meal"
+                                className="text-black hover:text-main-blue font-bold text-14 leading-none cursor-pointer"
+                              >
+                                ↗
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSuggestTarget({ dayIndex, slotKey: slot.key, recipeIndex })}
+                                aria-label="Swap for a similar recipe"
+                                title="Swap for a similar recipe"
+                                className="text-black hover:text-main-blue font-bold text-14 leading-none cursor-pointer"
                               >
                                 ⇄
                               </button>
                               <button
                                 type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  removeRecipeFromSlot(dayIndex, slot.key, recipeIndex)
-                                }}
+                                onClick={() => removeRecipeFromSlot(dayIndex, slot.key, recipeIndex)}
                                 aria-label="Remove"
+                                title="Remove"
                                 className="text-black hover:text-main-red font-bold text-14 leading-none cursor-pointer"
                               >
                                 ✕
                               </button>
                             </div>
-                          )}
-                        </div>
-                      )
-                    })}
-
-                    {editingDays.has(dayIndex) && (
-                      <SlotPicker
-                        recipes={recipesForSlot(slot.key)}
-                        onAdd={(recipeIds) => addRecipesToSlot(dayIndex, slot.key, recipeIds)}
-                      />
-                    )}
-
-                    {day.actual[slot.key] &&
-                      (() => {
-                        const entry = day.actual[slot.key]!
-                        const content = (
-                          <>
-                            {entry.photo && (
-                              <img
-                                src={entry.photo}
-                                alt=""
-                                className="w-40 h-40 object-cover border-2 border-black shrink-0"
-                              />
                             )}
-                            <span className="flex flex-col">
-                              <span className="text-12 font-title font-bold uppercase text-neutral-500">
-                                Actually ate
-                              </span>
-                              <span className="text-14 font-title font-bold">{entry.description}</span>
-                              <span className="text-12 font-title text-neutral-500">
-                                {Math.round(entry.calories)} kcal
-                              </span>
-                            </span>
-                          </>
+                          </div>
                         )
-                        return editingDays.has(dayIndex) ? (
-                          <button
-                            type="button"
-                            onClick={() => setActualTarget({ dayIndex, slotKey: slot.key })}
-                            className="main-btn flex items-center gap-10 p-10 bg-main-yellow/20 text-left"
-                          >
-                            {content}
-                          </button>
-                        ) : (
-                          <div className="main-btn flex items-center gap-10 p-10 bg-main-yellow/20">{content}</div>
-                        )
-                      })()}
+                      })}
 
-                    {editingDays.has(dayIndex) && !day.actual[slot.key] && (
-                      <button
-                        type="button"
-                        onClick={() => setActualTarget({ dayIndex, slotKey: slot.key })}
-                        className="main-btn font-title font-bold text-12 px-10 py-5 self-start text-neutral-500"
-                      >
-                        + Log what you ate
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                      {/* What was actually eaten — shown here for context, but
+                          logged and edited on the Calories page. */}
+                      {entry && (
+                        <div
+                          title="What you actually ate (log and edit meals on the Calories page)"
+                          className="flex items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5"
+                        >
+                          <span className="flex items-center gap-10 min-w-0">
+                            {entry.photo ? (
+                              <img src={entry.photo} alt="" className="w-20 h-20 object-cover border border-black shrink-0" />
+                            ) : (
+                              <span className="font-bold text-14 leading-none shrink-0">✓</span>
+                            )}
+                            <span className="text-14 font-title font-bold">{entry.description}</span>
+                          </span>
+                          <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
+                            {Math.round(entry.calories)} kcal
+                          </span>
+                        </div>
+                      )}
 
-              {(() => {
-                const totals = dayTotalMacros(day)
-                const hasAnything = totals.calories > 0
-                if (!hasAnything) return null
-                return (
-                  <div className="main-btn p-15 flex flex-col gap-5">
-                    <span className="text-14 font-title font-bold uppercase">
-                      {Math.round(totals.calories).toLocaleString('en-US')} KCAL
-                    </span>
-                    <span className="text-14 font-title text-neutral-500">Protein {Math.round(totals.protein)}g</span>
-                    <span className="text-14 font-title text-neutral-500">Carbs: {Math.round(totals.carbs)}g</span>
-                    <span className="text-14 font-title text-neutral-500">Fat: {Math.round(totals.fat)}g</span>
-                  </div>
-                )
-              })()}
-            </div>
-          ))}
+                      {!isEditing && day.slots[slot.key].length === 0 && !entry && (
+                        <span className="text-12 font-title text-neutral-400">Nothing planned</span>
+                      )}
+
+                      {isEditing && day.slots[slot.key].length === 0 && (
+                        <SlotPicker
+                          recipes={recipesForSlot(slot.key)}
+                          onAdd={(recipeIds) => addRecipesToSlot(dayIndex, slot.key, recipeIds)}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
         </div>
       </div>
+
+      {toast && <Toast toast={toast} onClose={closeToast} />}
 
       {pendingConfirm && (
         <ConfirmModal
@@ -715,6 +929,11 @@ function Calendar({
         <SuggestAlternativesModal
           current={suggestCurrentRecipe}
           alternatives={getAlternatives(suggestCurrentRecipe, suggestTarget.slotKey)}
+          allRecipes={compatibleRecipes}
+          onCreateNew={() => {
+            setCreateTarget(suggestTarget)
+            setSuggestTarget(null)
+          }}
           ingredientCatalog={ingredientCatalog}
           onSelect={(newId) => {
             replaceRecipeInSlot(suggestTarget.dayIndex, suggestTarget.slotKey, suggestTarget.recipeIndex, newId)
@@ -724,33 +943,272 @@ function Calendar({
         />
       )}
 
-      {actualTarget && (
-        <ActualEntryModal
-          slotLabel={SLOTS.find((s) => s.key === actualTarget.slotKey)?.label ?? ''}
-          recipes={recipes}
-          ingredientCatalog={ingredientCatalog}
-          initial={activeWeek.days[actualTarget.dayIndex]?.actual[actualTarget.slotKey] ?? null}
-          onSave={(entry) => {
-            setActualEntry(actualTarget.dayIndex, actualTarget.slotKey, entry)
-            setActualTarget(null)
+      {moveTarget && (
+        <MoveRecipeModal
+          recipeTitle={
+            recipes.find((r) => r.id === activeWeek.days[moveTarget.dayIndex]?.slots[moveTarget.slotKey][moveTarget.recipeIndex])
+              ?.title ?? 'Recipe'
+          }
+          days={activeWeek.days.map((day, i) => ({ label: day.label, date: formatDayDate(dayDate(activeWeek, i)) }))}
+          from={moveTarget}
+          onMove={(to) => {
+            moveRecipe(moveTarget, to)
+            setMoveTarget(null)
           }}
-          onDelete={() => {
-            clearActualEntry(actualTarget.dayIndex, actualTarget.slotKey)
-            setActualTarget(null)
-          }}
-          onClose={() => setActualTarget(null)}
+          onClose={() => setMoveTarget(null)}
         />
       )}
+
+      {createTarget && (
+        <AddRecipeModal
+          ingredientCatalog={ingredientCatalog}
+          onAddIngredientDef={onAddIngredientDef}
+          onClose={() => setCreateTarget(null)}
+          onBack={() => {
+            setSuggestTarget(createTarget)
+            setCreateTarget(null)
+          }}
+          onSave={(recipe) => {
+            onAddRecipe(recipe)
+            replaceRecipeInSlot(createTarget.dayIndex, createTarget.slotKey, createTarget.recipeIndex, recipe.id)
+            setCreateTarget(null)
+          }}
+        />
+      )}
+
     </div>
+  )
+}
+
+type DayProgressProps = {
+  totals: Macros
+  targets: Macros | null
+  takesProtein: boolean
+}
+
+// The day's running total against the profile's targets, right on the day
+// card — so you can see whether a day "works" while planning it, without
+// switching to another tab.
+function DayProgress({ totals, targets, takesProtein }: DayProgressProps) {
+  const kcal = Math.round(totals.calories)
+
+  if (!targets) {
+    if (kcal === 0) return null
+    return <span className="text-12 font-title font-bold">{kcal} kcal</span>
+  }
+
+  const pct = Math.min(100, Math.round((totals.calories / targets.calories) * 100))
+  const over = totals.calories > targets.calories * 1.1
+
+  // A protein shake tops up the gap in ~25g scoops, capped at 2 — only once
+  // the day has food in it, otherwise the gap is just "the whole target".
+  const proteinGap = Math.round(targets.protein - totals.protein)
+  const scoops = proteinGap > 0 ? Math.min(2, Math.max(1, Math.round(proteinGap / 25))) : 0
+  const showShake = takesProtein && kcal > 0 && scoops > 0
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center justify-between gap-10 text-12 font-title">
+        <span className={over ? 'font-bold text-main-red' : 'font-bold'}>
+          {kcal} / {targets.calories} kcal
+        </span>
+        {showShake && (
+          <span
+            className="text-neutral-500 whitespace-nowrap"
+            title={`About ${proteinGap}g short of your protein target — ${scoops} scoop${scoops > 1 ? 's' : ''} of protein powder covers it`}
+          >
+            💊 +{scoops} shake
+          </span>
+        )}
+      </div>
+      <div className="w-full h-10 border-2 border-black bg-neutral-100">
+        <div className={over ? 'h-full bg-main-red' : 'h-full bg-main-blue'} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
+type WeekMenuProps = {
+  isImporting: boolean
+  canClear: boolean
+  canReplan: boolean
+  onReplan: () => void
+  onDownloadTemplate: () => void
+  onImport: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onClear: () => void
+}
+
+// The less common week actions, tucked behind "⋯" so the toolbar has one
+// obvious main action (Fill Week) instead of five equal-looking buttons.
+function WeekMenu({ isImporting, canClear, canReplan, onReplan, onDownloadTemplate, onImport, onClear }: WeekMenuProps) {
+  const [isOpen, setIsOpen] = useState(false)
+  const itemClass =
+    'text-left px-10 py-10 font-title font-bold text-14 hover:bg-neutral-100 cursor-pointer disabled:opacity-30 disabled:pointer-events-none'
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        aria-label="More week options"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((v) => !v)}
+        className="main-btn font-title font-bold px-15 py-10"
+      >
+        {isImporting ? 'Importing…' : '⋯'}
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 top-full mt-10 z-20 bg-white border-3 border-black shadow-[4px_4px_0_0_#000] flex flex-col min-w-[220px] p-5">
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false)
+                onDownloadTemplate()
+              }}
+              className={itemClass}
+            >
+              Download Excel template
+            </button>
+            {/* The menu closes only once a file is picked — closing on click
+                would unmount the input before the file dialog returns. */}
+            <label className={itemClass}>
+              Import this week from Excel
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={(e) => {
+                  setIsOpen(false)
+                  onImport(e)
+                }}
+                className="hidden"
+              />
+            </label>
+            <div className="border-t border-neutral-200 my-5" />
+            <button
+              type="button"
+              disabled={!canReplan}
+              onClick={() => {
+                setIsOpen(false)
+                onReplan()
+              }}
+              className={itemClass}
+            >
+              Replan whole week
+            </button>
+            <button
+              type="button"
+              disabled={!canClear}
+              onClick={() => {
+                setIsOpen(false)
+                onClear()
+              }}
+              className={`${itemClass} text-main-red`}
+            >
+              Clear this week
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+type MoveRecipeModalProps = {
+  recipeTitle: string
+  days: { label: string; date: string }[]
+  from: { dayIndex: number; slotKey: SlotKey }
+  onMove: (to: { dayIndex: number; slotKey: SlotKey }) => void
+  onClose: () => void
+}
+
+// Pick a day and a meal, then Move. Starts on the recipe's current spot.
+function MoveRecipeModal({ recipeTitle, days, from, onMove, onClose }: MoveRecipeModalProps) {
+  const [dayIndex, setDayIndex] = useState(from.dayIndex)
+  const [slotKey, setSlotKey] = useState<SlotKey>(from.slotKey)
+  const isSameSpot = dayIndex === from.dayIndex && slotKey === from.slotKey
+
+  return createPortal(
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-20" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="main-btn bg-white p-30 flex flex-col gap-20 w-full max-w-[420px] max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex flex-col gap-5">
+          <h2 className="text-20 font-title font-bold uppercase">Move Meal</h2>
+          <span className="text-14 font-title text-neutral-500">{recipeTitle}</span>
+        </div>
+
+        <div className="flex flex-col gap-10">
+          <span className="text-14 font-title font-bold uppercase text-neutral-500">Day</span>
+          <div className="grid grid-cols-4 gap-10">
+            {days.map((day, i) => (
+              <button
+                key={day.label}
+                type="button"
+                onClick={() => setDayIndex(i)}
+                className={
+                  i === dayIndex
+                    ? 'main-btn flex flex-col items-center px-5 py-5 font-title bg-main-blue text-white'
+                    : 'main-btn flex flex-col items-center px-5 py-5 font-title'
+                }
+              >
+                <span className="text-14 font-bold">{day.label.slice(0, 3)}</span>
+                <span className="text-12">{day.date}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-10">
+          <span className="text-14 font-title font-bold uppercase text-neutral-500">Meal</span>
+          <div className="grid grid-cols-2 gap-10">
+            {SLOTS.map((slot) => (
+              <button
+                key={slot.key}
+                type="button"
+                onClick={() => setSlotKey(slot.key)}
+                className={
+                  slot.key === slotKey
+                    ? `main-btn font-title font-bold text-14 uppercase px-10 py-10 ${slot.badge}`
+                    : 'main-btn font-title font-bold text-14 uppercase px-10 py-10'
+                }
+              >
+                {slot.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex gap-10 justify-end">
+          <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10 mr-auto">
+            ← Back
+          </button>
+          <button
+            type="button"
+            disabled={isSameSpot}
+            onClick={() => onMove({ dayIndex, slotKey })}
+            className="main-btn font-title font-bold bg-main-blue text-white px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
+          >
+            Move here
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
 type SlotPickerProps = {
   recipes: Recipe[]
   onAdd: (recipeIds: string[]) => void
+  // Just a small "+" — for a meal that already has a recipe, where a full
+  // "+ Add recipe" button on every slot would be noise.
+  compact?: boolean
 }
 
-function SlotPicker({ recipes, onAdd }: SlotPickerProps) {
+function SlotPicker({ recipes, onAdd, compact = false }: SlotPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
@@ -758,12 +1216,15 @@ function SlotPicker({ recipes, onAdd }: SlotPickerProps) {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="bg-white border-2 border-black pl-10 pr-10 py-5 text-14 text-black font-title font-bold flex items-center justify-between hover:bg-neutral-100 w-full"
+        aria-label={compact ? 'Add another recipe' : undefined}
+        title={compact ? 'Add another recipe' : undefined}
+        className={
+          compact
+            ? 'text-neutral-500 hover:text-black font-bold text-16 leading-none px-5 cursor-pointer'
+            : 'border-2 border-dashed border-neutral-400 hover:border-black px-10 py-5 text-12 text-neutral-600 hover:text-black font-title font-bold cursor-pointer text-left'
+        }
       >
-        Select…
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <path d="M7 1V13M1 7H13" stroke="black" strokeWidth="2" strokeLinecap="round" />
-        </svg>
+        {compact ? '+' : '+ Add recipe'}
       </button>
 
       {isOpen && (

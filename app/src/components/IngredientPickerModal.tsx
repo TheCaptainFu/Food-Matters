@@ -7,22 +7,21 @@ type IngredientPickerModalProps = {
   catalog: IngredientDef[]
   onSelect: (name: string) => void
   onAddNew: (def: IngredientDef) => void
-  onEditDef: (oldName: string, def: IngredientDef) => void
-  onDeleteDef: (name: string) => void
   onClose: () => void
 }
+
+// Picking only — plus adding an ingredient that's missing. Editing or
+// deleting catalog entries is deliberately not offered here, so choosing an
+// ingredient for a recipe can't accidentally change it for every recipe.
 
 function IngredientPickerModal({
   catalog,
   onSelect,
   onAddNew,
-  onEditDef,
-  onDeleteDef,
   onClose,
 }: IngredientPickerModalProps) {
   const [search, setSearch] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingOriginalName, setEditingOriginalName] = useState<string | null>(null)
   const [formName, setFormName] = useState('')
   const [formCalories, setFormCalories] = useState('')
   const [formProtein, setFormProtein] = useState('')
@@ -33,7 +32,6 @@ function IngredientPickerModal({
   const filtered = catalog.filter((c) => c.name.toLowerCase().includes(search.trim().toLowerCase()))
 
   function openAddNew() {
-    setEditingOriginalName(null)
     setFormName(search.trim())
     setFormCalories('')
     setFormProtein('')
@@ -41,23 +39,6 @@ function IngredientPickerModal({
     setFormFat('')
     setFormCategory('other')
     setIsFormOpen(true)
-  }
-
-  function openEdit(def: IngredientDef) {
-    setEditingOriginalName(def.name)
-    setFormName(def.name)
-    setFormCalories(String(def.caloriesPer100g))
-    setFormProtein(String(def.proteinPer100g))
-    setFormCarbs(String(def.carbsPer100g))
-    setFormFat(String(def.fatPer100g))
-    setFormCategory(def.category)
-    setIsFormOpen(true)
-  }
-
-  function handleDelete(name: string) {
-    if (window.confirm(`Delete "${name}" from your ingredient catalog?`)) {
-      onDeleteDef(name)
-    }
   }
 
   function handleFormSave() {
@@ -71,12 +52,6 @@ function IngredientPickerModal({
       proteinPer100g: Number(formProtein) || 0,
       carbsPer100g: Number(formCarbs) || 0,
       fatPer100g: Number(formFat) || 0,
-    }
-
-    if (editingOriginalName) {
-      onEditDef(editingOriginalName, def)
-      setIsFormOpen(false)
-      return
     }
 
     const existing = catalog.find((c) => c.name.toLowerCase() === trimmedName.toLowerCase())
@@ -102,19 +77,7 @@ function IngredientPickerModal({
       >
         {isFormOpen ? (
           <>
-            <div className="flex items-center justify-between gap-10">
-              <h2 className="text-20 font-title font-bold uppercase">
-                {editingOriginalName ? 'Edit Ingredient' : 'New Ingredient'}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsFormOpen(false)}
-                aria-label="Back"
-                className="main-btn font-title font-bold px-10 py-5"
-              >
-                ← Back
-              </button>
-            </div>
+            <h2 className="text-20 font-title font-bold uppercase">New Ingredient</h2>
 
             <label className="flex flex-col gap-5">
               <span className="text-14 font-title font-bold">Name</span>
@@ -192,16 +155,16 @@ function IngredientPickerModal({
               <button
                 type="button"
                 onClick={() => setIsFormOpen(false)}
-                className="main-btn font-title font-bold px-15 py-10"
+                className="main-btn font-title font-bold px-15 py-10 mr-auto"
               >
-                Cancel
+                ← Back
               </button>
               <button
                 type="button"
                 onClick={handleFormSave}
                 className="main-btn font-title font-bold bg-main-blue text-white px-15 py-10"
               >
-                {editingOriginalName ? 'Save' : 'Add'}
+                Add
               </button>
             </div>
           </>
@@ -238,22 +201,6 @@ function IngredientPickerModal({
                   >
                     {c.name}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => openEdit(c)}
-                    aria-label={`Edit ${c.name}`}
-                    className="px-10 text-14 font-title font-bold border-l-2 border-black hover:bg-main-yellow"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(c.name)}
-                    aria-label={`Delete ${c.name}`}
-                    className="px-10 text-14 font-title font-bold border-l-2 border-black hover:bg-main-red"
-                  >
-                    ✕
-                  </button>
                 </div>
               ))}
             </div>
@@ -262,9 +209,9 @@ function IngredientPickerModal({
               + Add new ingredient
             </button>
 
-            <div className="flex justify-end">
+            <div className="flex">
               <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
-                Cancel
+                ← Back
               </button>
             </div>
           </>

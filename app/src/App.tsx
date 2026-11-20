@@ -8,9 +8,8 @@ import Calories from './components/Calories'
 import RecipeDetailModal from './components/RecipeDetailModal'
 import AddRecipeModal from './components/AddRecipeModal'
 import ConfirmModal from './components/ConfirmModal'
-import LoginScreen from './components/LoginScreen'
 import ProfileModal from './components/ProfileModal'
-import { useAuth } from './useAuth'
+import { useAuth, signInWithProvider } from './useAuth'
 import { supabase } from './supabaseClient'
 import { useEffect, useState } from 'react'
 import type { Recipe, Week, IngredientDef, Ingredient } from './types'
@@ -18,7 +17,7 @@ import { SLOT_KEYS } from './types'
 import type { Profile } from './nutrition'
 import { normalizeProfile } from './nutrition'
 import { SAMPLE_RECIPES } from './sampleRecipes'
-import { makeWeek } from './weekUtils'
+import { addDays, makeWeek, mondayOf, sortWeeks, toISODate, weekLabel } from './weekUtils'
 import { DEFAULT_INGREDIENT_CATALOG } from './ingredientCatalog'
 import { loadFromStorage, saveToStorage } from './storage'
 
@@ -114,19 +113,29 @@ function initIngredientCatalog(): IngredientDef[] {
 }
 
 function initWeeks(): Week[] {
-  const stored = loadFromStorage<Week[] | null>(WEEKS_KEY, null)
-  if (!stored) return [makeWeek('Week 1')]
+  const thisMonday = mondayOf(new Date())
+  const stored = loadFromStorage<Partial<Week>[] | null>(WEEKS_KEY, null)
+  if (!stored || stored.length === 0) return [makeWeek(toISODate(thisMonday))]
 
   // Weeks saved before "what you actually ate" existed have days without an
   // `actual` field — backfill an empty one so logging works immediately.
-  return stored.map((week) => ({
-    ...week,
-    days: week.days.map((day) => ({ ...day, actual: day.actual ?? {} })),
-  }))
+  // Weeks saved before weeks had dates ("Week 1", "Week 2"…) get
+  // consecutive Mondays starting from this week, in their saved order.
+  return sortWeeks(
+    stored.map((week, i) => {
+      const startDate = week.startDate ?? toISODate(addDays(thisMonday, i * 7))
+      return {
+        id: week.id ?? crypto.randomUUID(),
+        startDate,
+        label: weekLabel(startDate),
+        days: (week.days ?? []).map((day) => ({ ...day, actual: day.actual ?? {} })),
+      }
+    }),
+  )
 }
 
 function App() {
-  const { user, isLoading: isAuthLoading } = useAuth()
+  const { user } = useAuth()
 
   // A brand-new visitor (no profile saved yet) lands on Calories, where the
   // profile wizard opens automatically — not on an empty Calendar with no
@@ -139,7 +148,8 @@ function App() {
   // New users start with an empty Week 1 — no demo meals already assigned —
   // so the plan they see is only ever one they (or Generate Week) built.
   const [weeks, setWeeks] = useState<Week[]>(initWeeks)
-  const [activeWeekId, setActiveWeekId] = useState(weeks[0].id)
+  // Meal Plan opens on the current week; its ‹ › arrows move from there.
+  const [activeWeekStart, setActiveWeekStart] = useState(() => toISODate(mondayOf(new Date())))
 
   const [ingredientCatalog, setIngredientCatalog] = useState<IngredientDef[]>(initIngredientCatalog)
 
@@ -160,6 +170,30 @@ function App() {
   function handleTabChange(tab: TabKey) {
     setActiveTab(tab)
     setIsNavOpen(false)
+    // Each tab is a different page — start it at the top, not wherever the
+    // previous tab happened to be scrolled to.
+    window.scrollTo(0, 0)
+  }
+
+  // Renaming an ingredient renames it inside every recipe too — recipes
+  // refer to ingredients by name, so otherwise they'd lose their nutrition.
+  function handleEditIngredientDef(oldName: string, def: IngredientDef) {
+    setIngredientCatalog((prev) =>
+      prev.map((c) => (c.name === oldName ? def : c)).sort((a, b) => a.name.localeCompare(b.name)),
+    )
+    if (def.name !== oldName) {
+      setRecipes((prev) =>
+        prev.map((r) => ({
+          ...r,
+          ingredients: r.ingredients.map((ing) => (ing.name === oldName ? { ...ing, name: def.name } : ing)),
+        })),
+      )
+    }
+  }
+
+  // Only offered for ingredients no recipe uses (see IngredientsManager).
+  function handleDeleteIngredientDef(name: string) {
+    setIngredientCatalog((prev) => prev.filter((c) => c.name !== name))
   }
 
   function handleAddIngredientDef(def: IngredientDef) {
@@ -168,16 +202,6 @@ function App() {
         ? prev
         : [...prev, def].sort((a, b) => a.name.localeCompare(b.name)),
     )
-  }
-
-  function handleEditIngredientDef(oldName: string, def: IngredientDef) {
-    setIngredientCatalog((prev) =>
-      prev.map((c) => (c.name === oldName ? def : c)).sort((a, b) => a.name.localeCompare(b.name)),
-    )
-  }
-
-  function handleDeleteIngredientDef(name: string) {
-    setIngredientCatalog((prev) => prev.filter((c) => c.name !== name))
   }
 
   useEffect(() => {
@@ -217,20 +241,9 @@ function App() {
     setRecipes((prev) => prev.filter((r) => r.id !== id))
   }
 
-  // Accounts are opt-in at the infrastructure level: until Supabase is
-  // configured (env vars set), the app behaves exactly as before — local
-  // only, no login required.
-  if (supabase && isAuthLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="font-title font-bold text-16">Loading…</p>
-      </div>
-    )
-  }
-
-  if (supabase && !user) {
-    return <LoginScreen />
-  }
+  // No login wall: everyone starts as a guest (local-only data). Signing in
+  // is optional and offered from the menu while Supabase is configured.
+  const canSignIn = !!supabase && !user
 
   return (
     <>
@@ -245,6 +258,7 @@ function App() {
         onChange={handleTabChange}
         isOpen={isNavOpen}
         onClose={() => setIsNavOpen(false)}
+        onSignIn={canSignIn ? () => signInWithProvider('google') : undefined}
       />
       {activeTab === 'recipes' && (
         <Recipes
@@ -265,8 +279,11 @@ function App() {
           onOpenRecipe={setOpenRecipeId}
           weeks={weeks}
           setWeeks={setWeeks}
-          activeWeekId={activeWeekId}
-          setActiveWeekId={setActiveWeekId}
+          activeWeekStart={activeWeekStart}
+          setActiveWeekStart={setActiveWeekStart}
+          onOpenProfile={() => setIsProfileOpen(true)}
+          onAddRecipe={handleAddRecipe}
+          onAddIngredientDef={handleAddIngredientDef}
         />
       )}
       {activeTab === 'market' && <Market recipes={recipes} weeks={weeks} ingredientCatalog={ingredientCatalog} />}
@@ -277,9 +294,12 @@ function App() {
         <Calories
           recipes={recipes}
           weeks={weeks}
+          setWeeks={setWeeks}
           ingredientCatalog={ingredientCatalog}
           profile={profile}
           onOpenRecipe={setOpenRecipeId}
+          onOpenProfile={() => setIsProfileOpen(true)}
+          onGoToCalendar={() => handleTabChange('calendar')}
         />
       )}
 
@@ -308,8 +328,6 @@ function App() {
           initialRecipe={editingRecipe}
           ingredientCatalog={ingredientCatalog}
           onAddIngredientDef={handleAddIngredientDef}
-          onEditIngredientDef={handleEditIngredientDef}
-          onDeleteIngredientDef={handleDeleteIngredientDef}
           onClose={() => setEditingRecipe(null)}
           onSave={(recipe) => {
             handleUpdateRecipe(recipe)

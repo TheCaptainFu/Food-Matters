@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { User } from '@supabase/supabase-js'
 import type { IngredientDef } from '../types'
-import { calculateMacroTargets, suggestedMacroTargets, ACTIVITY_LEVELS, GOALS } from '../nutrition'
+import { calculateMacroTargets, suggestedMacroTargets, calculateWaterTargetMl, ACTIVITY_LEVELS, GOALS } from '../nutrition'
 import type { Profile } from '../nutrition'
 import { DIET_TYPES } from '../dietaryRestrictions'
-import { signOut } from '../useAuth'
+import { signInWithProvider, signOut } from '../useAuth'
+import { supabase } from '../supabaseClient'
 
 type ProfileModalProps = {
   profile: Profile | null
@@ -15,19 +16,96 @@ type ProfileModalProps = {
   onClose: () => void
 }
 
-type TabKey = 'vitals' | 'activity' | 'diet' | 'macros'
+type MacroKey = 'protein' | 'carbs' | 'fat'
+type MacroFields = Record<MacroKey, string>
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'vitals', label: 'Vitals' },
-  { key: 'activity', label: 'Activity' },
-  { key: 'diet', label: 'Diet' },
-  { key: 'macros', label: 'Macros' },
+const MACRO_FIELDS: { key: MacroKey; label: string }[] = [
+  { key: 'protein', label: 'Protein (g)' },
+  { key: 'carbs', label: 'Carbs (g)' },
+  { key: 'fat', label: 'Fat (g)' },
 ]
 
-function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose }: ProfileModalProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>('vitals')
-  const [justSavedProfile, setJustSavedProfile] = useState(false)
+const inputClass = 'border-3 border-black px-15 py-10 text-16 font-title w-full'
+const labelClass = 'text-16 font-title font-bold'
+const sectionTitleClass = 'text-18 font-title font-bold uppercase'
 
+// A row of buttons for a small fixed set of choices (sex, goal) — every
+// option visible at once, instead of hidden behind a dropdown.
+function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[]
+  value: T
+  onChange: (value: T) => void
+}) {
+  return (
+    <div className="flex flex-wrap gap-10">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className={
+            o.value === value
+              ? 'main-btn font-title font-bold text-16 px-15 py-10 bg-main-blue text-white'
+              : 'main-btn font-title font-bold text-16 px-15 py-10'
+          }
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// An on/off option styled like the activity cards — the whole card is the
+// click target, with a check box in the corner showing its state.
+function ToggleCard({
+  checked,
+  onChange,
+  title,
+  description,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  title: string
+  description: string
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={
+        checked
+          ? 'flex items-start gap-10 text-left px-15 py-10 border-3 border-black bg-main-blue text-white shadow-[3px_3px_0_0_#000] cursor-pointer'
+          : 'flex items-start gap-10 text-left px-15 py-10 border-3 border-black bg-white hover:bg-neutral-50 cursor-pointer'
+      }
+    >
+      <span
+        aria-hidden="true"
+        className={
+          checked
+            ? 'w-20 h-20 shrink-0 mt-[1px] border-2 border-white bg-white text-main-blue font-bold text-14 flex items-center justify-center'
+            : 'w-20 h-20 shrink-0 mt-[1px] border-2 border-black bg-white'
+        }
+      >
+        {checked && '✓'}
+      </span>
+      <span className="flex flex-col gap-5">
+        <span className="text-16 font-title font-bold">{title}</span>
+        <span className={checked ? 'text-14 font-title text-white/90' : 'text-14 font-title text-neutral-500'}>
+          {description}
+        </span>
+      </span>
+    </button>
+  )
+}
+
+function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose }: ProfileModalProps) {
   const [age, setAge] = useState(profile?.age ?? 30)
   const [weightKg, setWeightKg] = useState(profile?.weightKg ?? 70)
   const [heightCm, setHeightCm] = useState(profile?.heightCm ?? 175)
@@ -61,74 +139,44 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
     setExcludedIngredients((prev) => prev.filter((n) => n !== name))
   }
 
-  const initialMacros = profile
-    ? calculateMacroTargets(profile)
-    : suggestedMacroTargets({ age, weightKg, heightCm, sex, activity, goal, worksOut, takesProtein })
-  const [proteinTarget, setProteinTarget] = useState(String(initialMacros.protein))
-  const [carbsTarget, setCarbsTarget] = useState(String(initialMacros.carbs))
-  const [fatTarget, setFatTarget] = useState(String(initialMacros.fat))
-  const [macrosTouched, setMacrosTouched] = useState(
-    !!profile && (profile.customProtein != null || profile.customCarbs != null || profile.customFat != null),
-  )
-
-  // Macro fields auto-follow the suggested values (which depend on
-  // weight/goal/activity/etc.) until the user directly edits one of them —
-  // after that, their numbers are authoritative until they hit Reset.
-  useEffect(() => {
-    if (macrosTouched) return
-    const suggested = suggestedMacroTargets({ age, weightKg, heightCm, sex, activity, goal, worksOut, takesProtein })
-    setProteinTarget(String(suggested.protein))
-    setCarbsTarget(String(suggested.carbs))
-    setFatTarget(String(suggested.fat))
-  }, [age, weightKg, heightCm, sex, activity, goal, worksOut, takesProtein, macrosTouched])
-
-  function resetMacrosToSuggested() {
-    setMacrosTouched(false)
+  // Macro targets follow the suggestion (derived from the vitals below) until
+  // the user types their own; customMacros holds those overrides, and null
+  // means "use the suggestion". Derived during render rather than synced in
+  // an effect, so there's no extra render and no stale values.
+  const suggested = suggestedMacroTargets({ age, weightKg, heightCm, sex, activity, goal, worksOut, takesProtein })
+  const [customMacros, setCustomMacros] = useState<MacroFields | null>(() => {
+    if (!profile || (profile.customProtein == null && profile.customCarbs == null && profile.customFat == null)) {
+      return null
+    }
+    const saved = calculateMacroTargets(profile)
+    return { protein: String(saved.protein), carbs: String(saved.carbs), fat: String(saved.fat) }
+  })
+  const macros: MacroFields = customMacros ?? {
+    protein: String(suggested.protein),
+    carbs: String(suggested.carbs),
+    fat: String(suggested.fat),
   }
 
-  // Any change to the vitals that feed the suggestion (weight, height,
-  // goal, ...) makes the macro fields follow the new suggestion again,
-  // even if they'd been manually overridden before — a custom value only
-  // "sticks" until the next thing that would change what's suggested.
-  function updateAge(value: number) {
-    setAge(value)
-    setMacrosTouched(false)
+  function setMacro(key: MacroKey, value: string) {
+    setCustomMacros({ ...macros, [key]: value })
   }
-  function updateWeightKg(value: number) {
-    setWeightKg(value)
-    setMacrosTouched(false)
-  }
-  function updateHeightCm(value: number) {
-    setHeightCm(value)
-    setMacrosTouched(false)
-  }
-  function updateSex(value: Profile['sex']) {
-    setSex(value)
-    setMacrosTouched(false)
-  }
-  function updateActivity(value: Profile['activity']) {
-    setActivity(value)
-    setMacrosTouched(false)
-  }
-  function updateGoal(value: Profile['goal']) {
-    setGoal(value)
-    setMacrosTouched(false)
-  }
-  function updateWorksOut(value: boolean) {
-    setWorksOut(value)
-    setMacrosTouched(false)
-  }
-  function updateTakesProtein(value: boolean) {
-    setTakesProtein(value)
-    setMacrosTouched(false)
+
+  // Changing anything the suggestion depends on goes back to following it —
+  // a custom value only "sticks" until the next thing that would change it.
+  function followSuggestion<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value)
+      setCustomMacros(null)
+    }
   }
 
   const previewCalories = Math.round(
-    (Number(proteinTarget) || 0) * 4 + (Number(carbsTarget) || 0) * 4 + (Number(fatTarget) || 0) * 9,
+    (Number(macros.protein) || 0) * 4 + (Number(macros.carbs) || 0) * 4 + (Number(macros.fat) || 0) * 9,
   )
+  const waterL = (calculateWaterTargetMl({ weightKg, worksOut }) / 1000).toFixed(1)
 
   function saveProfile() {
-    const next: Profile = {
+    onSaveProfile({
       age,
       weightKg,
       heightCm,
@@ -138,351 +186,309 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
       worksOut,
       takesProtein,
       takesCreatine,
-      customProtein: macrosTouched ? Number(proteinTarget) || 0 : undefined,
-      customCarbs: macrosTouched ? Number(carbsTarget) || 0 : undefined,
-      customFat: macrosTouched ? Number(fatTarget) || 0 : undefined,
+      customProtein: customMacros ? Number(customMacros.protein) || 0 : undefined,
+      customCarbs: customMacros ? Number(customMacros.carbs) || 0 : undefined,
+      customFat: customMacros ? Number(customMacros.fat) || 0 : undefined,
       diet,
       excludedIngredients,
-    }
-    onSaveProfile(next)
-    if (profile) {
-      setJustSavedProfile(true)
-    } else {
-      onClose()
-    }
-  }
-
-  // New users can't dismiss without saving — there's nothing to fall back
-  // to. Returning users can close freely; their saved profile is untouched
-  // until they hit Save.
-  function handleBackdropClick() {
-    if (profile) onClose()
+    })
+    onClose()
   }
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-20" onClick={handleBackdropClick}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-20" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="main-btn bg-white p-30 flex flex-col gap-20 w-full max-w-[440px] max-h-[85vh] overflow-y-auto"
+        className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] flex flex-col w-full max-w-[620px] max-h-[90vh]"
       >
-        {user && (
-          <div className="flex items-center gap-15 pb-15 border-b-2 border-black">
-            {user.user_metadata?.avatar_url && (
-              <img
-                src={user.user_metadata.avatar_url}
-                alt=""
-                className="w-40 h-40 border-2 border-black object-cover shrink-0"
-              />
-            )}
-            <span className="flex-1 flex flex-col min-w-0">
-              <span className="text-14 font-title font-bold truncate">
-                {user.user_metadata?.full_name ?? user.email}
-              </span>
-              <span className="text-12 font-title text-neutral-500 truncate">{user.email}</span>
-            </span>
+        {/* Header: who you are, and the result everything below feeds into —
+            pinned, so you see your targets change as you edit. */}
+        <div className="flex flex-col gap-20 p-30 pb-20 border-b-3 border-black">
+          <div className="flex items-start justify-between gap-15">
+            <div className="flex flex-col gap-5">
+              <h2 className="text-26 font-title font-bold uppercase">
+                {profile ? 'Your Profile' : 'Welcome to Food Matters'}
+              </h2>
+              {!profile && (
+                <p className="text-16 font-title text-neutral-500">
+                  A few details so we can work out your daily targets. You can change them any time.
+                </p>
+              )}
+            </div>
             <button
               type="button"
-              onClick={() => signOut()}
-              className="main-btn font-title font-bold text-12 px-10 py-5 shrink-0"
-            >
-              Sign out
-            </button>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-5">
-          <h2 className="text-20 font-title font-bold uppercase">{profile ? 'Your Profile' : 'Welcome to Food Matters'}</h2>
-          {!profile && (
-            <p className="text-14 font-title text-neutral-500">
-              Tell us about yourself so we can work out your daily targets and build a meal plan that fits you.
-            </p>
-          )}
-        </div>
-
-        {justSavedProfile && (
-          <div className="main-btn p-15 flex items-center justify-between gap-15 bg-main-yellow">
-            <span className="text-14 font-title font-bold">
-              Profile updated — your targets are now current, but your planned weeks in Calendar still have the
-              old picks. Go to Calendar and click "Regenerate Week" to refresh them.
-            </span>
-            <button
-              type="button"
-              onClick={() => setJustSavedProfile(false)}
-              aria-label="Dismiss"
-              className="text-black hover:text-main-red font-bold text-16 leading-none cursor-pointer shrink-0"
+              onClick={onClose}
+              aria-label="Close"
+              className="font-bold text-20 leading-none hover:text-main-red cursor-pointer shrink-0"
             >
               ✕
             </button>
           </div>
-        )}
 
-        <div className="flex flex-wrap gap-10">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={
-                activeTab === tab.key
-                  ? 'main-btn font-title font-bold text-12 uppercase px-10 py-5 bg-main-blue text-white'
-                  : 'main-btn font-title font-bold text-12 uppercase px-10 py-5'
-              }
-            >
-              {tab.label}
-            </button>
-          ))}
+          {user ? (
+            <div className="flex items-center gap-10">
+              {user.user_metadata?.avatar_url && (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt=""
+                  className="w-30 h-30 border-2 border-black object-cover shrink-0"
+                />
+              )}
+              <span className="flex-1 min-w-0 text-14 font-title truncate">
+                Signed in as <span className="font-bold">{user.user_metadata?.full_name ?? user.email}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => signOut()}
+                className="text-14 font-title font-bold underline cursor-pointer shrink-0"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <p className="text-14 font-title text-neutral-500">
+              You're using Food Matters as a guest, so your data stays in this browser only.
+              {supabase && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    onClick={() => signInWithProvider('google')}
+                    className="font-bold text-black underline cursor-pointer"
+                  >
+                    Sign in
+                  </button>{' '}
+                  to keep it.
+                </>
+              )}
+            </p>
+          )}
+
+          <div className="bg-main-yellow border-2 border-black px-20 py-15 flex flex-wrap items-baseline justify-between gap-x-20 gap-y-5 font-title">
+            <span className="text-14 font-bold uppercase">Your daily target</span>
+            <span className="text-16">
+              <span className="text-22 font-bold">{previewCalories} kcal</span> · P {macros.protein || 0}g · C{' '}
+              {macros.carbs || 0}g · F {macros.fat || 0}g · 💧 {waterL} L
+            </span>
+          </div>
         </div>
 
-        {activeTab === 'vitals' && (
-          <div className="flex flex-col gap-15">
-            <label className="flex flex-col gap-5">
-              <span className="text-14 font-title font-bold">Age</span>
-              <input
-                type="number"
-                min="0"
-                value={age}
-                onChange={(e) => updateAge(Number(e.target.value))}
-                className="border-3 border-black px-10 py-5 font-title"
-              />
-            </label>
+        {/* Scrolling body */}
+        <div className="flex flex-col gap-40 p-30 overflow-y-auto">
+          <section className="flex flex-col gap-20">
+            <span className={sectionTitleClass}>About you</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-20">
+              <div className="flex flex-col gap-10">
+                <span className={labelClass}>Sex</span>
+                <Segmented
+                  options={[
+                    { value: 'male', label: 'Male' },
+                    { value: 'female', label: 'Female' },
+                  ]}
+                  value={sex}
+                  onChange={followSuggestion(setSex)}
+                />
+              </div>
+              <label className="flex flex-col gap-10">
+                <span className={labelClass}>Age</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={age}
+                  onChange={(e) => followSuggestion(setAge)(Number(e.target.value))}
+                  className={inputClass}
+                />
+              </label>
+              <label className="flex flex-col gap-10">
+                <span className={labelClass}>Weight (kg)</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={weightKg}
+                  onChange={(e) => followSuggestion(setWeightKg)(Number(e.target.value))}
+                  className={inputClass}
+                />
+              </label>
+              <label className="flex flex-col gap-10">
+                <span className={labelClass}>Height (cm)</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={heightCm}
+                  onChange={(e) => followSuggestion(setHeightCm)(Number(e.target.value))}
+                  className={inputClass}
+                />
+              </label>
+            </div>
+          </section>
 
-            <label className="flex flex-col gap-5">
-              <span className="text-14 font-title font-bold">Weight (kg)</span>
-              <input
-                type="number"
-                min="0"
-                value={weightKg}
-                onChange={(e) => updateWeightKg(Number(e.target.value))}
-                className="border-3 border-black px-10 py-5 font-title"
-              />
-            </label>
+          <section className="flex flex-col gap-20 border-t-2 border-neutral-200 pt-40">
+            <span className={sectionTitleClass}>Goal & activity</span>
+            <div className="flex flex-col gap-10">
+              <span className={labelClass}>Goal</span>
+              <Segmented options={GOALS} value={goal} onChange={followSuggestion(setGoal)} />
+            </div>
+            <div className="flex flex-col gap-10">
+              <span className={labelClass}>Activity level</span>
+              {/* Cards instead of a dropdown: each level's description says how
+                  often you exercise, and they need to be readable side by side. */}
+              <div role="radiogroup" aria-label="Activity level" className="grid grid-cols-1 sm:grid-cols-2 gap-10">
+                {ACTIVITY_LEVELS.map((a) => {
+                  const isSelected = a.value === activity
+                  return (
+                    <button
+                      key={a.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => followSuggestion(setActivity)(a.value)}
+                      className={
+                        isSelected
+                          ? 'flex flex-col gap-5 text-left px-15 py-10 border-3 border-black bg-main-blue text-white shadow-[3px_3px_0_0_#000] cursor-pointer'
+                          : 'flex flex-col gap-5 text-left px-15 py-10 border-3 border-black bg-white hover:bg-neutral-50 cursor-pointer'
+                      }
+                    >
+                      <span className="text-16 font-title font-bold">{a.label}</span>
+                      <span className={isSelected ? 'text-14 font-title text-white/90' : 'text-14 font-title text-neutral-500'}>
+                        {a.description}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="flex flex-col gap-10">
+              <span className={labelClass}>Training & supplements</span>
+              <div className="flex flex-col gap-10">
+                <ToggleCard
+                  checked={worksOut}
+                  onChange={followSuggestion(setWorksOut)}
+                  title="Strength training"
+                  description="I lift weights regularly. Raises your protein and water targets."
+                />
+                <ToggleCard
+                  checked={takesProtein}
+                  onChange={followSuggestion(setTakesProtein)}
+                  title="Protein powder"
+                  description="Meal Plan suggests a shake on days short of protein."
+                />
+                <ToggleCard
+                  checked={takesCreatine}
+                  onChange={setTakesCreatine}
+                  title="Creatine"
+                  description="No calories, but drink extra water: it pulls water into your muscles."
+                />
+              </div>
+            </div>
+          </section>
 
-            <label className="flex flex-col gap-5">
-              <span className="text-14 font-title font-bold">Height (cm)</span>
-              <input
-                type="number"
-                min="0"
-                value={heightCm}
-                onChange={(e) => updateHeightCm(Number(e.target.value))}
-                className="border-3 border-black px-10 py-5 font-title"
-              />
-            </label>
-
-            <label className="flex flex-col gap-5">
-              <span className="text-14 font-title font-bold">Sex</span>
-              <select
-                value={sex}
-                onChange={(e) => updateSex(e.target.value as Profile['sex'])}
-                className="bg-white border-3 border-black pl-10 pr-30 py-5 font-title"
-              >
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-              </select>
-            </label>
-          </div>
-        )}
-
-        {activeTab === 'activity' && (
-          <div className="flex flex-col gap-15">
-            <label className="flex flex-col gap-5">
-              <span className="text-14 font-title font-bold">Activity Level</span>
-              <select
-                value={activity}
-                onChange={(e) => updateActivity(e.target.value as Profile['activity'])}
-                className="bg-white border-3 border-black pl-10 pr-30 py-5 font-title"
-              >
-                {ACTIVITY_LEVELS.map((a) => (
-                  <option key={a.value} value={a.value}>
-                    {a.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-5">
-              <span className="text-14 font-title font-bold">Goal</span>
-              <select
-                value={goal}
-                onChange={(e) => updateGoal(e.target.value as Profile['goal'])}
-                className="bg-white border-3 border-black pl-10 pr-30 py-5 font-title"
-              >
-                {GOALS.map((g) => (
-                  <option key={g.value} value={g.value}>
-                    {g.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex items-center gap-10">
-              <input type="checkbox" checked={worksOut} onChange={(e) => updateWorksOut(e.target.checked)} />
-              <span className="text-14 font-title font-bold">I work out regularly</span>
-            </label>
-
-            <label className="flex items-center gap-10">
-              <input
-                type="checkbox"
-                checked={takesProtein}
-                onChange={(e) => updateTakesProtein(e.target.checked)}
-              />
-              <span className="text-14 font-title font-bold">I take protein powder</span>
-            </label>
-
-            <label className="flex items-center gap-10">
-              <input type="checkbox" checked={takesCreatine} onChange={(e) => setTakesCreatine(e.target.checked)} />
-              <span className="text-14 font-title font-bold">I take creatine</span>
-            </label>
-            {takesCreatine && (
-              <p className="text-12 font-title text-neutral-500 -mt-5">
-                Creatine doesn't add calories or macros, but drink extra water — it pulls water into your muscles.
-              </p>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'diet' && (
-          <div className="flex flex-col gap-15">
-            <label className="flex flex-col gap-5">
-              <span className="text-14 font-title font-bold">Diet</span>
-              <select
-                value={diet}
-                onChange={(e) => setDiet(e.target.value as Profile['diet'])}
-                className="bg-white border-3 border-black pl-10 pr-30 py-5 font-title"
-              >
-                {DIET_TYPES.map((d) => (
-                  <option key={d.value} value={d.value}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <section className="flex flex-col gap-20 border-t-2 border-neutral-200 pt-40">
+            <span className={sectionTitleClass}>Food preferences</span>
 
             <div className="flex flex-col gap-10">
-              <span className="text-14 font-title font-bold">Avoid these ingredients</span>
-              <p className="text-12 font-title text-neutral-500">
-                Allergies or things you just don't want suggested — Auto-fill and Suggest other will skip recipes
-                that use them.
-              </p>
+              <span className={labelClass}>Diet</span>
+              <Segmented options={DIET_TYPES} value={diet} onChange={setDiet} />
+            </div>
+
+            <div className="flex flex-col gap-10">
+              <div className="flex flex-col gap-5">
+                <span className={labelClass}>Ingredients to avoid</span>
+                <span className="text-14 font-title text-neutral-500">
+                  Allergies or things you don't like. Meal suggestions will skip recipes that use them.
+                </span>
+              </div>
 
               <div className="relative">
                 <input
-                  type="text"
-                  placeholder="Search ingredients to avoid…"
+                  type="search"
+                  placeholder="Add an ingredient, e.g. peanuts…"
                   value={excludeSearch}
                   onChange={(e) => setExcludeSearch(e.target.value)}
-                  className="border-3 border-black px-10 py-5 font-title w-full"
+                  className={inputClass}
                 />
                 {excludeSuggestions.length > 0 && (
-                  <div className="absolute z-10 top-full left-0 right-0 bg-white border-3 border-t-0 border-black max-h-[180px] overflow-y-auto">
+                  <div className="absolute z-10 top-full left-0 right-0 bg-white border-3 border-t-0 border-black shadow-[4px_4px_0_0_#000] max-h-[220px] overflow-y-auto">
                     {excludeSuggestions.map((c) => (
                       <button
                         key={c.name}
                         type="button"
                         onClick={() => addExcludedIngredient(c.name)}
-                        className="block w-full text-left px-10 py-5 text-14 font-title font-bold hover:bg-main-yellow"
+                        className="flex w-full items-center justify-between gap-10 text-left px-15 py-10 text-16 font-title font-bold hover:bg-main-yellow border-b border-neutral-200 last:border-b-0 cursor-pointer"
                       >
                         {c.name}
+                        <span className="text-14 font-normal text-neutral-500">+ Avoid</span>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
 
-              {excludedIngredients.length > 0 && (
+              {excludedIngredients.length > 0 ? (
                 <div className="flex flex-wrap gap-10">
                   {excludedIngredients.map((name) => (
                     <span
                       key={name}
-                      className="main-btn flex items-center gap-10 px-10 py-5 text-14 font-title font-bold bg-main-red text-white"
+                      className="flex items-center gap-10 pl-10 pr-5 py-5 text-14 font-title font-bold bg-main-red/20 border-2 border-black"
                     >
-                      {name}
+                      🚫 {name}
                       <button
                         type="button"
                         onClick={() => removeExcludedIngredient(name)}
                         aria-label={`Stop avoiding ${name}`}
-                        className="text-white hover:text-black leading-none cursor-pointer"
+                        title="Remove"
+                        className="w-20 h-20 flex items-center justify-center leading-none hover:bg-black hover:text-white cursor-pointer"
                       >
                         ✕
                       </button>
                     </span>
                   ))}
                 </div>
+              ) : (
+                <span className="text-14 font-title text-neutral-400">Nothing excluded yet.</span>
               )}
             </div>
-          </div>
-        )}
+          </section>
 
-        {activeTab === 'macros' && (
-          <div className="flex flex-col gap-10">
+          <section className="flex flex-col gap-15 border-t-2 border-neutral-200 pt-40">
             <div className="flex items-center justify-between gap-10">
-              <span className="text-14 font-title font-bold uppercase">Macro Targets</span>
-              {macrosTouched && (
+              <span className={sectionTitleClass}>Macro targets</span>
+              {customMacros && (
                 <button
                   type="button"
-                  onClick={resetMacrosToSuggested}
-                  className="text-12 font-title font-bold underline text-neutral-500 hover:text-black"
+                  onClick={() => setCustomMacros(null)}
+                  className="text-14 font-title font-bold underline text-neutral-500 hover:text-black cursor-pointer"
                 >
                   Reset to suggested
                 </button>
               )}
             </div>
-
-            <div className="grid grid-cols-3 gap-10">
-              <label className="flex flex-col gap-5">
-                <span className="text-14 font-title font-bold">Protein (g)</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={proteinTarget}
-                  onChange={(e) => {
-                    setProteinTarget(e.target.value)
-                    setMacrosTouched(true)
-                  }}
-                  className="border-3 border-black px-10 py-5 font-title w-full"
-                />
-              </label>
-
-              <label className="flex flex-col gap-5">
-                <span className="text-14 font-title font-bold">Carbs (g)</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={carbsTarget}
-                  onChange={(e) => {
-                    setCarbsTarget(e.target.value)
-                    setMacrosTouched(true)
-                  }}
-                  className="border-3 border-black px-10 py-5 font-title w-full"
-                />
-              </label>
-
-              <label className="flex flex-col gap-5">
-                <span className="text-14 font-title font-bold">Fat (g)</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={fatTarget}
-                  onChange={(e) => {
-                    setFatTarget(e.target.value)
-                    setMacrosTouched(true)
-                  }}
-                  className="border-3 border-black px-10 py-5 font-title w-full"
-                />
-              </label>
-            </div>
-
-            <span className="text-12 font-title text-neutral-500">
-              = {previewCalories} kcal/day {macrosTouched ? '(custom)' : '(suggested from your profile)'}
+            <span className="text-14 font-title text-neutral-500">
+              {customMacros
+                ? 'Your own numbers. Changing anything above goes back to the suggested values.'
+                : 'Suggested from the details above. Type your own numbers to override them.'}
             </span>
-          </div>
-        )}
+            <div className="grid grid-cols-3 gap-15">
+              {MACRO_FIELDS.map(({ key, label }) => (
+                <label key={key} className="flex flex-col gap-10">
+                  <span className={labelClass}>{label}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={macros[key]}
+                    onChange={(e) => setMacro(key, e.target.value)}
+                    className={inputClass}
+                  />
+                </label>
+              ))}
+            </div>
+          </section>
+        </div>
 
-        <div className="flex gap-10 justify-end">
-          {profile && (
-            <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
-              Cancel
-            </button>
-          )}
+        {/* Footer */}
+        <div className="flex flex-wrap gap-15 justify-end px-30 py-20 border-t-3 border-black">
+          <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
+            {profile ? 'Cancel' : 'Skip for now'}
+          </button>
           <button
             type="button"
             onClick={saveProfile}

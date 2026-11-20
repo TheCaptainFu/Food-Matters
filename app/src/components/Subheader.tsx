@@ -7,6 +7,8 @@ type SubheaderProps = {
   onChange: (tab: TabKey) => void
   isOpen: boolean
   onClose: () => void
+  // Shown as a menu entry only for guests (undefined hides it).
+  onSignIn?: () => void
 }
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -17,7 +19,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'calories', label: 'Calories' },
 ]
 
-function Subheader({ activeTab, onChange, isOpen, onClose }: SubheaderProps) {
+function Subheader({ activeTab, onChange, isOpen, onClose, onSignIn }: SubheaderProps) {
   return (
     <>
       {/* Desktop: a plain horizontal tab row, always visible. */}
@@ -32,6 +34,11 @@ function Subheader({ activeTab, onChange, isOpen, onClose }: SubheaderProps) {
               {tab.label}
             </li>
           ))}
+          {onSignIn && (
+            <li className="main-btn ml-auto" onClick={onSignIn}>
+              Sign in
+            </li>
+          )}
         </ul>
       </div>
 
@@ -59,6 +66,11 @@ function Subheader({ activeTab, onChange, isOpen, onClose }: SubheaderProps) {
                   {tab.label}
                 </li>
               ))}
+              {onSignIn && (
+                <li className="main-btn" onClick={onSignIn}>
+                  Sign in
+                </li>
+              )}
             </ul>
           </div>,
           document.body,

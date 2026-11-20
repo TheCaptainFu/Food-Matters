@@ -107,6 +107,9 @@ export type ActualEntry = {
   fat: number
   // A resized/compressed data URL, kept small enough for localStorage.
   photo?: string
+  // Logged with "✓ Ate this" — i.e. exactly the planned meal, so the plan
+  // and the log are the same food and shouldn't be shown as two things.
+  fromPlan?: boolean
 }
 
 export type Day = {
@@ -114,4 +117,7 @@ export type Day = {
   slots: Record<SlotKey, string[]>
   actual: Partial<Record<SlotKey, ActualEntry>>
 }
-export type Week = { id: string; label: string; days: Day[] }
+// startDate is the week's Monday as "YYYY-MM-DD"; label is derived from it
+// (e.g. "17–23 Nov") and kept in sync, so anything that just shows a week's
+// name can keep using label.
+export type Week = { id: string; startDate: string; label: string; days: Day[] }

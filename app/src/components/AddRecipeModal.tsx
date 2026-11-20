@@ -5,13 +5,23 @@ import { UNITS, CATEGORIES, SLOT_KEYS } from '../types'
 import { spoonHint } from '../nutrition'
 import IngredientPickerModal from './IngredientPickerModal'
 
+// Same colours as each meal's badge on the Calendar. Literal class strings
+// (not interpolated) so the Tailwind build picks them up.
+const MEAL_CHIP_ON: Record<SlotKey, string> = {
+  breakfast: 'bg-main-yellow text-black',
+  lunch: 'bg-main-orange text-black',
+  afternoon: 'bg-main-teal text-black',
+  dinner: 'bg-main-blue text-white',
+}
+
 type AddRecipeModalProps = {
   initialRecipe?: Recipe
   ingredientCatalog: IngredientDef[]
   onAddIngredientDef: (def: IngredientDef) => void
-  onEditIngredientDef: (oldName: string, def: IngredientDef) => void
-  onDeleteIngredientDef: (name: string) => void
   onClose: () => void
+  // Shown as "← Back" when the form was opened from another dialog
+  // (e.g. Swap Recipe), to return there instead of closing everything.
+  onBack?: () => void
   onSave: (recipe: Recipe) => void
 }
 
@@ -19,9 +29,8 @@ function AddRecipeModal({
   initialRecipe,
   ingredientCatalog,
   onAddIngredientDef,
-  onEditIngredientDef,
-  onDeleteIngredientDef,
   onClose,
+  onBack,
   onSave,
 }: AddRecipeModalProps) {
   const [title, setTitle] = useState(initialRecipe?.title ?? '')
@@ -48,16 +57,6 @@ function AddRecipeModal({
       prev.some((ing) => ing.name === name) ? prev : [...prev, { name, amount: 0, unit: 'g' as Unit }],
     )
     setIsPickerOpen(false)
-  }
-
-  function handleEditIngredientDef(oldName: string, def: IngredientDef) {
-    onEditIngredientDef(oldName, def)
-    setIngredients((prev) => prev.map((ing) => (ing.name === oldName ? { ...ing, name: def.name } : ing)))
-  }
-
-  function handleDeleteIngredientDef(name: string) {
-    onDeleteIngredientDef(name)
-    setIngredients((prev) => prev.filter((ing) => ing.name !== name))
   }
 
   function removeIngredientRow(index: number) {
@@ -122,21 +121,40 @@ function AddRecipeModal({
 
             <div className="flex flex-col gap-10">
               <span className="text-16 font-title font-bold uppercase">When is this eaten?</span>
-              <div className="flex flex-wrap gap-10">
-                {SLOT_KEYS.map((slot) => (
-                  <label key={slot.value} className="flex items-center gap-5">
-                    <input
-                      type="checkbox"
-                      checked={mealTypes.includes(slot.value)}
-                      onChange={() => toggleMealType(slot.value)}
-                    />
-                    <span className="text-14 font-title font-bold">{slot.label}</span>
-                  </label>
-                ))}
+              {/* Toggle chips in each meal's Calendar colour, so a recipe's
+                  meals look the same here as on the plan. One per row. */}
+              <div className="flex flex-col gap-10">
+                {SLOT_KEYS.map((slot) => {
+                  const isOn = mealTypes.includes(slot.value)
+                  return (
+                    <button
+                      key={slot.value}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={isOn}
+                      onClick={() => toggleMealType(slot.value)}
+                      className={
+                        isOn
+                          ? `main-btn w-full flex items-center gap-10 text-left font-title font-bold text-14 uppercase px-15 py-10 ${MEAL_CHIP_ON[slot.value]}`
+                          : 'main-btn w-full flex items-center gap-10 text-left font-title font-bold text-14 uppercase px-15 py-10 text-neutral-500'
+                      }
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="w-20 h-20 shrink-0 border-2 border-current bg-white text-black flex items-center justify-center text-14 leading-none"
+                      >
+                        {isOn ? '✓' : ''}
+                      </span>
+                      {slot.label}
+                    </button>
+                  )
+                })}
               </div>
-              {mealTypes.length === 0 && (
-                <p className="text-12 font-title text-main-red">Pick at least one meal.</p>
-              )}
+              <p className="text-14 font-title text-neutral-500">
+                {mealTypes.length === 0
+                  ? 'Pick at least one. Meal suggestions only offer it at these times.'
+                  : 'Meal suggestions only offer it at these times.'}
+              </p>
             </div>
 
             <div className="flex flex-col gap-10">
@@ -206,6 +224,11 @@ function AddRecipeModal({
             </label>
 
             <div className="flex gap-10 justify-end">
+              {onBack && (
+                <button type="button" onClick={onBack} className="main-btn font-title font-bold px-15 py-10 mr-auto">
+                  ← Back
+                </button>
+              )}
               <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
                 Cancel
               </button>
@@ -229,8 +252,6 @@ function AddRecipeModal({
             onAddIngredientDef(def)
             addIngredient(def.name)
           }}
-          onEditDef={handleEditIngredientDef}
-          onDeleteDef={handleDeleteIngredientDef}
           onClose={() => setIsPickerOpen(false)}
         />
       )}
