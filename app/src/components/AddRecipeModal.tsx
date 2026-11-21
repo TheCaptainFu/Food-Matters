@@ -88,35 +88,41 @@ function AddRecipeModal({
           <form
             onSubmit={handleSubmit}
             onClick={(e) => e.stopPropagation()}
-            className="border-3 bg-white p-30 flex flex-col gap-20 w-full max-w-[400px] max-h-[85vh] overflow-y-auto"
+            className="border-3 border-black bg-white shadow-[4px_4px_0_0_#000] p-30 flex flex-col gap-25 w-full max-w-[680px] max-h-[90vh] overflow-y-auto"
           >
             <h2 className="text-20 font-title font-bold uppercase">
               {initialRecipe ? 'Edit Recipe' : 'New Recipe'}
             </h2>
 
-            <input
-              type="text"
-              placeholder="Recipe title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="border-3 border-black px-15 py-10 font-title"
-              autoFocus
-              required
-            />
+            {/* Name and type side by side on wider screens */}
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_220px] gap-15">
+              <label className="flex flex-col gap-10">
+                <span className="text-16 font-title font-bold uppercase">Name</span>
+                <input
+                  type="text"
+                  placeholder="e.g. Chicken souvlaki"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="border-3 border-black px-15 py-10 font-title"
+                  autoFocus
+                  required
+                />
+              </label>
 
-            <div className="flex flex-col gap-10">
-              <span className="text-16 font-title font-bold uppercase">Category</span>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as Category)}
-                className="bg-white border-3 border-black pl-10 pr-30 py-10 text-14 font-title"
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+              <label className="flex flex-col gap-10">
+                <span className="text-16 font-title font-bold uppercase">Type</span>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as Category)}
+                  className="bg-white border-3 border-black pl-15 pr-30 py-10 font-title"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
 
             <div className="flex flex-col gap-10">

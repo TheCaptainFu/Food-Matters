@@ -4,7 +4,7 @@ import type { Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
 import type { Macros, Profile } from '../nutrition'
 import { calculateMacroTargets, recipeMacros } from '../nutrition'
 import { filterCompatibleRecipes } from '../dietaryRestrictions'
-import { addDays, dayDate, formatDayDate, makeWeek, mondayOf, parseISODate, sortWeeks, toISODate, todayISO } from '../weekUtils'
+import { addDays, allExtras, dayDate, formatDayDate, makeWeek, mondayOf, parseISODate, sortWeeks, toISODate, todayISO } from '../weekUtils'
 import ConfirmModal from './ConfirmModal'
 import AddRecipeModal from './AddRecipeModal'
 import RecipePickerModal from './RecipePickerModal'
@@ -418,7 +418,16 @@ function Calendar({
         })
         return sum
       },
-      { calories: 0, protein: 0, carbs: 0, fat: 0 },
+      // Extra food logged outside the four meals counts toward the day too.
+      allExtras(day).reduce<Macros>(
+        (sum, e) => ({
+          calories: sum.calories + e.calories,
+          protein: sum.protein + e.protein,
+          carbs: sum.carbs + e.carbs,
+          fat: sum.fat + e.fat,
+        }),
+        { calories: 0, protein: 0, carbs: 0, fat: 0 },
+      ),
     )
   }
 

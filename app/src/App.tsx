@@ -128,7 +128,12 @@ function initWeeks(): Week[] {
         id: week.id ?? crypto.randomUUID(),
         startDate,
         label: weekLabel(startDate),
-        days: (week.days ?? []).map((day) => ({ ...day, actual: day.actual ?? {} })),
+        days: (week.days ?? []).map((day) => ({
+          ...day,
+          actual: day.actual ?? {},
+          // Extras were briefly one list per day — file those under dinner.
+          extras: Array.isArray(day.extras) ? { dinner: day.extras } : day.extras,
+        })),
       }
     }),
   )
@@ -286,9 +291,22 @@ function App() {
           onAddIngredientDef={handleAddIngredientDef}
         />
       )}
-      {activeTab === 'market' && <Market recipes={recipes} weeks={weeks} ingredientCatalog={ingredientCatalog} />}
+      {activeTab === 'market' && (
+        <Market
+          recipes={recipes}
+          weeks={weeks}
+          ingredientCatalog={ingredientCatalog}
+          activeWeekStart={activeWeekStart}
+          setActiveWeekStart={setActiveWeekStart}
+        />
+      )}
       {activeTab === 'leftovers' && (
-        <Leftovers recipes={recipes} ingredientCatalog={ingredientCatalog} onOpenRecipe={setOpenRecipeId} />
+        <Leftovers
+          recipes={recipes}
+          ingredientCatalog={ingredientCatalog}
+          profile={profile}
+          onOpenRecipe={setOpenRecipeId}
+        />
       )}
       {activeTab === 'calories' && (
         <Calories

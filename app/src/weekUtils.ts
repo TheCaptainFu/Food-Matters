@@ -1,4 +1,5 @@
-import type { Day, Week } from './types'
+import type { ActualEntry, Day, SlotKey, Week } from './types'
+import { SLOT_KEYS } from './types'
 
 export const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -73,6 +74,37 @@ export function findDay(weeks: Week[], iso: string): { week: Week; dayIndex: num
 
 export function sortWeeks(weeks: Week[]): Week[] {
   return [...weeks].sort((a, b) => a.startDate.localeCompare(b.startDate))
+}
+
+// Extras were briefly one flat list per day (before they belonged to a
+// meal), and an early conversion could leave such entries under keys that
+// aren't meals ("0", "1"…). Anything not filed under a meal is shown under
+// dinner, so every extra that's counted is also visible and deletable.
+function extrasBySlot(day: Day): Partial<Record<SlotKey, ActualEntry[]>> {
+  const raw = day.extras as unknown
+  if (!raw) return {}
+  if (Array.isArray(raw)) return { dinner: raw as ActualEntry[] }
+
+  const slotKeys = new Set<string>(SLOT_KEYS.map((s) => s.value))
+  const result: Partial<Record<SlotKey, ActualEntry[]>> = {}
+  const stray: ActualEntry[] = []
+  Object.entries(raw as Record<string, unknown>).forEach(([key, value]) => {
+    const entries = (Array.isArray(value) ? value : value ? [value] : []) as ActualEntry[]
+    if (slotKeys.has(key) && Array.isArray(value)) result[key as SlotKey] = entries
+    else stray.push(...entries)
+  })
+  if (stray.length > 0) result.dinner = [...(result.dinner ?? []), ...stray]
+  return result
+}
+
+// The extra food logged with one meal.
+export function slotExtras(day: Day, slot: SlotKey): ActualEntry[] {
+  return extrasBySlot(day)[slot] ?? []
+}
+
+// Every extra logged that day, across all meals.
+export function allExtras(day: Day): ActualEntry[] {
+  return Object.values(extrasBySlot(day)).flatMap((list) => list ?? [])
 }
 
 export function makeDay(label: string): Day {

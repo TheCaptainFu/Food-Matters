@@ -116,6 +116,10 @@ export type Day = {
   label: string
   slots: Record<SlotKey, string[]>
   actual: Partial<Record<SlotKey, ActualEntry>>
+  // Extra food eaten with a meal, on top of it (a croissant with breakfast,
+  // a dessert after dinner…). Optional so days saved before this existed
+  // still load.
+  extras?: Partial<Record<SlotKey, ActualEntry[]>>
 }
 // startDate is the week's Monday as "YYYY-MM-DD"; label is derived from it
 // (e.g. "17–23 Nov") and kept in sync, so anything that just shows a week's

@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react'
 import type { ActualEntry, Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
 import { calculateMacroTargets, calculateWaterTargetMl, recipeMacros } from '../nutrition'
 import type { Macros, Profile } from '../nutrition'
-import { dayDate, findDay, formatDayDate, toISODate, todayISO } from '../weekUtils'
+import { allExtras, dayDate, findDay, formatDayDate, slotExtras, toISODate, todayISO } from '../weekUtils'
 import ActualEntryModal from './ActualEntryModal'
 
 type CaloriesProps = {
@@ -63,6 +63,8 @@ function Calories({
   onGoToCalendar,
 }: CaloriesProps) {
   const [loggingSlot, setLoggingSlot] = useState<SlotKey | null>(null)
+  // Extra food for a meal: index 'new' while adding one, or the one being edited.
+  const [loggingExtra, setLoggingExtra] = useState<{ slot: SlotKey; index: number | 'new' } | null>(null)
   // Which week the day-by-day table shows; null = the latest one in History.
   const [tableWeekId, setTableWeekId] = useState<string | null>(null)
 
@@ -78,12 +80,17 @@ function Calories({
     }, ZERO)
   }
 
+  function extrasMacros(day: Day): Macros {
+    return allExtras(day).reduce((sum, e) => addMacros(sum, e), ZERO)
+  }
+
   // A logged entry replaces the plan for its slot; otherwise the plan counts.
+  // Extra food is always on top.
   function dayMacros(day: Day): Macros {
     return SLOTS.reduce((sum, slot) => {
       const actual = day.actual[slot.key]
       return addMacros(sum, actual ?? plannedMacros(day.slots[slot.key]))
-    }, ZERO)
+    }, extrasMacros(day))
   }
 
   // Only what's actually been logged — "eaten so far" today.
@@ -91,7 +98,35 @@ function Calories({
     return SLOTS.reduce((sum, slot) => {
       const actual = day.actual[slot.key]
       return actual ? addMacros(sum, actual) : sum
-    }, ZERO)
+    }, extrasMacros(day))
+  }
+
+  // Adds (index null), replaces or removes (entry null) one extra of a meal today.
+  function updateTodayExtra(slotKey: SlotKey, index: number | null, entry: ActualEntry | null) {
+    if (!todayRef) return
+    const { week: todayWeek, dayIndex } = todayRef
+    setWeeks((prev) =>
+      prev.map((week) => {
+        if (week.id !== todayWeek.id) return week
+        return {
+          ...week,
+          days: week.days.map((day, i) => {
+            if (i !== dayIndex) return day
+            const list = [...slotExtras(day, slotKey)]
+            if (index === null) {
+              if (entry) list.push(entry)
+            } else if (entry) {
+              list[index] = entry
+            } else {
+              list.splice(index, 1)
+            }
+            // Rebuild from every meal's extras, so an old flat list gets converted here too.
+            const bySlot = Object.fromEntries(SLOTS.map((sl) => [sl.key, slotExtras(day, sl.key)]))
+            return { ...day, extras: { ...bySlot, [slotKey]: list } }
+          }),
+        }
+      }),
+    )
   }
 
   function updateTodaySlot(slotKey: SlotKey, entry: ActualEntry | null) {
@@ -141,7 +176,7 @@ function Calories({
         .map((day, i) => ({
           iso: toISODate(dayDate(week, i)),
           macros: loggedMacros(day),
-          logged: SLOTS.some((slot) => day.actual[slot.key]),
+          logged: SLOTS.some((slot) => day.actual[slot.key]) || allExtras(day).length > 0,
         }))
         .filter((d) => d.iso <= today && d.logged)
       const total = tracked.reduce((sum, d) => addMacros(sum, d.macros), ZERO)
@@ -245,25 +280,28 @@ function Calories({
                           </button>
                         </div>
                       ) : (
-                        <div className="flex flex-wrap items-center justify-between gap-10">
+                        <div className="flex flex-wrap items-center gap-10">
+                          {/* The planned meal in a box, same as on the Meal Plan */}
                           {plannedRecipes.length > 0 ? (
-                            <span className="flex flex-wrap items-baseline gap-x-10 min-w-0">
-                              {plannedRecipes.map((recipe, i) => (
-                                <button
-                                  key={i}
-                                  type="button"
-                                  onClick={() => onOpenRecipe(recipe.id)}
-                                  className="text-14 font-title font-bold text-left hover:underline cursor-pointer"
-                                >
-                                  {recipe.title}
-                                </button>
-                              ))}
+                            <span className="flex-1 min-w-[200px] flex flex-wrap items-baseline justify-between gap-x-10 bg-white border-2 border-black px-10 py-5">
+                              <span className="flex flex-wrap gap-x-10">
+                                {plannedRecipes.map((recipe, i) => (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => onOpenRecipe(recipe.id)}
+                                    className="text-14 font-title font-bold text-left hover:underline cursor-pointer"
+                                  >
+                                    {recipe.title}
+                                  </button>
+                                ))}
+                              </span>
                               <span className="text-12 font-title text-neutral-500 whitespace-nowrap">
                                 {Math.round(plannedMacros(planned).calories)} kcal planned
                               </span>
                             </span>
                           ) : (
-                            <span className="text-14 font-title text-neutral-400">Nothing planned</span>
+                            <span className="flex-1 min-w-[200px] text-14 font-title text-neutral-400">Nothing planned</span>
                           )}
                           <span className="flex gap-10">
                             {plannedRecipes.length > 0 && (
@@ -285,9 +323,44 @@ function Calories({
                           </span>
                         </div>
                       )}
+
+                      {/* Extra food with this meal, on top of the main one */}
+                      {slotExtras(todayDay, slot.key).map((extra, i) => (
+                        <div
+                          key={i}
+                          className="flex flex-wrap items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5"
+                        >
+                          <span className="flex items-center gap-10 min-w-0">
+                            {extra.photo ? (
+                              <img src={extra.photo} alt="" className="w-20 h-20 object-cover border border-black shrink-0" />
+                            ) : (
+                              <span className="font-bold text-14 leading-none shrink-0">+</span>
+                            )}
+                            <span className="text-14 font-title font-bold">{extra.description}</span>
+                            <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
+                              {Math.round(extra.calories)} kcal
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setLoggingExtra({ slot: slot.key, index: i })}
+                            className="text-12 font-title font-bold underline cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setLoggingExtra({ slot: slot.key, index: 'new' })}
+                        className="self-start border-2 border-dashed border-neutral-400 hover:border-black px-10 py-5 text-12 text-neutral-600 hover:text-black font-title font-bold cursor-pointer"
+                      >
+                        + Add extra
+                      </button>
                     </div>
                   )
                 })}
+
               </div>
 
               <TodayProgress
@@ -364,6 +437,26 @@ function Calories({
         )}
       </div>
 
+      {loggingExtra && todayDay && (
+        <ActualEntryModal
+          slotLabel={`${SLOTS.find((s) => s.key === loggingExtra.slot)?.label ?? ''} extra`}
+          recipes={recipes}
+          ingredientCatalog={ingredientCatalog}
+          initial={
+            loggingExtra.index === 'new' ? null : (slotExtras(todayDay, loggingExtra.slot)[loggingExtra.index] ?? null)
+          }
+          onSave={(entry) => {
+            updateTodayExtra(loggingExtra.slot, loggingExtra.index === 'new' ? null : loggingExtra.index, entry)
+            setLoggingExtra(null)
+          }}
+          onDelete={() => {
+            if (loggingExtra.index !== 'new') updateTodayExtra(loggingExtra.slot, loggingExtra.index, null)
+            setLoggingExtra(null)
+          }}
+          onClose={() => setLoggingExtra(null)}
+        />
+      )}
+
       {loggingSlot && (
         <ActualEntryModal
           slotLabel={SLOTS.find((s) => s.key === loggingSlot)?.label ?? ''}
@@ -435,14 +528,18 @@ function DayTable({ week, today, targets, dayMacros, avg }: DayTableProps) {
             const macros = dayMacros(day)
             const loggedCount = SLOTS.filter((slot) => day.actual[slot.key]).length
             const isFuture = iso > today
+            const extrasCount = allExtras(day).length
+            const mealsText =
+              loggedCount === SLOTS.length ? 'all meals logged' : `${loggedCount} of ${SLOTS.length} meals logged`
+            const extrasText = extrasCount > 0 ? ` + ${extrasCount} extra${extrasCount === 1 ? '' : 's'}` : ''
             const source = isFuture
               ? 'upcoming'
-              : loggedCount === 0
+              : loggedCount === 0 && extrasCount === 0
                 ? 'not logged'
-                : loggedCount === SLOTS.length
-                  ? 'all meals logged'
-                  : `${loggedCount} of ${SLOTS.length} meals logged`
-            const muted = loggedCount === 0
+                : loggedCount === 0
+                  ? `only extras (${extrasCount})`
+                  : mealsText + extrasText
+            const muted = loggedCount === 0 && extrasCount === 0
             return (
               <tr
                 key={day.label}

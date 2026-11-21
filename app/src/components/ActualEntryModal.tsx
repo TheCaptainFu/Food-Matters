@@ -234,18 +234,23 @@ function ActualEntryModal({
             </label>
 
             <div className="flex gap-10 justify-end flex-wrap">
-              <button
-                type="button"
-                onClick={() => setStep('pick')}
-                className="main-btn font-title font-bold px-15 py-10 mr-auto"
-              >
-                ← Back
-              </button>
+              {/* Only when we got here from the recipe list — editing an
+                  existing entry opens straight on this form, with nothing
+                  to go back to. */}
+              {!initial && (
+                <button
+                  type="button"
+                  onClick={() => setStep('pick')}
+                  className="main-btn font-title font-bold px-15 py-10 mr-auto"
+                >
+                  ← Back
+                </button>
+              )}
               {initial && (
                 <button
                   type="button"
                   onClick={onDelete}
-                  className="main-btn font-title font-bold bg-main-red text-white px-15 py-10"
+                  className="main-btn font-title font-bold bg-main-red text-white px-15 py-10 mr-auto"
                 >
                   Delete
                 </button>
