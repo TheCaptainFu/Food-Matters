@@ -119,7 +119,7 @@ function ActualEntryModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="main-btn bg-white p-30 flex flex-col gap-15 w-full max-w-[420px] max-h-[85vh] overflow-y-auto"
+        className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[420px] max-h-[85vh] overflow-y-auto"
       >
         <h2 className="text-20 font-title font-bold uppercase">What did you eat — {slotLabel}?</h2>
 

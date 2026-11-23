@@ -188,7 +188,15 @@ function Calendar({
     (parseISODate(activeWeekStart).getTime() - parseISODate(thisWeekStart).getTime()) / (7 * 86_400_000),
   )
   const weekHint =
-    weekOffset === 0 ? 'This week' : weekOffset === 1 ? 'Next week' : weekOffset === -1 ? 'Last week' : null
+    weekOffset === 0
+      ? 'This week'
+      : weekOffset === 1
+        ? 'Next week'
+        : weekOffset === -1
+          ? 'Last week'
+          : weekOffset > 0
+            ? `In ${weekOffset} weeks`
+            : `${-weekOffset} weeks ago`
 
   // Entering the page (or switching back to the current week) starts the
   // days row at today, so the day you care about is the first one you see.
@@ -605,24 +613,24 @@ function Calendar({
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-10">
-          <div className="flex items-center gap-10">
+          <div className="flex flex-wrap items-center gap-10 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => goToWeek(-1)}
               aria-label="Previous week"
-              className="main-btn font-title font-bold text-20 w-40 h-40 flex items-center justify-center"
+              className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
               ‹
             </button>
-            <div className="flex flex-col items-center min-w-[140px]">
-              <span className="font-title font-bold text-20 leading-tight">{activeWeek.label}</span>
-              {weekHint && <span className="text-14 font-title text-neutral-500 leading-tight">{weekHint}</span>}
-            </div>
+            <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 sm:flex-none sm:min-w-[220px]">
+              {weekHint}
+              <span className="text-14 font-normal normal-case text-neutral-500">{activeWeek.label}</span>
+            </h3>
             <button
               type="button"
               onClick={() => goToWeek(1)}
               aria-label="Next week"
-              className="main-btn font-title font-bold text-20 w-40 h-40 flex items-center justify-center"
+              className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
               ›
             </button>
@@ -1142,7 +1150,7 @@ function MoveRecipeModal({ recipeTitle, days, from, onMove, onClose }: MoveRecip
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-20" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="main-btn bg-white p-30 flex flex-col gap-20 w-full max-w-[420px] max-h-[90vh] overflow-y-auto"
+        className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-20 w-full max-w-[420px] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex flex-col gap-5">
           <h2 className="text-20 font-title font-bold uppercase">Move Meal</h2>

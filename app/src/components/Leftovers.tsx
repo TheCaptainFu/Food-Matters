@@ -114,8 +114,9 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
         </div>
 
         {/* ---------- The fridge ---------- */}
-        <section className={`${cardClass} p-20 flex flex-col gap-15`}>
-          <div className="relative max-w-[420px]">
+        <section className={`${cardClass} p-20 flex flex-col gap-20`}>
+          <div className="flex flex-wrap items-start gap-10">
+          <div className="relative flex-1 min-w-[220px] max-w-[420px]">
             <input
               type="search"
               placeholder="Add an ingredient, e.g. eggs…"
@@ -148,9 +149,22 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
               <p className="pt-5 text-14 font-title text-neutral-500">No ingredient matches “{search.trim()}”.</p>
             )}
           </div>
+            <button
+              type="button"
+              onClick={() => setIsBrowsing((v) => !v)}
+              aria-expanded={isBrowsing}
+              className={
+                isBrowsing
+                  ? 'main-btn font-title font-bold px-15 py-10 bg-black text-white'
+                  : 'main-btn font-title font-bold px-15 py-10'
+              }
+            >
+              {isBrowsing ? 'Hide list' : 'Browse all'}
+            </button>
+          </div>
 
           <div className="flex flex-col gap-10">
-            <div className="flex items-center justify-between gap-10">
+            <div className="flex items-baseline gap-15">
               <span className="text-14 font-title font-bold uppercase text-neutral-500">
                 In your fridge ({have.length})
               </span>
@@ -158,7 +172,7 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
                 <button
                   type="button"
                   onClick={() => setHave([])}
-                  className="text-14 font-title font-bold underline cursor-pointer"
+                  className="text-14 font-title font-bold underline text-main-red cursor-pointer"
                 >
                   Clear all
                 </button>
@@ -188,7 +202,7 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
             )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-10 pt-10 border-t border-neutral-200">
+          <div className="pt-15 border-t border-neutral-200">
             <button
               type="button"
               role="checkbox"
@@ -210,13 +224,6 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
                 <span className="font-bold">I have the basics</span>
                 <span className="text-neutral-500"> (oils, salt, pepper, herbs & spices)</span>
               </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsBrowsing((v) => !v)}
-              className="text-14 font-title font-bold underline cursor-pointer"
-            >
-              {isBrowsing ? 'Hide ingredient list' : 'Browse all ingredients'}
             </button>
           </div>
 

@@ -73,7 +73,7 @@ function IngredientPickerModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="main-btn bg-white p-30 flex flex-col gap-15 w-full max-w-[400px]"
+        className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[400px]"
       >
         {isFormOpen ? (
           <>

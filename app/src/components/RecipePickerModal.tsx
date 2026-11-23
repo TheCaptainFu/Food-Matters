@@ -38,7 +38,7 @@ function RecipePickerModal({ recipes, onSave, onClose }: RecipePickerModalProps)
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="main-btn bg-white p-30 flex flex-col gap-15 w-full max-w-md"
+        className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-md"
       >
         <h2 className="text-20 font-title font-bold uppercase">Choose Recipes</h2>
 

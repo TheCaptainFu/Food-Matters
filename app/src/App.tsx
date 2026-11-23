@@ -1,4 +1,5 @@
 import Header from './components/Header'
+import Footer from './components/Footer'
 import Subheader, { type TabKey } from './components/Subheader'
 import Recipes from './components/Recipes'
 import Calendar from './components/Calendar'
@@ -251,7 +252,7 @@ function App() {
   const canSignIn = !!supabase && !user
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
       <Header
         isMenuOpen={isNavOpen}
         onToggleMenu={() => setIsNavOpen((v) => !v)}
@@ -321,6 +322,8 @@ function App() {
         />
       )}
 
+      <Footer />
+
       {isProfileOpen && (
         <ProfileModal
           profile={profile}
@@ -366,7 +369,7 @@ function App() {
           onCancel={() => setConfirmDeleteId(null)}
         />
       )}
-    </>
+    </div>
   )
 }
 

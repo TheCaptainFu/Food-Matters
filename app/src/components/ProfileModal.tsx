@@ -19,10 +19,10 @@ type ProfileModalProps = {
 type MacroKey = 'protein' | 'carbs' | 'fat'
 type MacroFields = Record<MacroKey, string>
 
-const MACRO_FIELDS: { key: MacroKey; label: string }[] = [
-  { key: 'protein', label: 'Protein (g)' },
-  { key: 'carbs', label: 'Carbs (g)' },
-  { key: 'fat', label: 'Fat (g)' },
+const MACRO_FIELDS: { key: MacroKey; label: string; kcalPerGram: number }[] = [
+  { key: 'protein', label: 'Protein', kcalPerGram: 4 },
+  { key: 'carbs', label: 'Carbs', kcalPerGram: 4 },
+  { key: 'fat', label: 'Fat', kcalPerGram: 9 },
 ]
 
 const inputClass = 'border-3 border-black px-15 py-10 text-16 font-title w-full'
@@ -203,10 +203,10 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
       >
         {/* Header: who you are, and the result everything below feeds into —
             pinned, so you see your targets change as you edit. */}
-        <div className="flex flex-col gap-20 p-30 pb-20 border-b-3 border-black">
+        <div className="flex flex-col gap-15 sm:gap-20 p-20 sm:p-30 sm:pb-20 border-b-3 border-black">
           <div className="flex items-start justify-between gap-15">
             <div className="flex flex-col gap-5">
-              <h2 className="text-26 font-title font-bold uppercase">
+              <h2 className="text-22 sm:text-26 font-title font-bold uppercase">
                 {profile ? 'Your Profile' : 'Welcome to Food Matters'}
               </h2>
               {!profile && (
@@ -274,7 +274,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
         </div>
 
         {/* Scrolling body */}
-        <div className="flex flex-col gap-40 p-30 overflow-y-auto">
+        <div className="flex flex-col gap-40 p-20 sm:p-30 overflow-y-auto">
           <section className="flex flex-col gap-20">
             <span className={sectionTitleClass}>About you</span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-20">
@@ -467,25 +467,45 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
                 ? 'Your own numbers. Changing anything above goes back to the suggested values.'
                 : 'Suggested from the details above. Type your own numbers to override them.'}
             </span>
-            <div className="grid grid-cols-3 gap-15">
-              {MACRO_FIELDS.map(({ key, label }) => (
-                <label key={key} className="flex flex-col gap-10">
-                  <span className={labelClass}>{label}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={macros[key]}
-                    onChange={(e) => setMacro(key, e.target.value)}
-                    className={inputClass}
-                  />
-                </label>
-              ))}
+            {/* One card per macro: grams to type, and what that is in kcal
+                and as a share of the day, so the numbers mean something. */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-15">
+              {MACRO_FIELDS.map(({ key, label, kcalPerGram }) => {
+                const grams = Number(macros[key]) || 0
+                const kcal = grams * kcalPerGram
+                const share = previewCalories > 0 ? Math.round((kcal / previewCalories) * 100) : 0
+                return (
+                  <label
+                    key={key}
+                    className={
+                      customMacros
+                        ? 'flex flex-col gap-10 border-2 border-main-blue p-15'
+                        : 'flex flex-col gap-10 border-2 border-black p-15'
+                    }
+                  >
+                    <span className="text-14 font-title font-bold uppercase">{label}</span>
+                    <span className="flex items-center border-3 border-black focus-within:border-main-blue">
+                      <input
+                        type="number"
+                        min="0"
+                        value={macros[key]}
+                        onChange={(e) => setMacro(key, e.target.value)}
+                        className="px-15 py-10 text-20 font-title font-bold w-full min-w-0 outline-none"
+                      />
+                      <span className="pr-15 text-16 font-title text-neutral-500">g</span>
+                    </span>
+                    <span className="text-12 font-title text-neutral-500">
+                      {Math.round(kcal)} kcal · {share}% of the day
+                    </span>
+                  </label>
+                )
+              })}
             </div>
           </section>
         </div>
 
         {/* Footer */}
-        <div className="flex flex-wrap gap-15 justify-end px-30 py-20 border-t-3 border-black">
+        <div className="flex flex-wrap gap-15 justify-end px-20 sm:px-30 py-15 sm:py-20 border-t-3 border-black">
           <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
             {profile ? 'Cancel' : 'Skip for now'}
           </button>

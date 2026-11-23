@@ -88,7 +88,7 @@ function AddRecipeModal({
           <form
             onSubmit={handleSubmit}
             onClick={(e) => e.stopPropagation()}
-            className="border-3 border-black bg-white shadow-[4px_4px_0_0_#000] p-30 flex flex-col gap-25 w-full max-w-[680px] max-h-[90vh] overflow-y-auto"
+            className="border-3 border-black bg-white shadow-[4px_4px_0_0_#000] p-20 sm:p-30 flex flex-col gap-25 w-full max-w-[680px] max-h-[90vh] overflow-y-auto"
           >
             <h2 className="text-20 font-title font-bold uppercase">
               {initialRecipe ? 'Edit Recipe' : 'New Recipe'}
@@ -128,8 +128,8 @@ function AddRecipeModal({
             <div className="flex flex-col gap-10">
               <span className="text-16 font-title font-bold uppercase">When is this eaten?</span>
               {/* Toggle chips in each meal's Calendar colour, so a recipe's
-                  meals look the same here as on the plan. One per row. */}
-              <div className="flex flex-col gap-10">
+                  meals look the same here as on the plan. 2×2 on wider screens. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
                 {SLOT_KEYS.map((slot) => {
                   const isOn = mealTypes.includes(slot.value)
                   return (

@@ -1,9 +1,22 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useCallback, useState } from 'react'
 import type { ActualEntry, Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
 import { calculateMacroTargets, calculateWaterTargetMl, recipeMacros } from '../nutrition'
 import type { Macros, Profile } from '../nutrition'
-import { allExtras, dayDate, findDay, formatDayDate, slotExtras, toISODate, todayISO } from '../weekUtils'
+import {
+  addDays,
+  allExtras,
+  dayDate,
+  findDay,
+  formatDayDate,
+  parseISODate,
+  slotExtras,
+  toISODate,
+  todayISO,
+} from '../weekUtils'
 import ActualEntryModal from './ActualEntryModal'
+import Toast, { type ToastData } from './Toast'
+
+const GLASS_ML = 250
 
 type CaloriesProps = {
   recipes: Recipe[]
@@ -68,10 +81,23 @@ function Calories({
   // Which week the day-by-day table shows; null = the latest one in History.
   const [tableWeekId, setTableWeekId] = useState<string | null>(null)
 
+  // The day being logged: today by default, or an earlier day you forgot.
+  const [selectedISO, setSelectedISO] = useState<string | null>(null)
+  const [toast, setToast] = useState<ToastData | null>(null)
+  const closeToast = useCallback(() => setToast(null), [])
+  function showToast(data: Omit<ToastData, 'id'>) {
+    setToast((prev) => ({ ...data, id: (prev?.id ?? 0) + 1 }))
+  }
+
   const targets = profile ? calculateMacroTargets(profile) : null
   const today = todayISO()
-  const todayRef = findDay(weeks, today)
+  const dayISO = selectedISO && selectedISO < today ? selectedISO : today
+  const isToday = dayISO === today
+  const yesterday = toISODate(addDays(parseISODate(today), -1))
+  const todayRef = findDay(weeks, dayISO)
   const todayDay = todayRef ? todayRef.week.days[todayRef.dayIndex] : null
+  const dayTitle = isToday ? 'Today' : dayISO === yesterday ? 'Yesterday' : parseISODate(dayISO).toLocaleDateString('en-GB', { weekday: 'long' })
+  const waterTargetMl = profile ? calculateWaterTargetMl(profile) : null
 
   function plannedMacros(recipeIds: string[]): Macros {
     return recipeIds.reduce((sum, id) => {
@@ -101,17 +127,26 @@ function Calories({
     }, extrasMacros(day))
   }
 
-  // Adds (index null), replaces or removes (entry null) one extra of a meal today.
-  function updateTodayExtra(slotKey: SlotKey, index: number | null, entry: ActualEntry | null) {
+  // Applies a change to the day being logged.
+  function updateDay(change: (day: Day) => Day) {
     if (!todayRef) return
     const { week: todayWeek, dayIndex } = todayRef
     setWeeks((prev) =>
-      prev.map((week) => {
-        if (week.id !== todayWeek.id) return week
-        return {
-          ...week,
-          days: week.days.map((day, i) => {
-            if (i !== dayIndex) return day
+      prev.map((week) =>
+        week.id !== todayWeek.id
+          ? week
+          : { ...week, days: week.days.map((day, i) => (i === dayIndex ? change(day) : day)) },
+      ),
+    )
+  }
+
+  function setWater(glasses: number) {
+    updateDay((day) => ({ ...day, water: Math.max(0, glasses) }))
+  }
+
+  // Adds (index null), replaces or removes (entry null) one extra of a meal.
+  function updateTodayExtra(slotKey: SlotKey, index: number | null, entry: ActualEntry | null) {
+    updateDay((day) => {
             const list = [...slotExtras(day, slotKey)]
             if (index === null) {
               if (entry) list.push(entry)
@@ -123,45 +158,40 @@ function Calories({
             // Rebuild from every meal's extras, so an old flat list gets converted here too.
             const bySlot = Object.fromEntries(SLOTS.map((sl) => [sl.key, slotExtras(day, sl.key)]))
             return { ...day, extras: { ...bySlot, [slotKey]: list } }
-          }),
-        }
-      }),
-    )
+    })
   }
 
   function updateTodaySlot(slotKey: SlotKey, entry: ActualEntry | null) {
-    if (!todayRef) return
-    const { week: todayWeek, dayIndex } = todayRef
-    setWeeks((prev) =>
-      prev.map((week) => {
-        if (week.id !== todayWeek.id) return week
-        return {
-          ...week,
-          days: week.days.map((day, i) => {
-            if (i !== dayIndex) return day
-            const actual = { ...day.actual }
-            if (entry) actual[slotKey] = entry
-            else delete actual[slotKey]
-            return { ...day, actual }
-          }),
-        }
-      }),
-    )
+    updateDay((day) => {
+      const actual = { ...day.actual }
+      if (entry) actual[slotKey] = entry
+      else delete actual[slotKey]
+      return { ...day, actual }
+    })
   }
 
   // "✓ Ate this": log the planned recipe(s) as eaten, as-is.
-  function logPlanned(slotKey: SlotKey) {
-    if (!todayDay) return
-    const ids = todayDay.slots[slotKey]
+  function plannedEntry(ids: string[]): ActualEntry {
     const titles = ids.map((id) => recipes.find((r) => r.id === id)?.title).filter(Boolean)
     const m = plannedMacros(ids)
-    updateTodaySlot(slotKey, {
+    return {
       description: titles.join(', '),
       calories: Math.round(m.calories),
       protein: Math.round(m.protein),
       carbs: Math.round(m.carbs),
       fat: Math.round(m.fat),
       fromPlan: true,
+    }
+  }
+
+  function logPlanned(slotKey: SlotKey) {
+    if (!todayDay) return
+    const entry = plannedEntry(todayDay.slots[slotKey])
+    updateTodaySlot(slotKey, entry)
+    showToast({
+      message: `Logged ${SLOTS.find((s) => s.key === slotKey)?.label.toLowerCase()}: ${entry.description}`,
+      action: { label: 'Undo', onClick: () => updateTodaySlot(slotKey, null) },
+      autoHideMs: 5000,
     })
   }
 
@@ -216,16 +246,45 @@ function Calories({
 
         {/* ---------- Today ---------- */}
         <section className="flex flex-col gap-15">
-          <h3 className="text-20 font-title font-bold uppercase flex items-baseline gap-10">
-            Today
-            <span className="text-14 font-normal normal-case text-neutral-500">
-              {new Date().toLocaleDateString('en-GB', { weekday: 'long' })} {formatDayDate(new Date())}
-            </span>
-          </h3>
+          <div className="flex flex-wrap items-center gap-10">
+            <button
+              type="button"
+              onClick={() => setSelectedISO(toISODate(addDays(parseISODate(dayISO), -1)))}
+              aria-label="Previous day"
+              className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
+            >
+              ‹
+            </button>
+            <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 sm:flex-none sm:min-w-[220px]">
+              {dayTitle}
+              <span className="text-14 font-normal normal-case text-neutral-500">
+                {!isToday && dayISO !== yesterday ? '' : `${parseISODate(dayISO).toLocaleDateString('en-GB', { weekday: 'long' })} `}
+                {formatDayDate(parseISODate(dayISO))}
+              </span>
+            </h3>
+            <button
+              type="button"
+              onClick={() => setSelectedISO(toISODate(addDays(parseISODate(dayISO), 1)))}
+              disabled={isToday}
+              aria-label="Next day"
+              className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"
+            >
+              ›
+            </button>
+            {!isToday && (
+              <button
+                type="button"
+                onClick={() => setSelectedISO(null)}
+                className="text-14 font-title font-bold underline cursor-pointer"
+              >
+                Back to today
+              </button>
+            )}
+          </div>
 
           {!todayDay ? (
             <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] p-20 flex flex-wrap items-center justify-between gap-15">
-              <span className="text-14 font-title">There's no plan for this week yet.</span>
+              <span className="text-14 font-title">There's no plan for this {isToday ? 'week' : 'day'} yet.</span>
               <button
                 type="button"
                 onClick={onGoToCalendar}
@@ -364,10 +423,13 @@ function Calories({
               </div>
 
               <TodayProgress
+                title={isToday ? 'Eaten so far' : 'Eaten'}
                 eaten={loggedMacros(todayDay)}
                 planned={dayMacros(todayDay)}
                 targets={targets}
-                waterMl={profile ? calculateWaterTargetMl(profile) : null}
+                waterGlasses={todayDay.water ?? 0}
+                waterTargetGlasses={waterTargetMl !== null ? Math.ceil(waterTargetMl / GLASS_ML) : null}
+                onWaterChange={setWater}
               />
             </div>
           )}
@@ -429,7 +491,14 @@ function Calories({
 
               {tableWeek && (
                 <div className="lg:order-1 min-w-0">
-                  <DayTable week={tableWeek} today={today} targets={targets} dayMacros={loggedMacros} avg={tableAvg} />
+                  <DayTable
+                    week={tableWeek}
+                    today={today}
+                    targets={targets}
+                    dayMacros={loggedMacros}
+                    avg={tableAvg}
+                    waterTargetGlasses={waterTargetMl !== null ? Math.ceil(waterTargetMl / GLASS_ML) : null}
+                  />
                 </div>
               )}
             </div>
@@ -474,6 +543,8 @@ function Calories({
           onClose={() => setLoggingSlot(null)}
         />
       )}
+
+      {toast && <Toast toast={toast} onClose={closeToast} />}
     </div>
   )
 }
@@ -484,13 +555,33 @@ type DayTableProps = {
   targets: Macros | null
   dayMacros: (day: Day) => Macros
   avg: Macros | null
+  waterTargetGlasses: number | null
 }
 
 // Day-by-day logged calories and macros for one week. Each day notes how
 // many of its meals were logged (a partly logged day reads low on purpose);
 // days with nothing logged show a dash rather than a misleading 0.
-function DayTable({ week, today, targets, dayMacros, avg }: DayTableProps) {
+function DayTable({ week, today, targets, dayMacros, avg, waterTargetGlasses }: DayTableProps) {
   const cell = 'px-10 py-10 text-right whitespace-nowrap'
+
+  // Water average over the days with any water logged, like the food average.
+  const waterDays = week.days.filter((day) => (day.water ?? 0) > 0)
+  const waterAvg =
+    waterDays.length > 0 ? waterDays.reduce((sum, day) => sum + (day.water ?? 0), 0) / waterDays.length : null
+
+  function waterCell(glasses: number | null) {
+    return (
+      <td className={cell}>
+        {glasses === null || glasses === 0 ? (
+          '—'
+        ) : (
+          <span className={`px-5 ${waterTargetGlasses ? statusClass(Math.min(glasses, waterTargetGlasses), waterTargetGlasses) : ''}`}>
+            {Number.isInteger(glasses) ? glasses : glasses.toFixed(1)}
+          </span>
+        )}
+      </td>
+    )
+  }
 
   function valueCell(value: number, target: number | undefined, unit: string, muted: boolean) {
     return (
@@ -519,6 +610,12 @@ function DayTable({ week, today, targets, dayMacros, avg }: DayTableProps) {
                 {targets && <span className="block font-normal normal-case text-neutral-500">goal {targets[key]}g</span>}
               </th>
             ))}
+            <th className={cell}>
+              💧 Glasses
+              {waterTargetGlasses !== null && (
+                <span className="block font-normal normal-case text-neutral-500">goal {waterTargetGlasses}</span>
+              )}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -574,6 +671,7 @@ function DayTable({ week, today, targets, dayMacros, avg }: DayTableProps) {
                     ))}
                   </>
                 )}
+                {waterCell(isFuture ? null : (day.water ?? 0))}
               </tr>
             )
           })}
@@ -586,6 +684,7 @@ function DayTable({ week, today, targets, dayMacros, avg }: DayTableProps) {
               {MACRO_COLUMNS.map(({ key }) => (
                 <Fragment key={key}>{valueCell(avg[key], targets?.[key], 'g', false)}</Fragment>
               ))}
+              {waterCell(waterAvg)}
             </tr>
           </tfoot>
         )}
@@ -595,10 +694,13 @@ function DayTable({ week, today, targets, dayMacros, avg }: DayTableProps) {
 }
 
 type TodayProgressProps = {
+  title: string
   eaten: Macros
   planned: Macros
   targets: Macros | null
-  waterMl: number | null
+  waterGlasses: number
+  waterTargetGlasses: number | null
+  onWaterChange: (glasses: number) => void
 }
 
 function ProgressRow({ label, value, target, unit }: { label: string; value: number; target: number; unit: string }) {
@@ -620,10 +722,20 @@ function ProgressRow({ label, value, target, unit }: { label: string; value: num
 }
 
 // Eaten-so-far against the day's targets, plus what the full plan adds up to.
-function TodayProgress({ eaten, planned, targets, waterMl }: TodayProgressProps) {
+function TodayProgress({
+  title,
+  eaten,
+  planned,
+  targets,
+  waterGlasses,
+  waterTargetGlasses,
+  onWaterChange,
+}: TodayProgressProps) {
+  // One glass icon per glass of the target (or per glass drunk, if more).
+  const glassCount = Math.max(waterTargetGlasses ?? 8, waterGlasses)
   return (
     <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] p-20 flex flex-col gap-15">
-      <span className="text-14 font-title font-bold uppercase">Eaten so far</span>
+      <span className="text-14 font-title font-bold uppercase">{title}</span>
       {targets ? (
         <>
           <ProgressRow label="Calories" value={eaten.calories} target={targets.calories} unit="kcal" />
@@ -641,11 +753,52 @@ function TodayProgress({ eaten, planned, targets, waterMl }: TodayProgressProps)
         <span>
           Whole day as planned: <span className="font-bold text-black">{Math.round(planned.calories)} kcal</span>
         </span>
-        {waterMl !== null && (
-          <span>
-            💧 Water target: <span className="font-bold text-black">{(waterMl / 1000).toFixed(1)} L</span>
+      </div>
+      <div className="flex flex-col gap-10 pt-10 border-t border-neutral-200">
+        <div className="flex items-baseline justify-between gap-10 text-12 font-title">
+          <span className="font-bold uppercase">💧 Water</span>
+          <span className="text-neutral-600">
+            {waterGlasses}
+            {waterTargetGlasses !== null && ` / ${waterTargetGlasses}`} glasses ·{' '}
+            {((waterGlasses * GLASS_ML) / 1000).toFixed(2).replace(/0$/, '')} L
           </span>
-        )}
+        </div>
+        {/* Tap a glass to fill up to it; tap the last full one to empty it */}
+        <div className="flex flex-wrap gap-5">
+          {Array.from({ length: glassCount }, (_, i) => {
+            const full = i < waterGlasses
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onWaterChange(full && i === waterGlasses - 1 ? i : i + 1)}
+                aria-label={`${i + 1} glass${i === 0 ? '' : 'es'}`}
+                className={
+                  full
+                    ? 'w-25 h-30 border-2 border-black bg-main-blue cursor-pointer'
+                    : 'w-25 h-30 border-2 border-neutral-300 bg-white hover:border-black cursor-pointer'
+                }
+              />
+            )
+          })}
+        </div>
+        <div className="flex gap-10">
+          <button
+            type="button"
+            onClick={() => onWaterChange(waterGlasses + 1)}
+            className="main-btn font-title font-bold px-10 py-5 text-12 bg-main-blue text-white"
+          >
+            + Glass
+          </button>
+          <button
+            type="button"
+            onClick={() => onWaterChange(waterGlasses - 1)}
+            disabled={waterGlasses === 0}
+            className="main-btn font-title font-bold px-10 py-5 text-12 disabled:opacity-30 disabled:pointer-events-none"
+          >
+            − Glass
+          </button>
+        </div>
       </div>
     </div>
   )

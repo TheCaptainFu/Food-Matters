@@ -209,7 +209,7 @@ function IngredientFormModal({ original, catalog, usedIn, onClose, onSave }: Ing
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-20" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="main-btn bg-white p-30 flex flex-col gap-15 w-full max-w-[420px] max-h-[90vh] overflow-y-auto"
+        className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[420px] max-h-[90vh] overflow-y-auto"
       >
         <h2 className="text-20 font-title font-bold uppercase">{original ? 'Edit Ingredient' : 'New Ingredient'}</h2>
         {original && usedIn > 0 && (

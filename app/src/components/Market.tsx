@@ -109,7 +109,15 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
     (parseISODate(activeWeekStart).getTime() - parseISODate(thisWeekStart).getTime()) / (7 * 86_400_000),
   )
   const weekHint =
-    weekOffset === 0 ? 'This week' : weekOffset === 1 ? 'Next week' : weekOffset === -1 ? 'Last week' : null
+    weekOffset === 0
+      ? 'This week'
+      : weekOffset === 1
+        ? 'Next week'
+        : weekOffset === -1
+          ? 'Last week'
+          : weekOffset > 0
+            ? `In ${weekOffset} weeks`
+            : `${-weekOffset} weeks ago`
 
   // "From today" only means something for the current week.
   const todayIndex = Math.round((parseISODate(today).getTime() - parseISODate(activeWeekStart).getTime()) / 86_400_000)
@@ -193,24 +201,24 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-15">
-          <div className="flex items-center gap-10">
+          <div className="flex flex-wrap items-center gap-10 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setActiveWeekStart(toISODate(addDays(parseISODate(activeWeekStart), -7)))}
               aria-label="Previous week"
-              className="main-btn font-title font-bold text-20 w-40 h-40 flex items-center justify-center"
+              className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
               ‹
             </button>
-            <div className="flex flex-col items-center min-w-[140px]">
-              <span className="font-title font-bold text-20 leading-tight">{weekLabel(activeWeekStart)}</span>
-              {weekHint && <span className="text-14 font-title text-neutral-500 leading-tight">{weekHint}</span>}
-            </div>
+            <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 sm:flex-none sm:min-w-[220px]">
+              {weekHint}
+              <span className="text-14 font-normal normal-case text-neutral-500">{weekLabel(activeWeekStart)}</span>
+            </h3>
             <button
               type="button"
               onClick={() => setActiveWeekStart(toISODate(addDays(parseISODate(activeWeekStart), 7)))}
               aria-label="Next week"
-              className="main-btn font-title font-bold text-20 w-40 h-40 flex items-center justify-center"
+              className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
               ›
             </button>
@@ -361,7 +369,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
                 e.preventDefault()
                 addExtra()
               }}
-              className="main-btn bg-white p-30 flex flex-col gap-15 w-full max-w-[400px]"
+              className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[400px]"
             >
               <div className="flex flex-col gap-5">
                 <h2 className="text-20 font-title font-bold uppercase">Add to the list</h2>
@@ -404,7 +412,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="main-btn bg-white p-30 flex flex-col gap-15 w-full max-w-[440px] max-h-[85vh]"
+              className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[440px] max-h-[85vh]"
             >
               <div className="flex flex-col gap-5">
                 <h2 className="text-20 font-title font-bold uppercase">In the cart ({inCart.length})</h2>

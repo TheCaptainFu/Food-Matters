@@ -46,6 +46,9 @@
   --color-main-teal: #95d9df;
 
   /* Custom font sizes */
+    --text-12: 12px;
+    --text-12--line-height: 16px;
+
     --text-14: 14px;
     --text-14--line-height: 16px;
 

@@ -120,6 +120,8 @@ export type Day = {
   // a dessert after dinner…). Optional so days saved before this existed
   // still load.
   extras?: Partial<Record<SlotKey, ActualEntry[]>>
+  // Glasses of water (250 ml each) logged on the Calories page.
+  water?: number
 }
 // startDate is the week's Monday as "YYYY-MM-DD"; label is derived from it
 // (e.g. "17–23 Nov") and kept in sync, so anything that just shows a week's
