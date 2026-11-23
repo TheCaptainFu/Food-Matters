@@ -256,7 +256,7 @@ function Calories({
             >
               ‹
             </button>
-            <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 sm:flex-none sm:min-w-[220px]">
+            <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 pl-10 sm:flex-none sm:min-w-[220px]">
               {dayTitle}
               <span className="text-14 font-normal normal-case text-neutral-500">
                 {!isToday && dayISO !== yesterday ? '' : `${weekdayName(parseISODate(dayISO))} `}
@@ -563,7 +563,7 @@ type DayTableProps = {
 // many of its meals were logged (a partly logged day reads low on purpose);
 // days with nothing logged show a dash rather than a misleading 0.
 function DayTable({ week, today, targets, dayMacros, avg, waterTargetGlasses }: DayTableProps) {
-  const cell = 'px-10 py-10 text-right whitespace-nowrap'
+  const cell = 'px-5 sm:px-10 py-10 text-right whitespace-nowrap'
 
   // Water average over the days with any water logged, like the food average.
   const waterDays = week.days.filter((day) => (day.water ?? 0) > 0)
@@ -600,21 +600,39 @@ function DayTable({ week, today, targets, dayMacros, avg, waterTargetGlasses }: 
       <table className="w-full text-14 font-title border-collapse">
         <thead>
           <tr className="border-b-3 border-black text-12 uppercase">
-            <th className="px-10 py-10 text-left">{week.label}</th>
-            <th className={cell}>
-              Θερμίδες
-              {targets && <span className="block font-normal normal-case text-neutral-500">στόχος {targets.calories}</span>}
+            <th className="px-10 py-10 text-left">
+              <span className="hidden sm:inline">{week.label}</span>
             </th>
-            {MACRO_COLUMNS.map(({ key, label }) => (
+            <th className={cell}>
+              <span className="sm:hidden">kcal</span>
+              <span className="hidden sm:inline">Θερμίδες</span>
+              {targets && (
+                <span className="block font-normal normal-case text-neutral-500">
+                  <span className="hidden sm:inline">στόχος </span>
+                  {targets.calories}
+                </span>
+              )}
+            </th>
+            {MACRO_COLUMNS.map(({ key, label, short }) => (
               <th key={key} className={cell}>
-                {label}
-                {targets && <span className="block font-normal normal-case text-neutral-500">στόχος {targets[key]}g</span>}
+                {/* Phones get the one-letter names so all columns fit */}
+                <span className="sm:hidden">{short}</span>
+                <span className="hidden sm:inline">{label}</span>
+                {targets && (
+                  <span className="block font-normal normal-case text-neutral-500">
+                    <span className="hidden sm:inline">στόχος </span>
+                    {targets[key]}g
+                  </span>
+                )}
               </th>
             ))}
             <th className={cell}>
-              💧 Ποτήρια
+              💧<span className="hidden sm:inline"> Ποτήρια</span>
               {waterTargetGlasses !== null && (
-                <span className="block font-normal normal-case text-neutral-500">στόχος {waterTargetGlasses}</span>
+                <span className="block font-normal normal-case text-neutral-500">
+                  <span className="hidden sm:inline">στόχος </span>
+                  {waterTargetGlasses}
+                </span>
               )}
             </th>
           </tr>
@@ -649,11 +667,11 @@ function DayTable({ week, today, targets, dayMacros, avg, waterTargetGlasses }: 
                       : 'border-b border-neutral-200'
                 }
               >
-                <td className="px-10 py-10">
-                  <span className="font-bold">
+                <td className="pl-10 pr-5 sm:px-10 py-10">
+                  <span className="font-bold whitespace-nowrap">
                     {day.label.slice(0, 3)} {formatDayDate(date)}
                   </span>
-                  <span className="block text-12 text-neutral-500">{iso === today ? `σήμερα · ${source}` : source}</span>
+                  <span className="hidden sm:block text-12 text-neutral-500">{iso === today ? `σήμερα · ${source}` : source}</span>
                 </td>
                 {muted ? (
                   <>

@@ -1,4 +1,6 @@
 import type { Category, Ingredient, Recipe, SlotKey, Unit } from './types'
+import { DEFAULT_INGREDIENT_CATALOG } from './ingredientCatalog'
+import { toNaturalUnit } from './quantities'
 
 // Greek home cooking, one serving each. Every ingredient name matches an
 // entry in ingredientCatalog.ts exactly, so calories add up.
@@ -12,8 +14,11 @@ function recipe(
   items: Item[],
   instructions: string,
 ): Recipe {
-  const ingredients: Ingredient[] = items.map(([name, amount, unit = 'g']) => ({ name, amount, unit }))
-  return { id: `gr-${id}`, title, category, mealTypes, ingredients, instructions }
+  // Written in grams; countable things become pieces ("2 αυγά").
+  const ingredients: Ingredient[] = items.map(([name, amount, unit = 'g']) =>
+    toNaturalUnit({ name, amount, unit }, DEFAULT_INGREDIENT_CATALOG),
+  )
+  return { id: `gr-${id}`, title, category, mealTypes, servings: 1, ingredients, instructions }
 }
 
 const MAIN: SlotKey[] = ['lunch', 'dinner']

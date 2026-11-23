@@ -1,7 +1,8 @@
-export type Unit = 'g' | 'package' | 'tsp' | 'tbsp'
+export type Unit = 'g' | 'piece' | 'package' | 'tsp' | 'tbsp'
 
 export const UNITS: { value: Unit; label: string }[] = [
   { value: 'g', label: 'Γραμμάρια' },
+  { value: 'piece', label: 'Τεμάχια' },
   { value: 'package', label: 'Συσκευασία' },
   { value: 'tsp', label: 'Κουταλάκι' },
   { value: 'tbsp', label: 'Κουτάλι' },
@@ -72,6 +73,11 @@ export type IngredientDef = {
   proteinPer100g: number
   carbsPer100g: number
   fatPer100g: number
+  // For things you count rather than weigh ("2 αυγά", "1 κρεμμύδι"): how
+  // much one piece weighs, and what a piece is called (singular, plural) —
+  // a slice of bread, a clove of garlic. Without a name it's "τεμ.".
+  gramsPerPiece?: number
+  pieceName?: [string, string]
 }
 
 export type Category =
@@ -120,6 +126,9 @@ export type Recipe = {
   // Which meal(s) this recipe fits — so a plan doesn't suggest, say, pasta
   // for breakfast. Defaults to every slot for older/legacy data.
   mealTypes: SlotKey[]
+  // Ingredient amounts are for this many portions (default 1); calories
+  // shown anywhere are per portion.
+  servings?: number
   ingredients: Ingredient[]
   // How to actually make it — optional so older/legacy recipes without one
   // just don't show a "how to make it" section instead of breaking.

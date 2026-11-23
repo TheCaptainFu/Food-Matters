@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { Recipe, Ingredient, Unit, Category, IngredientDef, SlotKey } from '../types'
 import { UNITS, CATEGORIES, SLOT_KEYS } from '../types'
 import { spoonHint } from '../nutrition'
+import { findDef, toGrams } from '../quantities'
 import IngredientPickerModal from './IngredientPickerModal'
 
 // Same colours as each meal's badge on the Calendar. Literal class strings
@@ -38,6 +39,7 @@ function AddRecipeModal({
   const [mealTypes, setMealTypes] = useState<SlotKey[]>(initialRecipe?.mealTypes ?? [])
   const [instructions, setInstructions] = useState(initialRecipe?.instructions ?? '')
   const [ingredients, setIngredients] = useState<Ingredient[]>(initialRecipe?.ingredients ?? [])
+  const [servings, setServings] = useState(initialRecipe?.servings ?? 1)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
 
   function toggleMealType(slot: SlotKey) {
@@ -54,7 +56,10 @@ function AddRecipeModal({
 
   function addIngredient(name: string) {
     setIngredients((prev) =>
-      prev.some((ing) => ing.name === name) ? prev : [...prev, { name, amount: 0, unit: 'g' as Unit }],
+      prev.some((ing) => ing.name === name)
+        ? prev
+        : // Countable things (eggs, onions…) start in pieces, the rest in grams.
+          [...prev, { name, amount: 0, unit: (findDef(name, ingredientCatalog)?.gramsPerPiece ? 'piece' : 'g') as Unit }],
     )
     setIsPickerOpen(false)
   }
@@ -73,6 +78,7 @@ function AddRecipeModal({
       title: title.trim(),
       category,
       mealTypes,
+      servings: Math.max(1, servings),
       ingredients: cleanIngredients,
       instructions: instructions.trim() || undefined,
     })
@@ -165,9 +171,40 @@ function AddRecipeModal({
 
             <div className="flex flex-col gap-10">
               <span className="text-16 font-title font-bold uppercase">Υλικά</span>
+              {/* What the amounts below are for: write a moussaka the way you
+                  cook it (for 4) and calories are still worked out per portion. */}
+              <div className="flex flex-wrap items-center gap-10">
+                <span className="text-14 font-title">Οι ποσότητες είναι για</span>
+                <span className="flex items-center border-3 border-black">
+                  <button
+                    type="button"
+                    onClick={() => setServings((n) => Math.max(1, n - 1))}
+                    aria-label="Λιγότερες μερίδες"
+                    className="w-30 h-30 font-bold cursor-pointer hover:bg-neutral-100"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-30 text-center font-title font-bold">{servings}</span>
+                  <button
+                    type="button"
+                    onClick={() => setServings((n) => Math.min(20, n + 1))}
+                    aria-label="Περισσότερες μερίδες"
+                    className="w-30 h-30 font-bold cursor-pointer hover:bg-neutral-100"
+                  >
+                    +
+                  </button>
+                </span>
+                <span className="text-14 font-title">{servings === 1 ? 'μερίδα' : 'μερίδες'}</span>
+              </div>
 
               {ingredients.map((ing, i) => {
-                const hint = ing.unit === 'g' ? spoonHint(ing.amount) : null
+                const def = findDef(ing.name, ingredientCatalog)
+                const hint =
+                  ing.unit === 'g'
+                    ? spoonHint(ing.amount)
+                    : ing.unit === 'piece' && ing.amount > 0
+                      ? `≈ ${Math.round(toGrams(ing.amount, 'piece', def))}g${def?.gramsPerPiece ? '' : ' (υπολογίζεται 100g το τεμάχιο)'}`
+                      : null
                 return (
                   <div key={i} className="flex flex-wrap gap-10">
                     <span className="flex-1 min-w-100 bg-white border-3 border-black px-10 py-5 font-title font-bold flex items-center truncate">

@@ -1,19 +1,6 @@
-import type { Ingredient, IngredientDef, Recipe, Unit } from './types'
+import type { Ingredient, IngredientDef, Recipe } from './types'
+import { findDef, toGrams } from './quantities'
 import type { DietType } from './dietaryRestrictions'
-
-// Rough gram equivalents for non-gram units, used only for the calorie estimate.
-function gramsFor(amount: number, unit: Unit): number {
-  switch (unit) {
-    case 'g':
-      return amount
-    case 'tsp':
-      return amount * 5
-    case 'tbsp':
-      return amount * 15
-    case 'package':
-      return amount * 100
-  }
-}
 
 // Nearest half-unit, formatted with a fraction glyph instead of "1.5" so it
 // reads like a recipe card ("1½ tbsp") rather than a calculator output.
@@ -44,8 +31,8 @@ export type Macros = { calories: number; protein: number; carbs: number; fat: nu
 // ingredient with no catalog entry simply contributes 0.
 
 export function estimateMacros(ingredient: Ingredient, catalog: IngredientDef[]): Macros {
-  const def = catalog.find((c) => c.name === ingredient.name)
-  const factor = gramsFor(ingredient.amount, ingredient.unit) / 100
+  const def = findDef(ingredient.name, catalog)
+  const factor = toGrams(ingredient.amount, ingredient.unit, def) / 100
   return {
     calories: factor * (def?.caloriesPer100g ?? 0),
     protein: factor * (def?.proteinPer100g ?? 0),
@@ -54,8 +41,10 @@ export function estimateMacros(ingredient: Ingredient, catalog: IngredientDef[])
   }
 }
 
+// Per portion: the ingredients are for recipe.servings portions.
 export function recipeMacros(recipe: Recipe, catalog: IngredientDef[]): Macros {
-  return recipe.ingredients.reduce(
+  const servings = recipe.servings && recipe.servings > 0 ? recipe.servings : 1
+  const total = recipe.ingredients.reduce(
     (total, ing) => {
       const m = estimateMacros(ing, catalog)
       return {
@@ -67,6 +56,12 @@ export function recipeMacros(recipe: Recipe, catalog: IngredientDef[]): Macros {
     },
     { calories: 0, protein: 0, carbs: 0, fat: 0 },
   )
+  return {
+    calories: total.calories / servings,
+    protein: total.protein / servings,
+    carbs: total.carbs / servings,
+    fat: total.fat / servings,
+  }
 }
 
 export type Sex = 'male' | 'female'

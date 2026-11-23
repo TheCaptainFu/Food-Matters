@@ -20,6 +20,7 @@ import { normalizeProfile } from './nutrition'
 import { SAMPLE_RECIPES } from './sampleRecipes'
 import { addDays, makeWeek, mondayOf, sortWeeks, toISODate, weekLabel } from './weekUtils'
 import { DEFAULT_INGREDIENT_CATALOG } from './ingredientCatalog'
+import { toNaturalUnit } from './quantities'
 import { loadFromStorage, saveToStorage } from './storage'
 
 const RECIPES_KEY = 'food-matters-recipes'
@@ -32,10 +33,10 @@ const PROFILE_KEY = 'food-matters-profile'
 // Bump this whenever DEFAULT_INGREDIENT_CATALOG grows — existing users get
 // the new entries merged into their saved catalog once, without touching
 // anything they've already added, edited, or deleted themselves.
-const CURRENT_CATALOG_VERSION = 3
+const CURRENT_CATALOG_VERSION = 4
 
 // Same idea, but for the seeded recipe library.
-const CURRENT_RECIPES_VERSION = 3
+const CURRENT_RECIPES_VERSION = 4
 
 const ALL_SLOT_KEYS = SLOT_KEYS.map((s) => s.value)
 
@@ -66,9 +67,23 @@ function initRecipes(): Recipe[] {
   // choice, not ours to override.
   const normalized = stored.map((r) => {
     const sample = sampleByTitle.get(r.title.toLowerCase())
-    const isUnmodifiedSeed = !!sample && ingredientsMatch(r.ingredients, sample.ingredients)
+    // Seeds saved while they were written all in grams count as unmodified
+    // too, so they pick up pieces ("2 αυγά") like fresh ones.
+    const isUnmodifiedSeed =
+      !!sample &&
+      (ingredientsMatch(r.ingredients, sample.ingredients) ||
+        ingredientsMatch(
+          r.ingredients.map((ing) => toNaturalUnit(ing, DEFAULT_INGREDIENT_CATALOG)),
+          sample.ingredients,
+        ))
     if (isUnmodifiedSeed) {
-      return { ...r, mealTypes: sample.mealTypes, instructions: sample.instructions ?? r.instructions }
+      return {
+        ...r,
+        mealTypes: sample.mealTypes,
+        instructions: sample.instructions ?? r.instructions,
+        ingredients: sample.ingredients,
+        servings: sample.servings,
+      }
     }
     return {
       ...r,
@@ -102,6 +117,8 @@ function initIngredientCatalog(): IngredientDef[] {
       proteinPer100g: raw.proteinPer100g ?? fallback?.proteinPer100g ?? 0,
       carbsPer100g: raw.carbsPer100g ?? fallback?.carbsPer100g ?? 0,
       fatPer100g: raw.fatPer100g ?? fallback?.fatPer100g ?? 0,
+      gramsPerPiece: raw.gramsPerPiece ?? fallback?.gramsPerPiece,
+      pieceName: raw.pieceName ?? fallback?.pieceName,
     }
   })
 

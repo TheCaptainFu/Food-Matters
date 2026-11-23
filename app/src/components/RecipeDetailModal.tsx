@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { IngredientDef, Recipe } from '../types'
-import { UNITS, CATEGORIES } from '../types'
+import { CATEGORIES } from '../types'
 import { recipeMacros, spoonHint } from '../nutrition'
+import { isRecipeFasting } from '../dietaryRestrictions'
+import { findDef, formatQuantity } from '../quantities'
 
 type RecipeDetailModalProps = {
   recipe: Recipe
@@ -14,6 +17,10 @@ type RecipeDetailModalProps = {
 function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelete }: RecipeDetailModalProps) {
   const category = CATEGORIES.find((c) => c.value === recipe.category)
   const macros = recipeMacros(recipe, ingredientCatalog)
+  const baseServings = recipe.servings && recipe.servings > 0 ? recipe.servings : 1
+  // Scale the amounts for however many you're cooking for.
+  const [servings, setServings] = useState(baseServings)
+  const scale = servings / baseServings
 
   return createPortal(
     <div
@@ -26,31 +33,62 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
       >
         <h2 className="text-20 font-title font-bold uppercase">{recipe.title}</h2>
 
-        {category && (
-          <span
-            className={`main-btn inline-block self-start px-10 py-5 text-14 font-title font-bold uppercase text-black ${category.color}`}
-          >
-            {category.label}
+        <div className="flex flex-wrap gap-10">
+          {category && (
+            <span
+              className={`main-btn inline-block self-start px-10 py-5 text-14 font-title font-bold uppercase text-black ${category.color}`}
+            >
+              {category.label}
+            </span>
+          )}
+          {isRecipeFasting(recipe) && (
+            <span className="main-btn inline-block self-start px-10 py-5 text-14 font-title font-bold uppercase bg-white">
+              ✝ Νηστίσιμο
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-10">
+          <span className="text-14 font-title font-bold uppercase">Μερίδες</span>
+          <span className="flex items-center border-3 border-black">
+            <button
+              type="button"
+              onClick={() => setServings((n) => Math.max(1, n - 1))}
+              aria-label="Λιγότερες μερίδες"
+              className="w-30 h-30 font-bold cursor-pointer hover:bg-neutral-100"
+            >
+              −
+            </button>
+            <span className="min-w-30 text-center font-title font-bold">{servings}</span>
+            <button
+              type="button"
+              onClick={() => setServings((n) => Math.min(20, n + 1))}
+              aria-label="Περισσότερες μερίδες"
+              className="w-30 h-30 font-bold cursor-pointer hover:bg-neutral-100"
+            >
+              +
+            </button>
           </span>
-        )}
+        </div>
 
         <div className="flex flex-col gap-15">
-          {recipe.ingredients.map((ing, i) => (
+          {recipe.ingredients.map((ing, i) => {
+            const amount = ing.amount * scale
+            return (
             <div
               key={i}
               className="flex items-center justify-between gap-5 bg-white border-2 border-black font-bold px-10 py-5"
             >
               <span className="text-14 text-black font-title">{ing.name}</span>
               <span className="text-14 text-black font-title text-right">
-                {ing.amount} {UNITS.find((u) => u.value === ing.unit)?.label ?? ing.unit}
-                {ing.unit === 'g' && spoonHint(ing.amount) && (
-                  <span className="block text-12 text-neutral-500 font-normal normal-case">
-                    {spoonHint(ing.amount)}
-                  </span>
+                {formatQuantity(amount, ing.unit, findDef(ing.name, ingredientCatalog))}
+                {ing.unit === 'g' && spoonHint(amount) && (
+                  <span className="block text-12 text-neutral-500 font-normal normal-case">{spoonHint(amount)}</span>
                 )}
               </span>
             </div>
-          ))}
+            )
+          })}
         </div>
 
         {recipe.instructions && (
@@ -62,7 +100,7 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
 
         <div className="main-btn p-15 flex flex-col gap-5">
           <span className="text-14 font-title font-bold uppercase">
-            {Math.round(macros.calories)} kcal
+            {Math.round(macros.calories)} kcal <span className="font-normal normal-case text-neutral-500">ανά μερίδα</span>
           </span>
           <span className="text-14 font-title text-neutral-500">
             Πρωτεΐνη {Math.round(macros.protein)}g · Υδατάνθρακες {Math.round(macros.carbs)}g · Λιπαρά{' '}

@@ -22,7 +22,7 @@ function ProfileIcon({ user }: { user: User | null }) {
 
 function Header({ isMenuOpen, onToggleMenu, user, onOpenProfile }: HeaderProps) {
   return (
-    <header className="sticky tab:static top-0 z-40 bg-white py-20 border-b-3">
+    <header className="sticky tab:static top-0 z-40 bg-white py-15 tab:py-20 border-b-3">
       <div className="container flex items-center gap-20">
         <h1 className="flex-1">
           <Logo className="text-32 text-left tab:text-52 tab:text-center" />

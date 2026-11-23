@@ -181,9 +181,11 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
     }
   }
 
-  const previewCalories = Math.round(
-    (Number(macros.protein) || 0) * 4 + (Number(macros.carbs) || 0) * 4 + (Number(macros.fat) || 0) * 9,
-  )
+  // Suggested targets use the exact calorie figure; typed-in grams are
+  // converted back to calories (rounding grams would be off by a few kcal).
+  const previewCalories = customMacros
+    ? Math.round((Number(macros.protein) || 0) * 4 + (Number(macros.carbs) || 0) * 4 + (Number(macros.fat) || 0) * 9)
+    : suggested.calories
   const waterL = (calculateWaterTargetMl({ weightKg, worksOut }) / 1000).toFixed(1)
 
   function saveProfile() {
@@ -258,7 +260,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
               </button>
             </div>
           ) : (
-            <p className="text-14 font-title text-neutral-500">
+            <p className="hidden sm:block text-14 font-title text-neutral-500">
               Χρησιμοποιείς το Food Matters ως επισκέπτης, οπότε τα δεδομένα σου μένουν μόνο σε αυτόν τον browser.
               {supabase && (
                 <>
@@ -276,17 +278,38 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
             </p>
           )}
 
-          <div className="bg-main-yellow border-2 border-black px-20 py-15 flex flex-wrap items-baseline justify-between gap-x-20 gap-y-5 font-title">
+          <div className="bg-main-yellow border-2 border-black px-15 py-10 sm:px-20 sm:py-15 flex flex-wrap items-baseline justify-between gap-x-20 gap-y-5 font-title">
             <span className="text-14 font-bold uppercase">Ο ημερήσιος στόχος σου</span>
-            <span className="text-16">
-              <span className="text-22 font-bold">{previewCalories} kcal</span> · Π {macros.protein || 0}g · Υ{' '}
-              {macros.carbs || 0}g · Λ {macros.fat || 0}g · 💧 {waterL} L
+            <span className="text-14 sm:text-16">
+              <span className="text-20 sm:text-22 font-bold">{previewCalories} kcal</span> · Π {macros.protein || 0}g · Υ{' '}
+              {macros.carbs || 0}g · Λ {macros.fat || 0}g ·{' '}
+              <span className="whitespace-nowrap">💧 {waterL} L</span>
             </span>
           </div>
         </div>
 
         {/* Scrolling body */}
         <div className="flex flex-col gap-40 p-20 sm:p-30 overflow-y-auto">
+          {/* On phones the guest note scrolls with the form instead of taking
+              pinned space at the top. */}
+          {!user && (
+            <p className="sm:hidden -mb-20 text-14 font-title text-neutral-500">
+              Είσαι επισκέπτης: τα δεδομένα σου μένουν μόνο σε αυτόν τον browser.
+              {supabase && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    onClick={() => signInWithProvider('google')}
+                    className="font-bold text-black underline cursor-pointer"
+                  >
+                    Συνδέσου
+                  </button>{' '}
+                  για να τα κρατήσεις.
+                </>
+              )}
+            </p>
+          )}
           <section className="flex flex-col gap-20">
             <span className={sectionTitleClass}>Στοιχεία σου</span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-20">

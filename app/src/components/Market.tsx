@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import type { GroceryCategory, IngredientDef, Recipe, Week } from '../types'
 import { GROCERY_CATEGORIES } from '../types'
 import { addDays, makeWeek, mondayOf, parseISODate, toISODate, todayISO, weekLabel } from '../weekUtils'
-import { loadShopping, saveShopping, type WeekShopping } from '../shopping'
+import { loadHousehold, loadShopping, saveHousehold, saveShopping, type WeekShopping } from '../shopping'
+import { formatShoppingAmount, toGrams } from '../quantities'
 import Toast, { type ToastData } from './Toast'
 
 type MarketProps = {
@@ -15,24 +16,28 @@ type MarketProps = {
   setActiveWeekStart: (startDate: string) => void
 }
 
-type ShoppingItem = { key: string; name: string; unit: string; amount: number; category: GroceryCategory }
+type ShoppingItem = {
+  key: string
+  name: string
+  grams: number
+  category: GroceryCategory
+  def?: IngredientDef
+}
 
-
-const UNIT_SHORT: Record<string, string> = { g: 'g', package: 'συσκ.', tsp: 'κ.γλ.', tbsp: 'κ.σ.' }
-
-function formatAmount(amount: number, unit: string): string {
-  const rounded = Math.round(amount * 10) / 10
-  const short = UNIT_SHORT[unit] ?? unit
-  return short === 'g' ? `${rounded}g` : `${rounded} ${short}`
+function itemAmount(item: ShoppingItem): string {
+  return formatShoppingAmount(item.grams, item.def)
 }
 
 // Adds up every recipe's ingredients for the week's days from fromDayIndex
-// on (0 = the whole week), merging the same ingredient + unit.
+// on (0 = the whole week). Everything is summed in grams per ingredient —
+// so "1 κρεμμύδι" in one recipe and "50g κρεμμύδι" in another make one
+// line — scaled from the recipe's portions to the number of people.
 function computeShoppingList(
   week: Week,
   recipes: Recipe[],
   ingredientCatalog: IngredientDef[],
   fromDayIndex: number,
+  people: number,
 ): ShoppingItem[] {
   const totals = new Map<string, ShoppingItem>()
   const catalogByName = new Map(ingredientCatalog.map((c) => [c.name.toLowerCase(), c]))
@@ -43,21 +48,23 @@ function computeShoppingList(
         const recipe = recipes.find((r) => r.id === recipeId)
         if (!recipe) return
 
+        const factor = people / (recipe.servings && recipe.servings > 0 ? recipe.servings : 1)
         recipe.ingredients.forEach((ing) => {
-          const key = `${ing.name.trim().toLowerCase()}|${ing.unit}`
+          const key = ing.name.trim().toLowerCase()
+          const def = catalogByName.get(key)
+          const grams = toGrams(ing.amount, ing.unit, def) * factor
           const existing = totals.get(key)
           if (existing) {
-            existing.amount += ing.amount
+            existing.grams += grams
           } else {
-            const category = catalogByName.get(ing.name.trim().toLowerCase())?.category ?? 'other'
-            totals.set(key, { key, name: ing.name, unit: ing.unit, amount: ing.amount, category })
+            totals.set(key, { key, name: ing.name, grams, category: def?.category ?? 'other', def })
           }
         })
       })
     })
   })
 
-  return [...totals.values()].sort((a, b) => a.name.localeCompare(b.name))
+  return [...totals.values()].sort((a, b) => a.name.localeCompare(b.name, 'el'))
 }
 
 // Groups items in the catalog's aisle order, so the list reads like an
@@ -91,6 +98,11 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
     saveShopping(shopping)
   }, [shopping])
 
+  const [people, setPeople] = useState(loadHousehold)
+  useEffect(() => {
+    saveHousehold(people)
+  }, [people])
+
   const [fromToday, setFromToday] = useState(true)
   const [newExtra, setNewExtra] = useState('')
   // Ticked-off items live behind a button rather than at the bottom of a
@@ -123,14 +135,14 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
   const todayIndex = Math.round((parseISODate(today).getTime() - parseISODate(activeWeekStart).getTime()) / 86_400_000)
   const fromDayIndex = isThisWeek && fromToday ? todayIndex : 0
 
-  const items = computeShoppingList(week, recipes, ingredientCatalog, fromDayIndex)
+  const items = computeShoppingList(week, recipes, ingredientCatalog, fromDayIndex, people)
   const state: WeekShopping = shopping[activeWeekStart] ?? { checked: [], extras: [] }
   const checkedSet = new Set(state.checked)
 
   const toBuy = items.filter((item) => !checkedSet.has(item.key))
   const extrasToBuy = state.extras.filter((e) => !checkedSet.has(e.id))
   const inCart = [
-    ...items.filter((item) => checkedSet.has(item.key)).map((item) => ({ key: item.key, name: item.name, detail: formatAmount(item.amount, item.unit) })),
+    ...items.filter((item) => checkedSet.has(item.key)).map((item) => ({ key: item.key, name: item.name, detail: itemAmount(item) })),
     ...state.extras.filter((e) => checkedSet.has(e.id)).map((e) => ({ key: e.id, name: e.name, detail: 'Πρόσθεσες εσύ' })),
   ]
   const total = items.length + state.extras.length
@@ -170,7 +182,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
     const lines = [`Λίστα αγορών · ${weekLabel(activeWeekStart)}`]
     groupByCategory(toBuy).forEach((group) => {
       lines.push('', group.label)
-      group.items.forEach((item) => lines.push(`- ${item.name} (${formatAmount(item.amount, item.unit)})`))
+      group.items.forEach((item) => lines.push(`- ${item.name} (${itemAmount(item)})`))
     })
     if (extrasToBuy.length > 0) {
       lines.push('', 'Άλλα')
@@ -188,7 +200,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
     }
   }
 
-  const itemButtonClass = 'main-btn flex items-center gap-15 p-15 text-left w-full'
+  const itemButtonClass = 'main-btn flex items-center gap-15 px-15 py-10 text-left w-full'
 
   return (
     <div className="py-20">
@@ -210,7 +222,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
             >
               ‹
             </button>
-            <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 sm:flex-none sm:min-w-[220px]">
+            <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 pl-10 sm:flex-none sm:min-w-[220px]">
               {weekHint}
               <span className="text-14 font-normal normal-case text-neutral-500">{weekLabel(activeWeekStart)}</span>
             </h3>
@@ -233,73 +245,95 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-10">
+        </div>
+
+        {/* Everything about this week's list in one box: who it's for, which
+            days, progress, and the actions — instead of a row of loose buttons. */}
+        <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] p-15 sm:p-20 flex flex-col gap-15">
+          <div className="flex flex-wrap items-center justify-between gap-10">
+            {/* Recipes are per portion; this scales the list for the household. */}
+            <span className="flex items-center gap-10 text-14 font-title font-bold">
+              Για
+              <span className="flex items-center border-2 border-black h-30">
+                <button
+                  type="button"
+                  onClick={() => setPeople((n) => Math.max(1, n - 1))}
+                  aria-label="Λιγότερα άτομα"
+                  className="w-30 h-full font-bold cursor-pointer hover:bg-neutral-100"
+                >
+                  −
+                </button>
+                <span className="min-w-25 text-center">{people}</span>
+                <button
+                  type="button"
+                  onClick={() => setPeople((n) => Math.min(12, n + 1))}
+                  aria-label="Περισσότερα άτομα"
+                  className="w-30 h-full font-bold cursor-pointer hover:bg-neutral-100"
+                >
+                  +
+                </button>
+              </span>
+              {people === 1 ? 'άτομο' : 'άτομα'}
+            </span>
             {isThisWeek && todayIndex > 0 && (
-              <div className="flex gap-10">
+              <span className="flex border-2 border-black text-14 font-title font-bold">
                 <button
                   type="button"
                   onClick={() => setFromToday(true)}
-                  className={
-                    fromToday
-                      ? 'main-btn font-title font-bold px-15 py-10 bg-black text-white'
-                      : 'main-btn font-title font-bold px-15 py-10'
-                  }
+                  className={fromToday ? 'px-10 h-30 bg-black text-white cursor-pointer' : 'px-10 h-30 cursor-pointer hover:bg-neutral-100'}
                 >
                   Από σήμερα
                 </button>
                 <button
                   type="button"
                   onClick={() => setFromToday(false)}
-                  className={
-                    !fromToday
-                      ? 'main-btn font-title font-bold px-15 py-10 bg-black text-white'
-                      : 'main-btn font-title font-bold px-15 py-10'
-                  }
+                  className={!fromToday ? 'px-10 h-30 bg-black text-white cursor-pointer' : 'px-10 h-30 cursor-pointer hover:bg-neutral-100'}
                 >
                   Όλη η εβδομάδα
                 </button>
-              </div>
+              </span>
             )}
-            <button
-              type="button"
-              onClick={copyList}
-              disabled={toBuy.length + extrasToBuy.length === 0}
-              className="main-btn font-title font-bold px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
-            >
-              📋 Αντιγραφή λίστας
-            </button>
           </div>
-        </div>
 
-        {/* Always shown, so "+ Πρόσθεσε έξτρα" is reachable even on an empty list. */}
-        <div className="flex flex-wrap items-center gap-15">
-            <div className="flex-1 min-w-[200px] flex flex-col gap-5">
-              {total > 0 && (
-                <>
-                  <span className="text-14 font-title font-bold">
-                    {doneCount} από {total} στο καλάθι
-                  </span>
-                  <div className="w-full h-10 border-2 border-black bg-neutral-100">
-                    <div className="h-full bg-main-blue" style={{ width: `${Math.round((doneCount / total) * 100)}%` }} />
-                  </div>
-                </>
-              )}
+          {total > 0 && (
+            <div className="flex flex-col gap-5 pt-15 border-t border-neutral-200">
+              <span className="text-14 font-title font-bold">
+                {doneCount} από {total} στο καλάθι
+              </span>
+              <div className="w-full h-10 border-2 border-black bg-neutral-100">
+                <div className="h-full bg-main-blue" style={{ width: `${Math.round((doneCount / total) * 100)}%` }} />
+              </div>
             </div>
+          )}
+
+          {/* Always shown, so adding an extra works even on an empty list. */}
+          <div className="flex flex-wrap gap-10">
             <button
               type="button"
               onClick={() => setIsAddOpen(true)}
-              className="main-btn font-title font-bold px-15 py-10 shrink-0"
+              className="main-btn font-title font-bold text-14 px-10 py-5"
             >
-              + Πρόσθεσε έξτρα
+              + Έξτρα
             </button>
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
               disabled={inCart.length === 0}
-              className="main-btn font-title font-bold px-15 py-10 shrink-0 disabled:opacity-30 disabled:pointer-events-none"
+              className="main-btn font-title font-bold text-14 px-10 py-5 disabled:opacity-30 disabled:pointer-events-none"
             >
               🛒 Στο καλάθι ({inCart.length})
             </button>
+            <button
+              type="button"
+              onClick={copyList}
+              disabled={toBuy.length + extrasToBuy.length === 0}
+              aria-label="Αντιγραφή λίστας"
+              title="Αντιγραφή λίστας"
+              className="main-btn font-title font-bold text-14 px-10 py-5 ml-auto disabled:opacity-30 disabled:pointer-events-none"
+            >
+              📋<span className="hidden sm:inline"> Αντιγραφή</span>
+            </button>
+          </div>
         </div>
 
         {items.length === 0 && state.extras.length === 0 && (
@@ -344,10 +378,8 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
               {group.items.map((item) => (
                 <button key={item.key} type="button" onClick={() => toggle(item.key)} className={itemButtonClass}>
                   <CheckBox checked={false} />
-                  <span className="flex flex-col">
-                    <span className="text-16 font-title font-bold">{item.name}</span>
-                    <span className="text-14 font-title text-neutral-500">{formatAmount(item.amount, item.unit)}</span>
-                  </span>
+                  <span className="flex-1 min-w-0 text-16 font-title font-bold">{item.name}</span>
+                  <span className="shrink-0 text-14 font-title text-neutral-500">{itemAmount(item)}</span>
                 </button>
               ))}
             </div>

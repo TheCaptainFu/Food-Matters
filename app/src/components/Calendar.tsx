@@ -1,3 +1,4 @@
+import { findDef } from '../quantities'
 import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
@@ -371,14 +372,20 @@ function Calendar({
   // that doesn't throw off the day's targets.
   function getAlternatives(current: Recipe, slotKey: SlotKey): Recipe[] {
     const currentMacros = recipeMacros(current, ingredientCatalog)
-    return recipesForSlot(slotKey)
-      .filter((r) => r.id !== current.id && r.category === current.category)
-      .sort(
+    const byCloseness = (list: Recipe[]) =>
+      [...list].sort(
         (a, b) =>
           macroDistance(recipeMacros(a, ingredientCatalog), currentMacros) -
           macroDistance(recipeMacros(b, ingredientCatalog), currentMacros),
       )
-      .slice(0, 3)
+    const isSupplement = (r: Recipe) =>
+      r.ingredients.some((ing) => findDef(ing.name, ingredientCatalog)?.category === 'protein')
+    const others = recipesForSlot(slotKey).filter((r) => r.id !== current.id && !isSupplement(r))
+    // Same kind of dish first; if there aren't 3 of those for this meal,
+    // top up with the closest of the rest, so there's always a choice.
+    const sameKind = byCloseness(others.filter((r) => r.category === current.category))
+    const rest = byCloseness(others.filter((r) => r.category !== current.category))
+    return [...sameKind, ...rest].slice(0, 3)
   }
 
   // Sums the macros of whatever recipes are already sitting in a day's
@@ -474,7 +481,13 @@ function Calendar({
       }
       const score = (r: Recipe) =>
         macroDistance(recipeMacros(r, ingredientCatalog), slotBudget) + (usageCounts.get(r.id) ?? 0) * REPEAT_PENALTY
-      const ranked = [...recipesForSlot(slot.key)].sort((a, b) => score(a) - score(b))
+      // Supplements (shake, protein bar) aren't meals — the plan suggests a
+      // shake separately — so auto-fill leaves them out unless nothing else fits.
+      const pool = recipesForSlot(slot.key)
+      const meals = pool.filter(
+        (r) => !r.ingredients.some((ing) => findDef(ing.name, ingredientCatalog)?.category === 'protein'),
+      )
+      const ranked = [...(meals.length > 0 ? meals : pool)].sort((a, b) => score(a) - score(b))
       shortlists.set(slot.key, ranked.slice(0, Math.min(CANDIDATES_PER_SLOT, ranked.length)))
     })
 
@@ -624,7 +637,7 @@ function Calendar({
             >
               ‹
             </button>
-            <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 sm:flex-none sm:min-w-[220px]">
+            <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 pl-10 sm:flex-none sm:min-w-[220px]">
               {weekHint}
               <span className="text-14 font-normal normal-case text-neutral-500">{activeWeek.label}</span>
             </h3>
@@ -668,9 +681,10 @@ function Calendar({
                   ? 'Φτιάξε πρώτα το προφίλ σου'
                   : 'Γέμισε τα κενά γεύματα της εβδομάδας με βάση τους ημερήσιους στόχους σου (τα υπάρχοντα μένουν)'
               }
-              className="main-btn font-title font-bold px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
+              className="main-btn whitespace-nowrap font-title font-bold px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
             >
-              Συμπλήρωση εβδομάδας
+              <span className="sm:hidden">Συμπλήρωση</span>
+              <span className="hidden sm:inline">Συμπλήρωση εβδομάδας</span>
             </button>
             <WeekMenu
               isImporting={isImporting}
@@ -685,17 +699,10 @@ function Calendar({
         </div>
 
         {isEditing && (
-          <div className="bg-main-blue text-white border-3 border-black px-15 py-10 flex flex-wrap items-center justify-between gap-10">
+          <div className="bg-main-blue text-white border-3 border-black px-15 py-10">
             <span className="text-14 font-title font-bold">
               Επεξεργασία: πρόσθεσε, άλλαξε, αφαίρεσε ή σύρε γεύματα. Οι αλλαγές αποθηκεύονται αυτόματα.
             </span>
-            <button
-              type="button"
-              onClick={() => setIsEditing(false)}
-              className="main-btn font-title font-bold text-14 px-15 py-5"
-            >
-              Τέλος
-            </button>
           </div>
         )}
 

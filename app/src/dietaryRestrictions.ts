@@ -1,11 +1,12 @@
 import type { Recipe } from './types'
 
-export type DietType = 'none' | 'vegetarian' | 'vegan'
+export type DietType = 'none' | 'vegetarian' | 'vegan' | 'fasting'
 
 export const DIET_TYPES: { value: DietType; label: string }[] = [
   { value: 'none', label: 'Χωρίς περιορισμό' },
   { value: 'vegetarian', label: 'Χορτοφαγική' },
   { value: 'vegan', label: 'Vegan' },
+  { value: 'fasting', label: 'Νηστεία' },
 ]
 
 // Keyword-based, not a per-ingredient database — works on ingredient NAMES
@@ -66,6 +67,12 @@ const ANIMAL_PRODUCT_KEYWORDS = [
   'μαγιονεζ',
   'whey',
   'ορου',
+  'κεφιρ',
+  'παγωτ',
+  'μπαρα πρωτειν',
+  'τσουρεκ',
+  'πτι-μπερ',
+  'σφολιατ',
 ]
 
 // Plant-based ingredients whose names happen to contain an animal keyword
@@ -95,6 +102,24 @@ export function isIngredientVegetarian(name: string): boolean {
   return !containsKeyword(name, MEAT_FISH_KEYWORDS)
 }
 
+// Orthodox fasting (Σαρακοστή, Τετάρτη/Παρασκευή): no meat, fish, dairy or
+// eggs — but seafood without blood (octopus, squid, cuttlefish, shrimp,
+// mussels…), honey, tahini, halva and olive oil are all fine. (On the
+// strictest days oil is avoided too; that's left to the person.)
+const FASTING_ALLOWED_SEAFOOD = ['χταποδ', 'καλαμαρ', 'σουπια', 'γαριδ', 'μυδι', 'κιδον', 'αχιβαδ', 'ταραμ']
+
+export function isIngredientFasting(name: string): boolean {
+  if (isException(name)) return true
+  const n = normalize(name)
+  if (FASTING_ALLOWED_SEAFOOD.some((k) => n.includes(k))) return true
+  if (n.includes('μελι') && !n.includes('μελιτζ')) return true
+  return !containsKeyword(name, MEAT_FISH_KEYWORDS) && !containsKeyword(name, ANIMAL_PRODUCT_KEYWORDS)
+}
+
+export function isRecipeFasting(recipe: Recipe): boolean {
+  return recipe.ingredients.every((ing) => isIngredientFasting(ing.name))
+}
+
 export function isIngredientVegan(name: string): boolean {
   if (isException(name)) return true
   return !containsKeyword(name, MEAT_FISH_KEYWORDS) && !containsKeyword(name, ANIMAL_PRODUCT_KEYWORDS)
@@ -109,6 +134,7 @@ export function isRecipeCompatible(recipe: Recipe, diet: DietType, excludedIngre
     if (excludedLower.has(ing.name.toLowerCase())) return false
     if (diet === 'vegetarian' && !isIngredientVegetarian(ing.name)) return false
     if (diet === 'vegan' && !isIngredientVegan(ing.name)) return false
+    if (diet === 'fasting' && !isIngredientFasting(ing.name)) return false
     return true
   })
 }

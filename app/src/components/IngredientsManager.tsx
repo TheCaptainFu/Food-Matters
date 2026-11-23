@@ -50,7 +50,7 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value as 'all' | GroceryCategory)}
-          className="bg-white border-3 border-black pl-15 pr-30 py-10 font-title"
+          className="bg-white border-3 border-black pl-15 pr-30 py-10 font-title flex-1 min-w-0 sm:flex-none"
         >
           <option value="all">Όλοι οι διάδρομοι</option>
           {usedCategories.map((g) => (
@@ -62,7 +62,7 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
         <button
           type="button"
           onClick={() => setForm({ original: null })}
-          className="main-btn font-title font-bold px-15 py-10 bg-main-blue text-white"
+          className="main-btn whitespace-nowrap font-title font-bold px-15 py-10 bg-main-blue text-white"
         >
           + Νέο υλικό
         </button>
@@ -77,7 +77,7 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
           <thead>
             <tr className="border-b-3 border-black text-12 uppercase">
               <th className="px-10 py-10 text-left">Υλικό</th>
-              <th className="px-10 py-10 text-left">Διάδρομος</th>
+              <th className="px-10 py-10 text-left hidden sm:table-cell">Διάδρομος</th>
               <th className={cell}>kcal</th>
               <th className={cell}>Πρωτεΐνη</th>
               <th className={cell}>Υδατάνθρακες</th>
@@ -99,7 +99,7 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
               return (
                 <tr key={c.name} className="border-b border-neutral-200 last:border-b-0 hover:bg-neutral-50">
                   <td className="px-10 py-10 font-bold">{c.name}</td>
-                  <td className="px-10 py-10 text-neutral-500 whitespace-nowrap">
+                  <td className="px-10 py-10 text-neutral-500 whitespace-nowrap hidden sm:table-cell">
                     {GROCERY_CATEGORIES.find((g) => g.value === c.category)?.label ?? 'Άλλα'}
                   </td>
                   <td className={cell}>{Math.round(c.caloriesPer100g)}</td>
@@ -184,6 +184,7 @@ function IngredientFormModal({ original, catalog, usedIn, onClose, onSave }: Ing
   const [protein, setProtein] = useState(original ? String(original.proteinPer100g) : '')
   const [carbs, setCarbs] = useState(original ? String(original.carbsPer100g) : '')
   const [fat, setFat] = useState(original ? String(original.fatPer100g) : '')
+  const [gramsPerPiece, setGramsPerPiece] = useState(original?.gramsPerPiece ? String(original.gramsPerPiece) : '')
 
   const trimmed = name.trim()
   const isDuplicate = catalog.some(
@@ -202,6 +203,8 @@ function IngredientFormModal({ original, catalog, usedIn, onClose, onSave }: Ing
       proteinPer100g: Number(protein) || 0,
       carbsPer100g: Number(carbs) || 0,
       fatPer100g: Number(fat) || 0,
+      gramsPerPiece: Number(gramsPerPiece) > 0 ? Number(gramsPerPiece) : undefined,
+      pieceName: Number(gramsPerPiece) > 0 ? original?.pieceName : undefined,
     })
   }
 
@@ -258,6 +261,21 @@ function IngredientFormModal({ original, catalog, usedIn, onClose, onSave }: Ing
             <input type="number" min="0" value={fat} onChange={(e) => setFat(e.target.value)} className={inputClass} />
           </label>
         </div>
+
+        <label className="flex flex-col gap-5">
+          <span className="text-14 font-title font-bold">Γραμμάρια ανά τεμάχιο (προαιρετικό)</span>
+          <input
+            type="number"
+            min="0"
+            placeholder="π.χ. 60 για ένα αυγό"
+            value={gramsPerPiece}
+            onChange={(e) => setGramsPerPiece(e.target.value)}
+            className={inputClass}
+          />
+          <span className="text-12 font-title text-neutral-500">
+            Για ό,τι μετράς σε κομμάτια, ώστε οι συνταγές να γράφουν «2 αυγά» αντί για γραμμάρια.
+          </span>
+        </label>
 
         <div className="flex gap-10 justify-end">
           <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10 mr-auto">

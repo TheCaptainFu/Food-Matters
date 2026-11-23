@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import AddRecipeModal from './AddRecipeModal'
+import { isRecipeFasting } from '../dietaryRestrictions'
 import ScrollRow from './ScrollRow'
 import IngredientsManager from './IngredientsManager'
 import type { Recipe, IngredientDef, SlotKey } from '../types'
@@ -41,6 +42,7 @@ function Recipes({
   const [mealFilter, setMealFilter] = useState<'all' | SlotKey>('all')
   const [categoryFilter, setCategoryFilter] = useState<'all' | Recipe['category']>('all')
   const [search, setSearch] = useState('')
+  const [fastingOnly, setFastingOnly] = useState(false)
 
   function handleAddRecipe(recipe: Recipe) {
     onAddRecipe(recipe)
@@ -51,14 +53,17 @@ function Recipes({
     const matchesMeal = mealFilter === 'all' || (recipe.mealTypes ?? []).includes(mealFilter)
     const matchesCategory = categoryFilter === 'all' || recipe.category === categoryFilter
     const matchesSearch = recipe.title.toLowerCase().includes(search.trim().toLowerCase())
-    return matchesMeal && matchesCategory && matchesSearch
+    const matchesFasting = !fastingOnly || isRecipeFasting(recipe)
+    return matchesMeal && matchesCategory && matchesSearch && matchesFasting
   })
 
   return (
     <div className="py-20">
       <div className="container flex flex-col gap-25">
-        <div className="flex flex-wrap items-end justify-between gap-x-20 gap-y-10 border-b-3 border-black">
-          <div className="flex gap-10">
+        {/* The tabs sit on a black rule. On phones the search drops below the
+            tabs, so the rule goes under the tabs alone (not under the search). */}
+        <div className="flex flex-wrap items-end justify-between gap-x-20 gap-y-15 sm:border-b-3 sm:border-black">
+          <div className="flex gap-10 w-full sm:w-auto border-b-3 border-black sm:border-b-0">
           {(
             [
               { key: 'recipes', label: 'Συνταγές' },
@@ -85,7 +90,7 @@ function Recipes({
               placeholder="Αναζήτηση συνταγών…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="border-3 border-black px-15 py-5 mb-10 font-title w-full sm:w-[260px]"
+              className="border-3 border-black px-15 py-5 sm:mb-10 font-title w-full sm:w-[260px]"
             />
           )}
         </div>
@@ -126,6 +131,19 @@ function Recipes({
                 {slot.label}
               </button>
             ))}
+            <span className="w-[2px] shrink-0 self-stretch bg-neutral-200 mx-5" />
+            <button
+              type="button"
+              aria-pressed={fastingOnly}
+              onClick={() => setFastingOnly((v) => !v)}
+              className={
+                fastingOnly
+                  ? 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5 bg-black text-white'
+                  : 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5'
+              }
+            >
+              ✝ Νηστίσιμα
+            </button>
             </ScrollRow>
           </div>
 
@@ -164,6 +182,7 @@ function Recipes({
                 setMealFilter('all')
                 setCategoryFilter('all')
                 setSearch('')
+                setFastingOnly(false)
               }}
               className="font-bold text-black underline cursor-pointer"
             >

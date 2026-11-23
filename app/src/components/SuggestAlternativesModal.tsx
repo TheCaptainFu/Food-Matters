@@ -132,7 +132,7 @@ function SuggestAlternativesModal({
               <span className="text-12 font-title font-bold uppercase text-neutral-500">Δοκίμασε αντί γι’ αυτό</span>
               <div className="flex flex-col gap-10">
                 {alternatives.length === 0 && (
-                  <p className="text-14 font-title text-neutral-500">Δεν υπάρχουν εναλλακτικές σε αυτή την κατηγορία.</p>
+                  <p className="text-14 font-title text-neutral-500">Δεν υπάρχουν εναλλακτικές για αυτό το γεύμα.</p>
                 )}
                 {alternatives.map((alt) => (
                   <button
