@@ -20,7 +20,7 @@ function MacroLine({ recipe, ingredientCatalog }: { recipe: Recipe; ingredientCa
   const macros = recipeMacros(recipe, ingredientCatalog)
   return (
     <span className="text-12 font-title text-neutral-500">
-      {Math.round(macros.calories)} kcal · P {Math.round(macros.protein)}g · C {Math.round(macros.carbs)}g · F{' '}
+      {Math.round(macros.calories)} kcal · Π {Math.round(macros.protein)}g · Υ {Math.round(macros.carbs)}g · Λ{' '}
       {Math.round(macros.fat)}g
     </span>
   )
@@ -55,11 +55,11 @@ function SuggestAlternativesModal({
         className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[420px] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between gap-10">
-          <h2 className="text-20 font-title font-bold uppercase">{isBrowsing ? 'All Recipes' : 'Swap Recipe'}</h2>
+          <h2 className="text-20 font-title font-bold uppercase">{isBrowsing ? 'Όλες οι συνταγές' : 'Αλλαγή συνταγής'}</h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label="Κλείσιμο"
             className="text-black hover:text-main-red font-bold text-20 leading-none cursor-pointer"
           >
             ✕
@@ -72,7 +72,7 @@ function SuggestAlternativesModal({
           <>
             <input
               type="search"
-              placeholder="Search your recipes…"
+              placeholder="Αναζήτηση στις συνταγές σου…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="border-3 border-black px-10 py-5 font-title"
@@ -92,7 +92,7 @@ function SuggestAlternativesModal({
                   </button>
                 ))
               ) : (
-                <p className="px-10 py-10 text-14 font-title text-neutral-500">No recipes match “{search.trim()}”.</p>
+                <p className="px-10 py-10 text-14 font-title text-neutral-500">Καμία συνταγή για «{search.trim()}».</p>
               )}
             </div>
             <button
@@ -100,7 +100,7 @@ function SuggestAlternativesModal({
               onClick={onCreateNew}
               className="self-start text-14 font-title font-bold underline cursor-pointer"
             >
-              Can't find it? + Create new recipe
+              Δεν το βρίσκεις; + Νέα συνταγή
             </button>
             <div className="flex justify-between gap-10">
               <button
@@ -111,17 +111,17 @@ function SuggestAlternativesModal({
                 }}
                 className="main-btn font-title font-bold px-15 py-10"
               >
-                ← Back
+                ← Πίσω
               </button>
               <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
-                Cancel
+                Άκυρο
               </button>
             </div>
           </>
         ) : (
           <>
             <div className="flex flex-col gap-5">
-              <span className="text-12 font-title font-bold uppercase text-neutral-500">Currently</span>
+              <span className="text-12 font-title font-bold uppercase text-neutral-500">Τώρα</span>
               <div className="border-2 border-black px-10 py-10 flex flex-col gap-5 bg-neutral-50">
                 <span className="text-14 font-title font-bold">{current.title}</span>
                 <MacroLine recipe={current} ingredientCatalog={ingredientCatalog} />
@@ -129,10 +129,10 @@ function SuggestAlternativesModal({
             </div>
 
             <div className="flex flex-col gap-5">
-              <span className="text-12 font-title font-bold uppercase text-neutral-500">Try instead</span>
+              <span className="text-12 font-title font-bold uppercase text-neutral-500">Δοκίμασε αντί γι’ αυτό</span>
               <div className="flex flex-col gap-10">
                 {alternatives.length === 0 && (
-                  <p className="text-14 font-title text-neutral-500">No alternatives in this category.</p>
+                  <p className="text-14 font-title text-neutral-500">Δεν υπάρχουν εναλλακτικές σε αυτή την κατηγορία.</p>
                 )}
                 {alternatives.map((alt) => (
                   <button
@@ -149,28 +149,28 @@ function SuggestAlternativesModal({
             </div>
 
             <div className="flex flex-col gap-5">
-              <span className="text-12 font-title font-bold uppercase text-neutral-500">Not what you want?</span>
+              <span className="text-12 font-title font-bold uppercase text-neutral-500">Δεν σου κάνει;</span>
               <div className="grid grid-cols-2 gap-10">
                 <button
                   type="button"
                   onClick={() => setIsBrowsing(true)}
                   className="border-2 border-dashed border-neutral-400 hover:border-black px-10 py-10 text-14 font-title font-bold cursor-pointer"
                 >
-                  🔍 Browse all recipes
+                  🔍 Όλες οι συνταγές
                 </button>
                 <button
                   type="button"
                   onClick={onCreateNew}
                   className="border-2 border-dashed border-neutral-400 hover:border-black px-10 py-10 text-14 font-title font-bold cursor-pointer"
                 >
-                  + Create new recipe
+                  + Νέα συνταγή
                 </button>
               </div>
             </div>
 
             <div className="flex justify-end">
               <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
-                Cancel
+                Άκυρο
               </button>
             </div>
           </>

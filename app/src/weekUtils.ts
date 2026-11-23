@@ -1,7 +1,7 @@
 import type { ActualEntry, Day, SlotKey, Week } from './types'
 import { SLOT_KEYS } from './types'
 
-export const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+export const DAY_LABELS = ['Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή', 'Σάββατο', 'Κυριακή']
 
 // Dates are stored as local "YYYY-MM-DD" strings (never via toISOString,
 // which is UTC and can shift the day near midnight).
@@ -31,15 +31,18 @@ export function todayISO(): string {
   return toISODate(new Date())
 }
 
-function shortDate(date: Date, withMonth: boolean): string {
-  return withMonth
-    ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-    : String(date.getDate())
-}
-
-// Greek month abbreviations for week names — a fixed list rather than
+// Greek month abbreviations — a fixed list rather than
 // toLocaleDateString('el-GR'), whose short forms differ between browsers.
 const GREEK_MONTHS = ['Ιαν', 'Φεβ', 'Μαρ', 'Απρ', 'Μαΐ', 'Ιουν', 'Ιουλ', 'Αυγ', 'Σεπ', 'Οκτ', 'Νοε', 'Δεκ']
+
+function shortDate(date: Date, withMonth: boolean): string {
+  return withMonth ? `${date.getDate()} ${GREEK_MONTHS[date.getMonth()]}` : String(date.getDate())
+}
+
+// Greek weekday name for a date ("Δευτέρα"), same order as DAY_LABELS.
+export function weekdayName(date: Date): string {
+  return DAY_LABELS[(date.getDay() + 6) % 7]
+}
 
 // "16–22 Νοε", or "30 Νοε – 6 Δεκ" when the week spans two months.
 export function weekLabel(startDate: string): string {

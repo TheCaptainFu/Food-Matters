@@ -1,803 +1,386 @@
-import type { Recipe } from './types'
+import type { Category, Ingredient, Recipe, SlotKey, Unit } from './types'
+
+// Greek home cooking, one serving each. Every ingredient name matches an
+// entry in ingredientCatalog.ts exactly, so calories add up.
+type Item = [name: string, amount: number, unit?: Unit]
+
+function recipe(
+  id: number,
+  title: string,
+  category: Category,
+  mealTypes: SlotKey[],
+  items: Item[],
+  instructions: string,
+): Recipe {
+  const ingredients: Ingredient[] = items.map(([name, amount, unit = 'g']) => ({ name, amount, unit }))
+  return { id: `gr-${id}`, title, category, mealTypes, ingredients, instructions }
+}
+
+const MAIN: SlotKey[] = ['lunch', 'dinner']
+const MORNING: SlotKey[] = ['breakfast', 'afternoon']
+const AFTERNOON: SlotKey[] = ['afternoon']
 
 export const SAMPLE_RECIPES: Recipe[] = [
-  {
-    id: 'seed-1',
-    title: 'Greek Salad',
-    category: 'vegetarian',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Chop the tomato and cucumber into chunks. Combine in a bowl with the crumbled feta and olives. Drizzle with a little olive oil if you like and serve immediately.',
-    ingredients: [
-      { name: 'Tomato', amount: 200, unit: 'g' },
-      { name: 'Cucumber', amount: 150, unit: 'g' },
-      { name: 'Feta Cheese', amount: 100, unit: 'g' },
-      { name: 'Olives', amount: 50, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-2',
-    title: 'Grilled Chicken',
-    category: 'meat',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Rub the chicken breast with olive oil and a squeeze of lemon juice. Grill or pan-sear over medium-high heat for 6-7 minutes per side until cooked through. Rest for a few minutes before slicing.',
-    ingredients: [
-      { name: 'Chicken Breast', amount: 300, unit: 'g' },
-      { name: 'Olive Oil', amount: 20, unit: 'g' },
-      { name: 'Lemon', amount: 30, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-3',
-    title: 'Spaghetti Bolognese',
-    category: 'pasta',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Boil the spaghetti according to package instructions. Meanwhile, brown the ground beef in a pan, then stir in the tomato sauce and simmer for 10 minutes. Toss the sauce with the drained spaghetti.',
-    ingredients: [
-      { name: 'Spaghetti', amount: 200, unit: 'g' },
-      { name: 'Ground Beef', amount: 250, unit: 'g' },
-      { name: 'Tomato Sauce', amount: 150, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-4',
-    title: 'Omelette',
-    category: 'vegetarian',
-    mealTypes: ['breakfast'],
-    instructions:
-      'Whisk the eggs in a bowl. Melt the butter in a pan over medium heat, pour in the eggs, and sprinkle the cheese on top. Fold in half once the edges set and cook until the center is just firm.',
-    ingredients: [
-      { name: 'Eggs', amount: 150, unit: 'g' },
-      { name: 'Cheese', amount: 50, unit: 'g' },
-      { name: 'Butter', amount: 10, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-5',
-    title: 'Greek Yogurt Bowl',
-    category: 'dessert',
-    mealTypes: ['breakfast', 'afternoon'],
-    instructions:
-      'Spoon the Greek yogurt into a bowl. Drizzle with honey and scatter the walnuts on top. Serve straight away.',
-    ingredients: [
-      { name: 'Greek Yogurt', amount: 200, unit: 'g' },
-      { name: 'Honey', amount: 20, unit: 'g' },
-      { name: 'Walnuts', amount: 30, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-6',
-    title: 'Lentil Soup',
-    category: 'vegetarian',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Rinse the lentils. Sauté the diced onion and carrot in a pot for a few minutes, add the lentils and enough water to cover, then simmer for 20-25 minutes until the lentils are soft. Season to taste.',
-    ingredients: [
-      { name: 'Lentils', amount: 200, unit: 'g' },
-      { name: 'Carrot', amount: 100, unit: 'g' },
-      { name: 'Onion', amount: 80, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-7',
-    title: 'Grilled Salmon',
-    category: 'fish',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Season the salmon fillet with lemon juice and chopped dill. Grill or pan-sear skin-side down for 4-5 minutes, then flip and cook 3-4 minutes more until just opaque.',
-    ingredients: [
-      { name: 'Salmon Fillet', amount: 250, unit: 'g' },
-      { name: 'Lemon', amount: 20, unit: 'g' },
-      { name: 'Dill', amount: 5, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-8',
-    title: 'Chicken Caesar Salad',
-    category: 'meat',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Grill the chicken breast and slice it. Toss the lettuce with the shaved parmesan, top with the sliced chicken, and serve.',
-    ingredients: [
-      { name: 'Chicken Breast', amount: 200, unit: 'g' },
-      { name: 'Lettuce', amount: 150, unit: 'g' },
-      { name: 'Parmesan', amount: 40, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-9',
-    title: 'Vegetable Stir Fry',
-    category: 'vegetarian',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Heat a pan or wok over high heat. Stir-fry the broccoli and bell pepper for 4-5 minutes until crisp-tender, then add the soy sauce and toss for another minute.',
-    ingredients: [
-      { name: 'Broccoli', amount: 150, unit: 'g' },
-      { name: 'Bell Pepper', amount: 100, unit: 'g' },
-      { name: 'Soy Sauce', amount: 20, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-10',
-    title: 'Pancakes',
-    category: 'dessert',
-    mealTypes: ['breakfast'],
-    instructions:
-      'Whisk the flour, milk and eggs together into a smooth batter. Pour small ladles onto a hot, lightly greased pan and cook until bubbles form on top, then flip and cook the other side.',
-    ingredients: [
-      { name: 'Flour', amount: 200, unit: 'g' },
-      { name: 'Milk', amount: 250, unit: 'g' },
-      { name: 'Eggs', amount: 100, unit: 'g' },
-    ],
-  },
+  // ---------- Λαδερά ----------
+  recipe(1, 'Φασολάκια λαδερά', 'ladera', MAIN, [
+    ['Φασολάκια', 300], ['Πατάτες', 120], ['Ντομάτα τριμμένη (πασάτα)', 120], ['Κρεμμύδι ξερό', 50],
+    ['Ελαιόλαδο', 20], ['Μαϊντανός', 5], ['Αλάτι', 2], ['Πιπέρι', 1],
+  ], 'Σοτάρισε το κρεμμύδι στο ελαιόλαδο. Πρόσθεσε τα φασολάκια, τις πατάτες σε κομμάτια και την ντομάτα με λίγο νερό. Σιγόβρασε 40 λεπτά μέχρι να μείνουν με το λάδι τους. Πασπάλισε μαϊντανό.'),
+  recipe(2, 'Γεμιστά', 'ladera', MAIN, [
+    ['Ντομάτα', 250], ['Πιπεριά πράσινη', 120], ['Ρύζι καρολίνα', 50], ['Κρεμμύδι ξερό', 40],
+    ['Πατάτες', 120], ['Ελαιόλαδο', 20], ['Δυόσμος', 3], ['Μαϊντανός', 5], ['Αλάτι', 2],
+  ], 'Άδειασε ντομάτες και πιπεριές. Ανακάτεψε τη ψίχα της ντομάτας με ρύζι, κρεμμύδι, μυρωδικά και λάδι. Γέμισε τα λαχανικά, βάλε πατάτες ανάμεσα και ψήσε στους 180°C για 1 ώρα και 15 λεπτά.'),
+  recipe(3, 'Μπριάμ', 'ladera', MAIN, [
+    ['Κολοκυθάκια', 150], ['Μελιτζάνα', 120], ['Πατάτες', 120], ['Πιπεριά πράσινη', 50],
+    ['Ντομάτα', 120], ['Κρεμμύδι ξερό', 40], ['Ελαιόλαδο', 20], ['Ρίγανη', 1], ['Αλάτι', 2],
+  ], 'Κόψε όλα τα λαχανικά σε κομμάτια, ανακάτεψε με λάδι, αλάτι και ρίγανη. Ψήσε στους 190°C για περίπου 1 ώρα, ανακατεύοντας μία φορά.'),
+  recipe(4, 'Μπάμιες λαδερές', 'ladera', MAIN, [
+    ['Μπάμιες', 300], ['Ντομάτα τριμμένη (πασάτα)', 120], ['Κρεμμύδι ξερό', 50], ['Ελαιόλαδο', 20],
+    ['Ξίδι', 10], ['Μαϊντανός', 5], ['Αλάτι', 2],
+  ], 'Καθάρισε τις μπάμιες και άφησέ τες με ξίδι για 30 λεπτά. Σοτάρισε το κρεμμύδι, πρόσθεσε ντομάτα και μπάμιες και σιγόβρασε 35 λεπτά χωρίς ανακάτεμα, μόνο κουνώντας την κατσαρόλα.'),
+  recipe(5, 'Αρακάς λαδερός', 'ladera', MAIN, [
+    ['Αρακάς', 250], ['Πατάτες', 100], ['Καρότο', 60], ['Ντομάτα τριμμένη (πασάτα)', 100],
+    ['Κρεμμύδι ξερό', 40], ['Ελαιόλαδο', 20], ['Άνηθος', 5], ['Αλάτι', 2],
+  ], 'Σοτάρισε το κρεμμύδι, πρόσθεσε αρακά, πατάτες, καρότα, ντομάτα και λίγο νερό. Σιγόβρασε 35 λεπτά. Ρίξε τον άνηθο στο τέλος.'),
+  recipe(6, 'Σπανακόρυζο', 'ladera', MAIN, [
+    ['Σπανάκι', 250], ['Ρύζι καρολίνα', 70], ['Κρεμμυδάκι φρέσκο', 30], ['Ελαιόλαδο', 20],
+    ['Άνηθος', 5], ['Λεμόνι', 30], ['Αλάτι', 2],
+  ], 'Σοτάρισε το κρεμμυδάκι, πρόσθεσε το σπανάκι να μαραθεί, μετά το ρύζι και ζεστό νερό. Σιγόβρασε 18 λεπτά. Σέρβιρε με λεμόνι.'),
+  recipe(7, 'Αγκινάρες α λα πολίτα', 'ladera', MAIN, [
+    ['Αγκινάρες', 250], ['Πατάτες', 120], ['Καρότο', 60], ['Κρεμμυδάκι φρέσκο', 30],
+    ['Ελαιόλαδο', 20], ['Λεμόνι', 40], ['Άνηθος', 5], ['Αλάτι', 2],
+  ], 'Βάλε όλα τα λαχανικά στην κατσαρόλα με λάδι, λεμόνι και νερό ως τη μέση. Σιγόβρασε 40 λεπτά και πρόσθεσε άνηθο.'),
+  recipe(8, 'Λαχανόρυζο', 'ladera', MAIN, [
+    ['Λάχανο', 300], ['Ρύζι καρολίνα', 60], ['Ντομάτα τριμμένη (πασάτα)', 100], ['Κρεμμύδι ξερό', 40],
+    ['Ελαιόλαδο', 20], ['Αλάτι', 2], ['Πιπέρι', 1],
+  ], 'Σοτάρισε κρεμμύδι και ψιλοκομμένο λάχανο, πρόσθεσε ντομάτα, ρύζι και νερό. Σιγόβρασε 20 λεπτά.'),
 
-  // Pasta
-  {
-    id: 'seed-11',
-    title: 'Carbonara',
-    category: 'pasta',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Boil the spaghetti. Meanwhile, fry the bacon until crisp. Whisk the eggs with the parmesan, then off the heat toss the hot drained pasta with the bacon and egg mixture so it turns creamy without scrambling.',
-    ingredients: [
-      { name: 'Spaghetti', amount: 200, unit: 'g' },
-      { name: 'Bacon', amount: 100, unit: 'g' },
-      { name: 'Eggs', amount: 100, unit: 'g' },
-      { name: 'Parmesan', amount: 40, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-12',
-    title: 'Pesto Pasta',
-    category: 'pasta',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Boil the pasta until al dente. Blend the basil with the olive oil and parmesan into a rough pesto. Toss the drained pasta with the pesto and serve.',
-    ingredients: [
-      { name: 'Pasta', amount: 200, unit: 'g' },
-      { name: 'Basil', amount: 20, unit: 'g' },
-      { name: 'Olive Oil', amount: 30, unit: 'g' },
-      { name: 'Parmesan', amount: 30, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-13',
-    title: 'Mac and Cheese',
-    category: 'pasta',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Boil the pasta. In a separate pan, melt the butter, stir in the milk and cheese over low heat until smooth, then fold in the drained pasta.',
-    ingredients: [
-      { name: 'Pasta', amount: 200, unit: 'g' },
-      { name: 'Cheese', amount: 150, unit: 'g' },
-      { name: 'Milk', amount: 100, unit: 'g' },
-      { name: 'Butter', amount: 20, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-14',
-    title: 'Pasta Primavera',
-    category: 'pasta',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Boil the pasta. Sauté the zucchini and bell pepper in the olive oil until tender, then toss with the drained pasta.',
-    ingredients: [
-      { name: 'Pasta', amount: 200, unit: 'g' },
-      { name: 'Zucchini', amount: 100, unit: 'g' },
-      { name: 'Bell Pepper', amount: 100, unit: 'g' },
-      { name: 'Olive Oil', amount: 20, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-15',
-    title: 'Shrimp Scampi',
-    category: 'pasta',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Boil the spaghetti. Sauté the garlic in olive oil for a minute, add the shrimp and cook until pink, then toss everything with the drained pasta.',
-    ingredients: [
-      { name: 'Spaghetti', amount: 200, unit: 'g' },
-      { name: 'Shrimp', amount: 200, unit: 'g' },
-      { name: 'Garlic', amount: 10, unit: 'g' },
-      { name: 'Olive Oil', amount: 20, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-16',
-    title: 'Lasagna',
-    category: 'pasta',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Boil the pasta sheets until pliable. Brown the ground beef and mix with the tomato sauce. Layer pasta, meat sauce and cheese in a dish, then bake at 190°C for about 25 minutes until bubbling.',
-    ingredients: [
-      { name: 'Pasta', amount: 200, unit: 'g' },
-      { name: 'Ground Beef', amount: 200, unit: 'g' },
-      { name: 'Cheese', amount: 100, unit: 'g' },
-      { name: 'Tomato Sauce', amount: 150, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-17',
-    title: 'Pasta Salad',
-    category: 'pasta',
-    mealTypes: ['lunch'],
-    instructions:
-      'Boil the pasta and let it cool. Toss with the chopped tomato, cucumber and crumbled feta cheese, then chill briefly before serving.',
-    ingredients: [
-      { name: 'Pasta', amount: 200, unit: 'g' },
-      { name: 'Tomato', amount: 100, unit: 'g' },
-      { name: 'Cucumber', amount: 100, unit: 'g' },
-      { name: 'Feta Cheese', amount: 80, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-18',
-    title: 'Tuna Pasta',
-    category: 'pasta',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Boil the pasta. Warm the tomato sauce with the flaked tuna, then toss with the drained pasta.',
-    ingredients: [
-      { name: 'Pasta', amount: 200, unit: 'g' },
-      { name: 'Tuna (Canned)', amount: 150, unit: 'g' },
-      { name: 'Tomato Sauce', amount: 100, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-19',
-    title: 'Mushroom Pasta',
-    category: 'pasta',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Boil the pasta. Sauté the sliced mushrooms until golden, stir in the heavy cream and parmesan, simmer briefly, then toss with the drained pasta.',
-    ingredients: [
-      { name: 'Pasta', amount: 200, unit: 'g' },
-      { name: 'Mushrooms', amount: 150, unit: 'g' },
-      { name: 'Heavy Cream', amount: 80, unit: 'g' },
-      { name: 'Parmesan', amount: 30, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-20',
-    title: 'Chicken Alfredo',
-    category: 'pasta',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Boil the pasta. Cook the chicken breast until browned and cooked through, then set aside. Warm the heavy cream with the parmesan into a sauce, slice the chicken back in, and toss with the drained pasta.',
-    ingredients: [
-      { name: 'Pasta', amount: 200, unit: 'g' },
-      { name: 'Chicken Breast', amount: 200, unit: 'g' },
-      { name: 'Heavy Cream', amount: 100, unit: 'g' },
-      { name: 'Parmesan', amount: 40, unit: 'g' },
-    ],
-  },
+  // ---------- Όσπρια ----------
+  recipe(10, 'Φακές σούπα', 'legumes', MAIN, [
+    ['Φακές', 90], ['Καρότο', 40], ['Κρεμμύδι ξερό', 40], ['Σκόρδο', 5], ['Πελτές ντομάτας', 15],
+    ['Ελαιόλαδο', 15], ['Φύλλα δάφνης', 0.5], ['Ξίδι', 5], ['Αλάτι', 2],
+  ], 'Βράσε τις φακές 5 λεπτά και άλλαξε νερό. Πρόσθεσε κρεμμύδι, σκόρδο, καρότο, δάφνη και πελτέ. Βράσε 30 λεπτά, ρίξε το λάδι στο τέλος και σέρβιρε με λίγο ξίδι.'),
+  recipe(11, 'Φασολάδα', 'legumes', MAIN, [
+    ['Φασόλια μέτρια', 90], ['Καρότο', 50], ['Σέλινο', 30], ['Κρεμμύδι ξερό', 40],
+    ['Ντομάτα τριμμένη (πασάτα)', 80], ['Ελαιόλαδο', 15], ['Αλάτι', 2],
+  ], 'Μούλιασε τα φασόλια από το βράδυ. Βράσε τα 10 λεπτά και άλλαξε νερό. Πρόσθεσε λαχανικά και ντομάτα και σιγόβρασε 1 ώρα και 15 λεπτά. Λάδι στο τέλος.'),
+  recipe(12, 'Ρεβιθάδα', 'legumes', MAIN, [
+    ['Ρεβίθια', 90], ['Κρεμμύδι ξερό', 60], ['Ελαιόλαδο', 15], ['Λεμόνι', 20], ['Δεντρολίβανο', 1], ['Αλάτι', 2],
+  ], 'Μούλιασε τα ρεβίθια από το βράδυ. Βάλε τα σε πήλινο με κρεμμύδια, λάδι, δεντρολίβανο και νερό και ψήσε στους 170°C για 2 ώρες. Σέρβιρε με λεμόνι.'),
+  recipe(13, 'Γίγαντες πλακί', 'legumes', MAIN, [
+    ['Γίγαντες', 90], ['Ντομάτα τριμμένη (πασάτα)', 150], ['Κρεμμύδι ξερό', 50], ['Καρότο', 40],
+    ['Σέλινο', 20], ['Ελαιόλαδο', 20], ['Μαϊντανός', 5], ['Αλάτι', 2],
+  ], 'Μούλιασε και βράσε τους γίγαντες 40 λεπτά. Ανακάτεψε με σοταρισμένα λαχανικά και ντομάτα και ψήσε στους 180°C για 40 λεπτά.'),
+  recipe(14, 'Φάβα', 'legumes', MAIN, [
+    ['Φάβα', 80], ['Κρεμμύδι ξερό', 40], ['Ελαιόλαδο', 15], ['Λεμόνι', 15], ['Κάπαρη', 5], ['Αλάτι', 2],
+  ], 'Βράσε τη φάβα με μισό κρεμμύδι για 40 λεπτά, ξαφρίζοντας. Χτύπησέ τη στο μπλέντερ. Σέρβιρε με ωμό κρεμμύδι, λάδι, λεμόνι και κάπαρη.'),
+  recipe(15, 'Μαυρομάτικα σαλάτα', 'legumes', ['lunch', 'dinner', 'afternoon'], [
+    ['Μαυρομάτικα', 70], ['Κρεμμυδάκι φρέσκο', 20], ['Άνηθος', 5], ['Ντομάτα', 80], ['Ελαιόλαδο', 15],
+    ['Λεμόνι', 20], ['Αλάτι', 2],
+  ], 'Βράσε τα μαυρομάτικα 30 λεπτά και άφησέ τα να κρυώσουν. Ανακάτεψε με κρεμμυδάκι, άνηθο, ντομάτα, λάδι και λεμόνι.'),
 
-  // Meat
-  {
-    id: 'seed-21',
-    title: 'Beef Steak with Potatoes',
-    category: 'meat',
-    mealTypes: ['dinner'],
-    instructions:
-      'Boil or roast the potatoes until tender. Pan-sear the beef steak in butter over high heat for a few minutes per side to your liking, then rest before slicing and serving with the potatoes.',
-    ingredients: [
-      { name: 'Beef Steak', amount: 250, unit: 'g' },
-      { name: 'Potato', amount: 200, unit: 'g' },
-      { name: 'Butter', amount: 20, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-22',
-    title: 'Pork Chops',
-    category: 'meat',
-    mealTypes: ['dinner'],
-    instructions:
-      'Rub the pork chops with garlic and olive oil. Pan-sear or grill over medium-high heat for about 5-6 minutes per side until cooked through.',
-    ingredients: [
-      { name: 'Pork Chop', amount: 250, unit: 'g' },
-      { name: 'Garlic', amount: 10, unit: 'g' },
-      { name: 'Olive Oil', amount: 20, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-23',
-    title: 'BBQ Chicken Wings',
-    category: 'meat',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Toss the chicken wings with half the BBQ sauce. Bake at 200°C for about 30-35 minutes, turning halfway, then toss with the remaining sauce before serving.',
-    ingredients: [
-      { name: 'Chicken Wings', amount: 300, unit: 'g' },
-      { name: 'BBQ Sauce', amount: 50, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-24',
-    title: 'Lamb Chops',
-    category: 'meat',
-    mealTypes: ['dinner'],
-    instructions:
-      'Rub the lamb chops with garlic and oregano. Grill or pan-sear over high heat for 3-4 minutes per side for medium, then rest briefly before serving.',
-    ingredients: [
-      { name: 'Lamb', amount: 250, unit: 'g' },
-      { name: 'Garlic', amount: 10, unit: 'g' },
-      { name: 'Oregano', amount: 5, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-25',
-    title: 'Turkey Meatballs',
-    category: 'meat',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Mix the ground turkey with the breadcrumbs and egg, then shape into meatballs. Pan-fry or bake at 190°C, turning occasionally, until browned and cooked through, about 15-20 minutes.',
-    ingredients: [
-      { name: 'Turkey Breast', amount: 250, unit: 'g' },
-      { name: 'Breadcrumbs', amount: 50, unit: 'g' },
-      { name: 'Eggs', amount: 50, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-26',
-    title: 'Beef Tacos',
-    category: 'meat',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Brown the ground beef in a pan and season to taste. Warm the tortillas, fill with the beef, and top with shredded cheese.',
-    ingredients: [
-      { name: 'Ground Beef', amount: 200, unit: 'g' },
-      { name: 'Tortilla', amount: 100, unit: 'g' },
-      { name: 'Cheese', amount: 60, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-27',
-    title: 'Pork Tenderloin',
-    category: 'meat',
-    mealTypes: ['dinner'],
-    instructions:
-      'Whisk the honey and mustard together and brush over the pork tenderloin. Roast at 190°C for about 25-30 minutes, basting occasionally, until cooked through.',
-    ingredients: [
-      { name: 'Pork Loin', amount: 250, unit: 'g' },
-      { name: 'Honey', amount: 20, unit: 'g' },
-      { name: 'Mustard', amount: 15, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-28',
-    title: 'Chicken Fajitas',
-    category: 'meat',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Slice the chicken breast, bell pepper and onion into strips. Stir-fry over high heat until the chicken is cooked through and the vegetables are tender, then serve with warm tortillas.',
-    ingredients: [
-      { name: 'Chicken Breast', amount: 250, unit: 'g' },
-      { name: 'Bell Pepper', amount: 150, unit: 'g' },
-      { name: 'Onion', amount: 100, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-29',
-    title: 'Sausage and Peppers',
-    category: 'meat',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Slice the sausage, bell pepper and onion. Sauté together in a pan over medium-high heat until the sausage is browned and the vegetables are soft.',
-    ingredients: [
-      { name: 'Sausage', amount: 200, unit: 'g' },
-      { name: 'Bell Pepper', amount: 150, unit: 'g' },
-      { name: 'Onion', amount: 100, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-30',
-    title: 'Ham and Cheese Sandwich',
-    category: 'meat',
-    mealTypes: ['breakfast', 'lunch', 'afternoon'],
-    instructions:
-      'Layer the ham and cheese between the bread slices. Serve as is, or toast in a pan until the bread is golden and the cheese has melted.',
-    ingredients: [
-      { name: 'Bread (White)', amount: 100, unit: 'g' },
-      { name: 'Ham', amount: 100, unit: 'g' },
-      { name: 'Cheese', amount: 50, unit: 'g' },
-    ],
-  },
+  // ---------- Κρέας ----------
+  recipe(20, 'Μουσακάς', 'meat', MAIN, [
+    ['Μελιτζάνα', 200], ['Πατάτες', 100], ['Κιμάς μοσχαρίσιος', 120], ['Ντομάτα τριμμένη (πασάτα)', 60],
+    ['Κρεμμύδι ξερό', 30], ['Γάλα πλήρες', 120], ['Βούτυρο', 15], ['Αλεύρι για όλες τις χρήσεις', 15],
+    ['Κεφαλοτύρι', 15], ['Ελαιόλαδο', 15], ['Κανέλα', 0.5], ['Αλάτι', 2],
+  ], 'Ψήσε μελιτζάνες και πατάτες σε φέτες στον φούρνο. Κάνε σάλτσα κιμά με κρεμμύδι, ντομάτα και κανέλα. Φτιάξε μπεσαμέλ με βούτυρο, αλεύρι και γάλα. Στρώσε πατάτες, μελιτζάνες, κιμά, μπεσαμέλ, τυρί και ψήσε 45 λεπτά στους 180°C.'),
+  recipe(21, 'Παστίτσιο', 'meat', MAIN, [
+    ['Μακαρόνια για παστίτσιο', 80], ['Κιμάς μοσχαρίσιος', 110], ['Ντομάτα τριμμένη (πασάτα)', 60],
+    ['Κρεμμύδι ξερό', 30], ['Γάλα πλήρες', 120], ['Βούτυρο', 15], ['Αλεύρι για όλες τις χρήσεις', 15],
+    ['Κεφαλοτύρι', 20], ['Αυγά', 15], ['Κανέλα', 0.5], ['Αλάτι', 2],
+  ], 'Βράσε τα μακαρόνια. Κάνε σάλτσα κιμά. Φτιάξε μπεσαμέλ και δέσε τη με το αυγό. Στρώσε μακαρόνια με λίγο τυρί, κιμά, μπεσαμέλ και ψήσε 45 λεπτά στους 180°C.'),
+  recipe(22, 'Μπιφτέκια με πατάτες φούρνου', 'meat', MAIN, [
+    ['Κιμάς μοσχαρίσιος', 150], ['Κρεμμύδι ξερό', 30], ['Τριμμένη φρυγανιά', 15], ['Αυγά', 15],
+    ['Ρίγανη', 1], ['Πατάτες', 200], ['Ελαιόλαδο', 15], ['Λεμόνι', 15], ['Αλάτι', 2],
+  ], 'Ζύμωσε κιμά, τριμμένο κρεμμύδι, φρυγανιά, αυγό και ρίγανη. Πλάσε μπιφτέκια. Ψήσε τα με πατάτες κομμένες με λάδι και λεμόνι στους 200°C για 40 λεπτά.'),
+  recipe(23, 'Σουτζουκάκια σμυρνέικα', 'meat', MAIN, [
+    ['Κιμάς μικτός', 140], ['Σκόρδο', 5], ['Κύμινο', 1], ['Τριμμένη φρυγανιά', 15], ['Αυγά', 15],
+    ['Ντομάτα τριμμένη (πασάτα)', 150], ['Ελαιόλαδο', 10], ['Ρύζι καρολίνα', 60], ['Αλάτι', 2],
+  ], 'Ζύμωσε κιμά με σκόρδο, κύμινο, φρυγανιά και αυγό, πλάσε μακρόστενα. Ψήσε τα λίγο και σιγόβρασέ τα 20 λεπτά σε σάλτσα ντομάτας. Σέρβιρε με ρύζι.'),
+  recipe(24, 'Κεφτεδάκια', 'meat', ['lunch', 'dinner', 'afternoon'], [
+    ['Κιμάς μικτός', 130], ['Κρεμμύδι ξερό', 30], ['Δυόσμος', 3], ['Τριμμένη φρυγανιά', 15], ['Αυγά', 15],
+    ['Αλεύρι για όλες τις χρήσεις', 10], ['Ηλιέλαιο', 15], ['Αλάτι', 2],
+  ], 'Ζύμωσε κιμά, κρεμμύδι, δυόσμο, φρυγανιά και αυγό. Πλάσε μικρά μπαλάκια, αλεύρωσέ τα και τηγάνισε ή ψήσε στον φούρνο.'),
+  recipe(25, 'Γιουβέτσι μοσχαρίσιο', 'meat', MAIN, [
+    ['Μοσχάρι κατσαρόλας', 150], ['Κριθαράκι', 80], ['Ντομάτα τριμμένη (πασάτα)', 120], ['Κρεμμύδι ξερό', 30],
+    ['Ελαιόλαδο', 10], ['Κεφαλοτύρι', 15], ['Μπαχάρι', 0.5], ['Αλάτι', 2],
+  ], 'Σοτάρισε το μοσχάρι με κρεμμύδι, πρόσθεσε ντομάτα και νερό και σιγόβρασε 1 ώρα. Μετάφερε σε ταψί με το κριθαράκι και ζεστό νερό και ψήσε 30 λεπτά. Σέρβιρε με τριμμένο τυρί.'),
+  recipe(26, 'Μοσχάρι κοκκινιστό με μακαρόνια', 'meat', MAIN, [
+    ['Μοσχάρι κατσαρόλας', 150], ['Μακαρόνια', 80], ['Ντομάτα τριμμένη (πασάτα)', 120], ['Κρεμμύδι ξερό', 30],
+    ['Ελαιόλαδο', 10], ['Κανέλα', 0.5], ['Γαρύφαλλο', 0.2], ['Κεφαλοτύρι', 10], ['Αλάτι', 2],
+  ], 'Σοτάρισε το κρέας και το κρεμμύδι, πρόσθεσε ντομάτα, κανέλα, γαρύφαλλο και νερό. Σιγόβρασε 1,5 ώρα. Σέρβιρε με μακαρόνια και τυρί.'),
+  recipe(27, 'Σουβλάκι χοιρινό με πίτα', 'meat', MAIN, [
+    ['Χοιρινό λαιμός', 150], ['Πίτα για σουβλάκι', 80], ['Ντομάτα', 60], ['Κρεμμύδι ξερό', 20],
+    ['Τζατζίκι', 40], ['Ρίγανη', 1], ['Ελαιόλαδο', 5], ['Αλάτι', 2],
+  ], 'Κόψε το χοιρινό σε κύβους, μαρινάρισε με λάδι, ρίγανη και αλάτι και πέρασε σε καλαμάκια. Ψήσε στη σχάρα. Σέρβιρε σε ζεσταμένη πίτα με ντομάτα, κρεμμύδι και τζατζίκι.'),
+  recipe(28, 'Χοιρινή μπριζόλα με σαλάτα', 'meat', MAIN, [
+    ['Χοιρινή μπριζόλα', 180], ['Μαρούλι', 80], ['Ντομάτα', 80], ['Ελαιόλαδο', 10], ['Λεμόνι', 15], ['Ρίγανη', 1], ['Αλάτι', 2],
+  ], 'Ψήσε τη μπριζόλα στη σχάρα ή στο τηγάνι 5–6 λεπτά από κάθε πλευρά. Σέρβιρε με σαλάτα, λάδι και λεμόνι.'),
+  recipe(29, 'Αρνί λεμονάτο με πατάτες', 'meat', MAIN, [
+    ['Αρνί μπούτι', 170], ['Πατάτες', 200], ['Λεμόνι', 40], ['Σκόρδο', 5], ['Ελαιόλαδο', 15], ['Ρίγανη', 1], ['Αλάτι', 2],
+  ], 'Βάλε το αρνί και τις πατάτες σε ταψί με λεμόνι, σκόρδο, ρίγανη, λάδι και ένα ποτήρι νερό. Ψήσε σκεπασμένο 1,5 ώρα στους 180°C και άλλα 30 λεπτά ξεσκέπαστο.'),
+  recipe(30, 'Παϊδάκια με χωριάτικη', 'meat', MAIN, [
+    ['Αρνίσια παϊδάκια', 180], ['Ντομάτα', 120], ['Αγγούρι', 80], ['Φέτα', 30], ['Ελαιόλαδο', 10], ['Λεμόνι', 15], ['Ρίγανη', 1], ['Αλάτι', 2],
+  ], 'Ψήσε τα παϊδάκια στη σχάρα με αλάτι και ρίγανη. Σέρβιρε με λεμόνι και χωριάτικη σαλάτα.'),
+  recipe(31, 'Λουκάνικο με πιπεριές (σπετζοφάι)', 'meat', MAIN, [
+    ['Λουκάνικο χωριάτικο', 120], ['Πιπεριά πράσινη', 100], ['Πιπεριά κόκκινη', 80], ['Ντομάτα τριμμένη (πασάτα)', 100],
+    ['Κρεμμύδι ξερό', 30], ['Ελαιόλαδο', 10], ['Ψωμί χωριάτικο', 50],
+  ], 'Σοτάρισε το λουκάνικο σε ροδέλες, πρόσθεσε πιπεριές και κρεμμύδι και μετά ντομάτα. Σιγόβρασε 20 λεπτά. Σέρβιρε με ψωμί.'),
 
-  // Fish
-  {
-    id: 'seed-31',
-    title: 'Tuna Steak with Vegetables',
-    category: 'fish',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Season the tuna steak and sear briefly in olive oil, a minute or two per side for rare to medium. Sauté the sliced zucchini in the same pan and serve alongside.',
-    ingredients: [
-      { name: 'Tuna Steak', amount: 250, unit: 'g' },
-      { name: 'Zucchini', amount: 100, unit: 'g' },
-      { name: 'Olive Oil', amount: 20, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-32',
-    title: 'Shrimp Stir Fry',
-    category: 'fish',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Heat a pan or wok. Stir-fry the shrimp and bell pepper over high heat for a few minutes until the shrimp turn pink, then add the soy sauce and toss.',
-    ingredients: [
-      { name: 'Shrimp', amount: 250, unit: 'g' },
-      { name: 'Bell Pepper', amount: 100, unit: 'g' },
-      { name: 'Soy Sauce', amount: 20, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-33',
-    title: 'Baked Cod',
-    category: 'fish',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Place the cod in a baking dish, drizzle with olive oil and lemon juice, and bake at 190°C for about 12-15 minutes until it flakes easily.',
-    ingredients: [
-      { name: 'Cod', amount: 250, unit: 'g' },
-      { name: 'Lemon', amount: 20, unit: 'g' },
-      { name: 'Olive Oil', amount: 15, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-34',
-    title: 'Fish Tacos',
-    category: 'fish',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Pan-fry or grill the tilapia until cooked through, then flake it. Warm the tortillas and fill with the fish and shredded cabbage.',
-    ingredients: [
-      { name: 'Tilapia', amount: 200, unit: 'g' },
-      { name: 'Tortilla', amount: 100, unit: 'g' },
-      { name: 'Cabbage', amount: 80, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-35',
-    title: 'Mussels in White Wine',
-    category: 'fish',
-    mealTypes: ['dinner'],
-    instructions:
-      'Sauté the garlic briefly in a large pot. Add the mussels and white wine, cover, and steam for 5-6 minutes until the shells open. Discard any that stay closed.',
-    ingredients: [
-      { name: 'Mussels', amount: 300, unit: 'g' },
-      { name: 'White Wine', amount: 100, unit: 'g' },
-      { name: 'Garlic', amount: 10, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-36',
-    title: 'Sardines on Toast',
-    category: 'fish',
-    mealTypes: ['breakfast', 'lunch', 'afternoon'],
-    instructions:
-      'Toast the bread. Mash the sardines lightly with a squeeze of lemon juice and spread over the toast.',
-    ingredients: [
-      { name: 'Sardines', amount: 150, unit: 'g' },
-      { name: 'Bread (White)', amount: 80, unit: 'g' },
-      { name: 'Lemon', amount: 10, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-37',
-    title: 'Mackerel with Salad',
-    category: 'fish',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Grill or pan-sear the mackerel for a few minutes per side until cooked through. Toss the lettuce and tomato into a simple salad and serve alongside.',
-    ingredients: [
-      { name: 'Mackerel', amount: 200, unit: 'g' },
-      { name: 'Lettuce', amount: 100, unit: 'g' },
-      { name: 'Tomato', amount: 100, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-38',
-    title: 'Squid Rings',
-    category: 'fish',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Slice the squid into rings and dust with flour. Fry in hot olive oil for 1-2 minutes until golden — don\'t overcook or they\'ll turn rubbery.',
-    ingredients: [
-      { name: 'Squid', amount: 250, unit: 'g' },
-      { name: 'Flour', amount: 50, unit: 'g' },
-      { name: 'Olive Oil', amount: 30, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-39',
-    title: 'Salmon Poke Bowl',
-    category: 'fish',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Cook the rice and let it cool slightly. Cube the salmon fillet (or sear briefly if you prefer it cooked) and arrange over the rice with the sliced cucumber.',
-    ingredients: [
-      { name: 'Salmon Fillet', amount: 200, unit: 'g' },
-      { name: 'Rice', amount: 150, unit: 'g' },
-      { name: 'Cucumber', amount: 80, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-40',
-    title: 'Tilapia with Rice',
-    category: 'fish',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Cook the rice. Pan-sear or bake the tilapia with a squeeze of lemon until cooked through, then serve over the rice.',
-    ingredients: [
-      { name: 'Tilapia', amount: 250, unit: 'g' },
-      { name: 'Rice', amount: 150, unit: 'g' },
-      { name: 'Lemon', amount: 15, unit: 'g' },
-    ],
-  },
+  // ---------- Πουλερικά ----------
+  recipe(40, 'Κοτόπουλο λεμονάτο με πατάτες', 'poultry', MAIN, [
+    ['Μπούτι κοτόπουλο', 200], ['Πατάτες', 200], ['Λεμόνι', 40], ['Σκόρδο', 5], ['Ελαιόλαδο', 15], ['Ρίγανη', 1], ['Αλάτι', 2],
+  ], 'Βάλε κοτόπουλο και πατάτες σε ταψί με λεμόνι, λάδι, σκόρδο, ρίγανη και λίγο νερό. Ψήσε στους 200°C για 1 ώρα, γυρίζοντας στη μέση.'),
+  recipe(41, 'Κοτόπουλο κοκκινιστό με χυλοπίτες', 'poultry', MAIN, [
+    ['Μπούτι κοτόπουλο', 180], ['Χυλοπίτες', 80], ['Ντομάτα τριμμένη (πασάτα)', 120], ['Κρεμμύδι ξερό', 30],
+    ['Ελαιόλαδο', 10], ['Κανέλα', 0.5], ['Μυζήθρα', 15], ['Αλάτι', 2],
+  ], 'Σοτάρισε το κοτόπουλο και το κρεμμύδι, πρόσθεσε ντομάτα, κανέλα και νερό και σιγόβρασε 40 λεπτά. Πρόσθεσε τις χυλοπίτες με ζεστό νερό και βράσε 10 λεπτά. Σέρβιρε με μυζήθρα.'),
+  recipe(42, 'Κοτόσουπα αυγολέμονο', 'poultry', MAIN, [
+    ['Κοτόπουλο ολόκληρο', 180], ['Ρύζι καρολίνα', 40], ['Καρότο', 40], ['Σέλινο', 20], ['Κρεμμύδι ξερό', 30],
+    ['Αυγά', 50], ['Λεμόνι', 40], ['Αλάτι', 2],
+  ], 'Βράσε το κοτόπουλο με τα λαχανικά 1 ώρα. Σούρωσε τον ζωμό και βράσε μέσα το ρύζι. Χτύπησε αυγό με λεμόνι, ρίξε σιγά ζωμό να ζεσταθεί και άδειασέ το στην κατσαρόλα εκτός φωτιάς.'),
+  recipe(43, 'Στήθος κοτόπουλο σχάρας με ρύζι', 'poultry', MAIN, [
+    ['Στήθος κοτόπουλο', 180], ['Ρύζι μπασμάτι', 70], ['Ελαιόλαδο', 10], ['Λεμόνι', 15], ['Ρίγανη', 1], ['Αλάτι', 2],
+  ], 'Μαρινάρισε το στήθος με λάδι, λεμόνι και ρίγανη. Ψήσε στη σχάρα 6–7 λεπτά από κάθε πλευρά. Σέρβιρε με βρασμένο ρύζι.'),
+  recipe(44, 'Γύρος κοτόπουλο σε πίτα', 'poultry', MAIN, [
+    ['Μπούτι κοτόπουλο', 150], ['Πίτα για σουβλάκι', 80], ['Ντομάτα', 60], ['Κρεμμύδι ξερό', 20],
+    ['Γιαούρτι στραγγιστό 2%', 40], ['Πάπρικα', 1], ['Κύμινο', 0.5], ['Ελαιόλαδο', 5],
+  ], 'Μαρινάρισε λωρίδες κοτόπουλο με πάπρικα, κύμινο, λάδι και αλάτι. Ψήσε στο τηγάνι μέχρι να ροδίσουν. Τύλιξε σε πίτα με ντομάτα, κρεμμύδι και γιαούρτι.'),
+  recipe(45, 'Κοτόπουλο με μπάμιες', 'poultry', MAIN, [
+    ['Μπούτι κοτόπουλο', 170], ['Μπάμιες', 200], ['Ντομάτα τριμμένη (πασάτα)', 120], ['Κρεμμύδι ξερό', 30], ['Ελαιόλαδο', 15], ['Αλάτι', 2],
+  ], 'Σοτάρισε το κοτόπουλο με το κρεμμύδι, πρόσθεσε ντομάτα και νερό και βράσε 20 λεπτά. Πρόσθεσε τις μπάμιες και σιγόβρασε άλλα 30 λεπτά.'),
 
-  // Vegetarian
-  {
-    id: 'seed-41',
-    title: 'Chickpea Curry',
-    category: 'vegetarian',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Sauté the diced onion until soft. Add the chickpeas and coconut milk, bring to a simmer, and cook for 10-15 minutes until slightly thickened.',
-    ingredients: [
-      { name: 'Chickpeas', amount: 250, unit: 'g' },
-      { name: 'Coconut Milk', amount: 150, unit: 'g' },
-      { name: 'Onion', amount: 80, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-42',
-    title: 'Falafel Wrap',
-    category: 'vegetarian',
-    mealTypes: ['lunch'],
-    instructions:
-      'Warm the falafel through (pan-fry or bake). Spread hummus over the tortilla, add the falafel, and roll up into a wrap.',
-    ingredients: [
-      { name: 'Falafel', amount: 200, unit: 'g' },
-      { name: 'Tortilla', amount: 100, unit: 'g' },
-      { name: 'Hummus', amount: 50, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-43',
-    title: 'Stuffed Peppers',
-    category: 'vegetarian',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Halve the bell peppers and remove the seeds. Fill with the cooked rice mixed with tomato sauce, then bake at 190°C for about 25 minutes until the peppers are tender.',
-    ingredients: [
-      { name: 'Bell Pepper', amount: 200, unit: 'g' },
-      { name: 'Rice', amount: 100, unit: 'g' },
-      { name: 'Tomato Sauce', amount: 80, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-44',
-    title: 'Tofu Stir Fry',
-    category: 'vegetarian',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Cube the tofu and pan-fry until golden on a few sides. Add the broccoli and stir-fry until crisp-tender, then toss with the soy sauce.',
-    ingredients: [
-      { name: 'Tofu', amount: 200, unit: 'g' },
-      { name: 'Broccoli', amount: 150, unit: 'g' },
-      { name: 'Soy Sauce', amount: 20, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-45',
-    title: 'Caprese Salad',
-    category: 'vegetarian',
-    mealTypes: ['lunch', 'afternoon', 'dinner'],
-    instructions:
-      'Slice the tomato and mozzarella. Arrange alternating slices on a plate and tuck in the basil leaves.',
-    ingredients: [
-      { name: 'Tomato', amount: 200, unit: 'g' },
-      { name: 'Mozzarella', amount: 150, unit: 'g' },
-      { name: 'Basil', amount: 10, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-46',
-    title: 'Ratatouille',
-    category: 'vegetarian',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Chop the eggplant, zucchini and tomato into chunks. Sauté together in a pot over medium heat, covered, for about 20 minutes, stirring occasionally, until soft and stewy.',
-    ingredients: [
-      { name: 'Eggplant', amount: 150, unit: 'g' },
-      { name: 'Zucchini', amount: 150, unit: 'g' },
-      { name: 'Tomato', amount: 150, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-47',
-    title: 'Quinoa Salad',
-    category: 'vegetarian',
-    mealTypes: ['lunch'],
-    instructions:
-      'Cook the quinoa and let it cool. Toss with the diced cucumber and crumbled feta cheese.',
-    ingredients: [
-      { name: 'Quinoa', amount: 150, unit: 'g' },
-      { name: 'Cucumber', amount: 100, unit: 'g' },
-      { name: 'Feta Cheese', amount: 60, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-48',
-    title: 'Mushroom Risotto',
-    category: 'vegetarian',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Sauté the sliced mushrooms until golden and set aside. Toast the rice briefly, then gradually add warm stock or water, stirring, until creamy. Stir in the mushrooms and parmesan at the end.',
-    ingredients: [
-      { name: 'Rice', amount: 200, unit: 'g' },
-      { name: 'Mushrooms', amount: 150, unit: 'g' },
-      { name: 'Parmesan', amount: 40, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-49',
-    title: 'Black Bean Bowl',
-    category: 'vegetarian',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Cook the rice. Warm the black beans through and serve over the rice topped with sliced avocado.',
-    ingredients: [
-      { name: 'Black Beans', amount: 200, unit: 'g' },
-      { name: 'Rice', amount: 150, unit: 'g' },
-      { name: 'Avocado', amount: 80, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-50',
-    title: 'Vegetable Soup',
-    category: 'vegetarian',
-    mealTypes: ['lunch', 'dinner'],
-    instructions:
-      'Chop the carrot, celery and potato. Simmer together in a pot with enough water or stock to cover, for about 20 minutes until the vegetables are tender.',
-    ingredients: [
-      { name: 'Carrot', amount: 100, unit: 'g' },
-      { name: 'Celery', amount: 80, unit: 'g' },
-      { name: 'Potato', amount: 100, unit: 'g' },
-    ],
-  },
+  // ---------- Ψάρι & θαλασσινά ----------
+  recipe(50, 'Μπακαλιάρος σκορδαλιά', 'fish', MAIN, [
+    ['Μπακαλιάρος παστός', 120], ['Αλεύρι για όλες τις χρήσεις', 30], ['Ηλιέλαιο', 15], ['Πατάτες', 120],
+    ['Σκόρδο', 8], ['Ελαιόλαδο', 20], ['Ξίδι', 10], ['Παντζάρια', 100],
+  ], 'Ξαλμύρισε τον μπακαλιάρο 24 ώρες αλλάζοντας νερά. Βούτηξε σε κουρκούτι και τηγάνισε. Για τη σκορδαλιά λιώσε βρασμένες πατάτες με σκόρδο, λάδι και ξίδι. Σέρβιρε με παντζάρια.'),
+  recipe(51, 'Τσιπούρα στη σχάρα με χόρτα', 'fish', MAIN, [
+    ['Τσιπούρα', 250], ['Χόρτα (βλίτα/ραδίκια)', 200], ['Ελαιόλαδο', 15], ['Λεμόνι', 30], ['Αλάτι', 2],
+  ], 'Ψήσε την τσιπούρα στη σχάρα 7–8 λεπτά από κάθε πλευρά. Σέρβιρε με βραστά χόρτα, λαδολέμονο και αλάτι.'),
+  recipe(52, 'Σολομός φούρνου με λαχανικά', 'fish', MAIN, [
+    ['Σολομός φιλέτο', 150], ['Μπρόκολο', 120], ['Καρότο', 60], ['Πατάτες', 120], ['Ελαιόλαδο', 10], ['Λεμόνι', 20], ['Άνηθος', 3], ['Αλάτι', 2],
+  ], 'Βάλε τα λαχανικά σε ταψί με λάδι και ψήσε 20 λεπτά στους 200°C. Πρόσθεσε τον σολομό με λεμόνι και άνηθο και ψήσε άλλα 15 λεπτά.'),
+  recipe(53, 'Γαύρος τηγανητός με σαλάτα', 'fish', MAIN, [
+    ['Γαύρος', 200], ['Αλεύρι για όλες τις χρήσεις', 25], ['Ηλιέλαιο', 15], ['Λάχανο', 100], ['Καρότο', 40], ['Λεμόνι', 20], ['Αλάτι', 2],
+  ], 'Καθάρισε τον γαύρο, αλάτισέ τον, αλεύρωσε και τηγάνισε σε καυτό λάδι. Σέρβιρε με λαχανοσαλάτα και λεμόνι.'),
+  recipe(54, 'Σαρδέλες ψητές', 'fish', MAIN, [
+    ['Σαρδέλες', 200], ['Ελαιόλαδο', 10], ['Λεμόνι', 20], ['Ρίγανη', 1], ['Ψωμί χωριάτικο', 50], ['Ντομάτα', 100], ['Αλάτι', 2],
+  ], 'Ψήσε τις σαρδέλες στη σχάρα ή στον φούρνο 10 λεπτά. Περίχυσε λαδολέμονο με ρίγανη. Σέρβιρε με ντομάτα και ψωμί.'),
+  recipe(55, 'Χταπόδι με κοφτό μακαρονάκι', 'fish', MAIN, [
+    ['Χταπόδι', 200], ['Κριθαράκι', 80], ['Ντομάτα τριμμένη (πασάτα)', 120], ['Κρεμμύδι ξερό', 30], ['Ελαιόλαδο', 15], ['Κρασί κόκκινο', 30], ['Φύλλα δάφνης', 0.5],
+  ], 'Σιγόβρασε το χταπόδι στους χυμούς του 40 λεπτά. Σοτάρισε κρεμμύδι, σβήσε με κρασί, πρόσθεσε ντομάτα, χταπόδι σε κομμάτια και το ζουμί του. Ρίξε το ζυμαρικό και βράσε 12 λεπτά.'),
+  recipe(56, 'Γαριδομακαρονάδα', 'fish', MAIN, [
+    ['Γαρίδες', 150], ['Μακαρόνια', 90], ['Ντοματίνια', 120], ['Σκόρδο', 5], ['Ελαιόλαδο', 15], ['Κρασί λευκό', 30], ['Μαϊντανός', 5], ['Αλάτι', 2],
+  ], 'Βράσε τα μακαρόνια. Σοτάρισε σκόρδο και γαρίδες, σβήσε με κρασί και πρόσθεσε τα ντοματίνια. Ανακάτεψε με τα μακαρόνια και μαϊντανό.'),
+  recipe(57, 'Καλαμαράκια σχάρας', 'fish', MAIN, [
+    ['Καλαμάρι', 200], ['Ελαιόλαδο', 10], ['Λεμόνι', 20], ['Ρίγανη', 1], ['Ρόκα', 50], ['Ντομάτα', 80], ['Αλάτι', 2],
+  ], 'Ψήσε τα καλαμάρια στη σχάρα 3–4 λεπτά από κάθε πλευρά. Περίχυσε λαδολέμονο. Σέρβιρε με σαλάτα ρόκα.'),
+  recipe(58, 'Σουπιές με σπανάκι', 'fish', MAIN, [
+    ['Σουπιά', 200], ['Σπανάκι', 250], ['Κρεμμυδάκι φρέσκο', 30], ['Ελαιόλαδο', 15], ['Άνηθος', 5], ['Κρασί λευκό', 30], ['Αλάτι', 2],
+  ], 'Σοτάρισε τις σουπιές, σβήσε με κρασί και σιγόβρασε 30 λεπτά. Πρόσθεσε κρεμμυδάκι, σπανάκι και άνηθο και βράσε άλλα 10 λεπτά.'),
+  recipe(59, 'Μύδια αχνιστά', 'fish', MAIN, [
+    ['Μύδια', 300], ['Σκόρδο', 5], ['Ελαιόλαδο', 10], ['Κρασί λευκό', 50], ['Μαϊντανός', 5], ['Ψωμί χωριάτικο', 50],
+  ], 'Σοτάρισε το σκόρδο, πρόσθεσε τα μύδια και το κρασί και σκέπασε για 5 λεπτά μέχρι να ανοίξουν. Πασπάλισε μαϊντανό, σέρβιρε με ψωμί.'),
 
-  // Dessert
-  {
-    id: 'seed-51',
-    title: 'Fruit Salad',
-    category: 'dessert',
-    mealTypes: ['breakfast', 'afternoon'],
-    instructions:
-      'Chop the apple and banana, and halve the grapes. Toss everything together in a bowl.',
-    ingredients: [
-      { name: 'Apple', amount: 100, unit: 'g' },
-      { name: 'Banana', amount: 100, unit: 'g' },
-      { name: 'Grapes', amount: 100, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-52',
-    title: 'Chocolate Mousse',
-    category: 'dessert',
-    mealTypes: ['dinner'],
-    instructions:
-      'Melt the dark chocolate gently. Whip the cream, separate the eggs, and fold the yolks into the melted chocolate, then fold in the whipped cream. Chill for at least an hour before serving.',
-    ingredients: [
-      { name: 'Dark Chocolate', amount: 100, unit: 'g' },
-      { name: 'Heavy Cream', amount: 150, unit: 'g' },
-      { name: 'Eggs', amount: 50, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-53',
-    title: 'Banana Bread',
-    category: 'dessert',
-    mealTypes: ['breakfast', 'afternoon'],
-    instructions:
-      'Mash the banana. Mix with the flour, sugar and remaining wet ingredients into a batter, pour into a loaf tin, and bake at 180°C for about 45-50 minutes until a skewer comes out clean.',
-    ingredients: [
-      { name: 'Banana', amount: 200, unit: 'g' },
-      { name: 'Flour', amount: 200, unit: 'g' },
-      { name: 'Sugar', amount: 80, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-54',
-    title: 'Apple Pie',
-    category: 'dessert',
-    mealTypes: ['dinner'],
-    instructions:
-      'Slice the apples and toss with a little sugar. Make a simple butter-and-flour pastry, line a dish, fill with the apples, top with more pastry, and bake at 190°C for about 35-40 minutes until golden.',
-    ingredients: [
-      { name: 'Apple', amount: 300, unit: 'g' },
-      { name: 'Flour', amount: 150, unit: 'g' },
-      { name: 'Butter', amount: 80, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-55',
-    title: 'Rice Pudding',
-    category: 'dessert',
-    mealTypes: ['dinner'],
-    instructions:
-      'Combine the rice, milk and sugar in a pot. Simmer gently, stirring often, for about 25-30 minutes until thickened and creamy.',
-    ingredients: [
-      { name: 'Rice', amount: 100, unit: 'g' },
-      { name: 'Milk', amount: 300, unit: 'g' },
-      { name: 'Sugar', amount: 50, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-56',
-    title: 'Greek Yogurt with Honey',
-    category: 'dessert',
-    mealTypes: ['breakfast', 'afternoon'],
-    instructions:
-      'Spoon the Greek yogurt into a bowl, drizzle with honey, and scatter the walnuts on top.',
-    ingredients: [
-      { name: 'Greek Yogurt', amount: 200, unit: 'g' },
-      { name: 'Honey', amount: 30, unit: 'g' },
-      { name: 'Walnuts', amount: 20, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-57',
-    title: 'Chocolate Chip Cookies',
-    category: 'dessert',
-    mealTypes: ['afternoon'],
-    instructions:
-      'Cream the butter with the sugar, mix in the flour and chopped dark chocolate. Scoop onto a tray and bake at 180°C for about 10-12 minutes until golden at the edges.',
-    ingredients: [
-      { name: 'Flour', amount: 200, unit: 'g' },
-      { name: 'Dark Chocolate', amount: 100, unit: 'g' },
-      { name: 'Butter', amount: 100, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-58',
-    title: 'Berry Smoothie Bowl',
-    category: 'dessert',
-    mealTypes: ['breakfast', 'afternoon'],
-    instructions:
-      'Blend the strawberries with the Greek yogurt until smooth. Pour into a bowl and top with the blueberries.',
-    ingredients: [
-      { name: 'Blueberries', amount: 100, unit: 'g' },
-      { name: 'Strawberries', amount: 100, unit: 'g' },
-      { name: 'Greek Yogurt', amount: 150, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-59',
-    title: 'Peanut Butter Energy Balls',
-    category: 'dessert',
-    mealTypes: ['afternoon', 'breakfast'],
-    instructions:
-      'Mix the peanut butter, oats and honey into a thick mixture. Roll into small balls and chill for at least 30 minutes to firm up.',
-    ingredients: [
-      { name: 'Peanut Butter', amount: 100, unit: 'g' },
-      { name: 'Oats', amount: 80, unit: 'g' },
-      { name: 'Honey', amount: 30, unit: 'g' },
-    ],
-  },
-  {
-    id: 'seed-60',
-    title: 'Baklava',
-    category: 'dessert',
-    mealTypes: ['dinner'],
-    instructions:
-      'Layer chopped walnuts between sheets of pastry, brushing each layer with melted butter. Bake at 180°C until golden, then pour warm honey over the top and let it soak in before serving.',
-    ingredients: [
-      { name: 'Walnuts', amount: 100, unit: 'g' },
-      { name: 'Honey', amount: 60, unit: 'g' },
-      { name: 'Flour', amount: 100, unit: 'g' },
-    ],
-  },
+  // ---------- Ζυμαρικά & ρύζι ----------
+  recipe(60, 'Μακαρονάδα με κιμά', 'pasta', MAIN, [
+    ['Μακαρόνια', 90], ['Κιμάς μοσχαρίσιος', 110], ['Ντομάτα τριμμένη (πασάτα)', 120], ['Κρεμμύδι ξερό', 30],
+    ['Ελαιόλαδο', 10], ['Κανέλα', 0.5], ['Κεφαλοτύρι', 15], ['Αλάτι', 2],
+  ], 'Σοτάρισε κιμά και κρεμμύδι, πρόσθεσε ντομάτα και κανέλα και σιγόβρασε 30 λεπτά. Σέρβιρε πάνω σε βρασμένα μακαρόνια με τριμμένο κεφαλοτύρι.'),
+  recipe(61, 'Μακαρόνια με σάλτσα ντομάτας και φέτα', 'pasta', MAIN, [
+    ['Μακαρόνια', 100], ['Ντομάτα τριμμένη (πασάτα)', 150], ['Σκόρδο', 5], ['Ελαιόλαδο', 15], ['Βασιλικός', 3], ['Φέτα', 40],
+  ], 'Βράσε τα μακαρόνια. Σιγόβρασε σκόρδο, λάδι και ντομάτα 15 λεπτά με βασιλικό. Ανακάτεψε και θρύψαλο φέτα από πάνω.'),
+  recipe(62, 'Χυλοπίτες με βούτυρο και μυζήθρα', 'pasta', MAIN, [
+    ['Χυλοπίτες', 100], ['Βούτυρο', 15], ['Μυζήθρα', 40],
+  ], 'Βράσε τις χυλοπίτες. Κάψε το βούτυρο σε τηγάνι και περίχυσε. Τρίψε από πάνω μυζήθρα.'),
+  recipe(63, 'Κριθαρότο με λαχανικά', 'pasta', MAIN, [
+    ['Κριθαράκι', 90], ['Μανιτάρια', 100], ['Κολοκυθάκια', 100], ['Κρεμμύδι ξερό', 30], ['Ζωμός λαχανικών (κύβος)', 5],
+    ['Ελαιόλαδο', 10], ['Παρμεζάνα', 15],
+  ], 'Σοτάρισε κρεμμύδι και λαχανικά, πρόσθεσε κριθαράκι και ζεστό ζωμό σιγά σιγά, ανακατεύοντας, για 15 λεπτά. Τελείωσε με τυρί.'),
+  recipe(64, 'Πιλάφι με γιαούρτι', 'pasta', MAIN, [
+    ['Ρύζι νυχάκι', 80], ['Βούτυρο', 10], ['Ζωμός λαχανικών (κύβος)', 5], ['Γιαούρτι στραγγιστό 2%', 150],
+  ], 'Σοτάρισε το ρύζι στο βούτυρο, πρόσθεσε διπλάσιο ζεστό ζωμό και βράσε σκεπασμένο 15 λεπτά. Σέρβιρε με γιαούρτι.'),
+  recipe(65, 'Τραχανάς με φέτα', 'pasta', ['lunch', 'dinner', 'breakfast'], [
+    ['Τραχανάς', 60], ['Γάλα ελαφρύ', 150], ['Βούτυρο', 5], ['Φέτα', 40],
+  ], 'Βράσε τον τραχανά με γάλα και νερό 10–12 λεπτά ανακατεύοντας. Πρόσθεσε βούτυρο και φέτα σε κομματάκια.'),
+
+  // ---------- Πίτες ----------
+  recipe(70, 'Σπανακόπιτα', 'pies', ['lunch', 'dinner', 'afternoon'], [
+    ['Χωριάτικο φύλλο', 70], ['Σπανάκι', 200], ['Φέτα', 60], ['Κρεμμυδάκι φρέσκο', 20], ['Άνηθος', 5],
+    ['Αυγά', 25], ['Ελαιόλαδο', 15],
+  ], 'Μάρανε το σπανάκι και στράγγισε. Ανακάτεψε με φέτα, κρεμμυδάκι, άνηθο και αυγό. Στρώσε φύλλα με λάδι, γέμισε, σκέπασε και ψήσε 50 λεπτά στους 180°C.'),
+  recipe(71, 'Τυρόπιτα', 'pies', MORNING, [
+    ['Φύλλο κρούστας', 50], ['Φέτα', 60], ['Αυγά', 25], ['Γιαούρτι στραγγιστό 2%', 30], ['Βούτυρο', 10],
+  ], 'Ανακάτεψε φέτα, αυγό και γιαούρτι. Στρώσε φύλλα αλειμμένα με βούτυρο, βάλε τη γέμιση, σκέπασε και ψήσε 40 λεπτά στους 180°C.'),
+  recipe(72, 'Κολοκυθόπιτα', 'pies', ['lunch', 'dinner', 'afternoon'], [
+    ['Χωριάτικο φύλλο', 70], ['Κολοκυθάκια', 200], ['Φέτα', 50], ['Δυόσμος', 3], ['Αυγά', 25], ['Ελαιόλαδο', 15],
+  ], 'Τρίψε και στράγγισε τα κολοκυθάκια. Ανακάτεψε με φέτα, δυόσμο και αυγό. Γέμισε τα φύλλα και ψήσε 50 λεπτά στους 180°C.'),
+  recipe(73, 'Λαχανόπιτα με χόρτα', 'pies', ['lunch', 'dinner', 'afternoon'], [
+    ['Χωριάτικο φύλλο', 70], ['Χόρτα (βλίτα/ραδίκια)', 200], ['Πράσο', 60], ['Φέτα', 40], ['Ελαιόλαδο', 15], ['Άνηθος', 5],
+  ], 'Μάρανε χόρτα και πράσο, ανακάτεψε με φέτα και άνηθο. Γέμισε τα φύλλα με λάδι και ψήσε 50 λεπτά στους 180°C.'),
+
+  // ---------- Σαλάτες & μεζέδες ----------
+  recipe(80, 'Χωριάτικη σαλάτα', 'salads', MAIN, [
+    ['Ντομάτα', 200], ['Αγγούρι', 120], ['Κρεμμύδι ξερό', 20], ['Πιπεριά πράσινη', 30], ['Φέτα', 60],
+    ['Ελιές Καλαμών', 20], ['Ελαιόλαδο', 15], ['Ρίγανη', 1],
+  ], 'Κόψε ντομάτα, αγγούρι, κρεμμύδι και πιπεριά. Βάλε από πάνω φέτα και ελιές, λάδι και ρίγανη.'),
+  recipe(81, 'Ντάκος', 'salads', ['lunch', 'dinner', 'afternoon'], [
+    ['Παξιμάδι κριθαρένιο', 50], ['Ντομάτα', 150], ['Μυζήθρα', 40], ['Ελαιόλαδο', 15], ['Ρίγανη', 1], ['Ελιές Καλαμών', 15],
+  ], 'Βρέξε ελαφρά το παξιμάδι. Τρίψε τη ντομάτα από πάνω, πρόσθεσε μυζήθρα, ελιές, λάδι και ρίγανη.'),
+  recipe(82, 'Ντολμαδάκια γιαλαντζί', 'salads', ['lunch', 'dinner', 'afternoon'], [
+    ['Αμπελόφυλλα', 60], ['Ρύζι καρολίνα', 50], ['Κρεμμυδάκι φρέσκο', 30], ['Δυόσμος', 3], ['Άνηθος', 3],
+    ['Ελαιόλαδο', 20], ['Λεμόνι', 30], ['Γιαούρτι στραγγιστό 2%', 60],
+  ], 'Ανακάτεψε ρύζι, κρεμμυδάκι, μυρωδικά και λάδι. Τύλιξε σε αμπελόφυλλα, στρώσε σε κατσαρόλα και βράσε με νερό και λεμόνι 45 λεπτά. Σέρβιρε με γιαούρτι.'),
+  recipe(83, 'Μελιτζανοσαλάτα με ψωμί', 'salads', ['lunch', 'dinner', 'afternoon'], [
+    ['Μελιτζάνα', 200], ['Σκόρδο', 3], ['Ελαιόλαδο', 15], ['Ξίδι', 5], ['Μαϊντανός', 3], ['Ψωμί χωριάτικο', 60],
+  ], 'Ψήσε τη μελιτζάνα ολόκληρη μέχρι να μαλακώσει, ξεφλούδισε και λιώσε με σκόρδο, λάδι, ξίδι και μαϊντανό. Σέρβιρε με ψωμί.'),
+  recipe(84, 'Χαλούμι ψητό με σαλάτα', 'salads', ['lunch', 'dinner', 'afternoon'], [
+    ['Χαλούμι', 80], ['Ρόκα', 50], ['Ντοματίνια', 100], ['Ελαιόλαδο', 10], ['Ξίδι βαλσάμικο', 10],
+  ], 'Ψήσε το χαλούμι σε αντικολλητικό τηγάνι 2 λεπτά από κάθε πλευρά. Σέρβιρε πάνω σε ρόκα και ντοματίνια με λάδι και βαλσάμικο.'),
+
+  // ---------- Πρωινό & σνακ ----------
+  recipe(90, 'Γιαούρτι με μέλι και καρύδια', 'breakfast', MORNING, [
+    ['Γιαούρτι στραγγιστό 2%', 200], ['Μέλι', 15], ['Καρύδια', 15],
+  ], 'Βάλε το γιαούρτι σε μπολ, περίχυσε μέλι και πασπάλισε καρύδια.'),
+  recipe(91, 'Αυγά με ντομάτα (στραπατσάδα)', 'breakfast', ['breakfast', 'lunch', 'dinner'], [
+    ['Αυγά', 120], ['Ντομάτα', 150], ['Φέτα', 30], ['Ελαιόλαδο', 10], ['Ψωμί χωριάτικο', 50], ['Αλάτι', 1],
+  ], 'Βράσε την τριμμένη ντομάτα στο λάδι μέχρι να πιει τα υγρά. Ρίξε τα αυγά και ανακάτεψε απαλά μέχρι να πήξουν. Πρόσθεσε φέτα. Σέρβιρε με ψωμί.'),
+  recipe(92, 'Ομελέτα με φέτα και ντομάτα', 'breakfast', ['breakfast', 'dinner'], [
+    ['Αυγά', 120], ['Φέτα', 30], ['Ντομάτα', 80], ['Ελαιόλαδο', 5], ['Ρίγανη', 0.5],
+  ], 'Χτύπησε τα αυγά, ρίξε τα στο τηγάνι με λίγο λάδι, πρόσθεσε ντομάτα και φέτα και δίπλωσε όταν πήξει.'),
+  recipe(93, 'Βρώμη με γάλα, μπανάνα και μέλι', 'breakfast', ['breakfast'], [
+    ['Βρώμη', 50], ['Γάλα ελαφρύ', 200], ['Μπανάνα', 100], ['Μέλι', 10], ['Κανέλα', 0.5],
+  ], 'Βράσε τη βρώμη με το γάλα 3–4 λεπτά. Σέρβιρε με μπανάνα σε ροδέλες, μέλι και κανέλα.'),
+  recipe(94, 'Φρυγανιές με μέλι και ταχίνι', 'breakfast', MORNING, [
+    ['Φρυγανιές', 30], ['Ταχίνι', 15], ['Μέλι', 15],
+  ], 'Άλειψε τις φρυγανιές με ταχίνι και περίχυσε μέλι.'),
+  recipe(95, 'Τοστ με γαλοπούλα και τυρί', 'breakfast', MORNING, [
+    ['Ψωμί ολικής άλεσης', 60], ['Γαλοπούλα καπνιστή (αλλαντικό)', 40], ['Τυρί τοστ', 30], ['Ντομάτα', 40],
+  ], 'Γέμισε το ψωμί με γαλοπούλα, τυρί και ντομάτα και ψήσε στην τοστιέρα.'),
+  recipe(96, 'Κουλούρι με φέτα', 'breakfast', MORNING, [
+    ['Κουλούρι Θεσσαλονίκης', 90], ['Φέτα', 30],
+  ], 'Το κλασικό πρωινό στο πόδι: ένα κουλούρι με ένα κομμάτι φέτα.'),
+  recipe(97, 'Αυγά βραστά με ντομάτα και ψωμί', 'breakfast', MORNING, [
+    ['Αυγά', 120], ['Ψωμί ολικής άλεσης', 50], ['Ντομάτα', 100], ['Αλάτι', 1],
+  ], 'Βράσε τα αυγά 9 λεπτά, κρύωσέ τα σε κρύο νερό και ξεφλούδισε. Σέρβιρε με ντομάτα και ψωμί.'),
+  recipe(98, 'Σέικ πρωτεΐνης με μπανάνα', 'breakfast', MORNING, [
+    ['Πρωτεΐνη ορού γάλακτος (whey)', 30], ['Γάλα ελαφρύ', 250], ['Μπανάνα', 100],
+  ], 'Χτύπησε όλα τα υλικά στο μπλέντερ.'),
+  recipe(99, 'Φρούτα εποχής με αμύγδαλα', 'breakfast', ['afternoon'], [
+    ['Μήλο', 150], ['Πορτοκάλι', 150], ['Αμύγδαλα', 20],
+  ], 'Κόψε τα φρούτα και σέρβιρε με μια χούφτα αμύγδαλα.'),
+
+  // ---------- Γλυκά ----------
+  recipe(110, 'Ρυζόγαλο', 'dessert', ['afternoon'], [
+    ['Ρύζι καρολίνα', 30], ['Γάλα πλήρες', 250], ['Ζάχαρη', 25], ['Βανίλια', 1], ['Κανέλα', 0.5],
+  ], 'Βράσε το ρύζι με λίγο νερό, πρόσθεσε το γάλα και σιγόβρασε ανακατεύοντας 25 λεπτά. Ρίξε ζάχαρη και βανίλια. Σέρβιρε με κανέλα.'),
+  recipe(111, 'Χαλβάς σιμιγδαλένιος', 'dessert', ['afternoon'], [
+    ['Σιμιγδάλι', 40], ['Ηλιέλαιο', 15], ['Ζάχαρη', 30], ['Αμύγδαλα', 10], ['Κανέλα', 0.5],
+  ], 'Καβούρδισε το σιμιγδάλι με το λάδι και τα αμύγδαλα μέχρι να ροδίσει. Ρίξε προσεκτικά το καυτό σιρόπι (νερό, ζάχαρη, κανέλα), ανακάτεψε μέχρι να δέσει και βάλε σε φόρμα.'),
+  recipe(112, 'Γιαουρτόπιτα', 'dessert', ['afternoon'], [
+    ['Γιαούρτι στραγγιστό 10%', 80], ['Αλεύρι για όλες τις χρήσεις', 30], ['Αυγά', 25], ['Ζάχαρη', 30],
+    ['Λεμόνι', 10], ['Μπέικιν πάουντερ', 2],
+  ], 'Χτύπησε αυγά με ζάχαρη, πρόσθεσε γιαούρτι, ξύσμα λεμονιού, αλεύρι και μπέικιν. Ψήσε 40 λεπτά στους 180°C.'),
+  recipe(113, 'Μπακλαβάς', 'dessert', ['afternoon'], [
+    ['Φύλλο κρούστας', 25], ['Καρύδια', 25], ['Βούτυρο', 10], ['Ζάχαρη', 20], ['Μέλι', 10], ['Κανέλα', 0.5],
+  ], 'Στρώσε φύλλα με βούτυρο και καρύδια με κανέλα, κόψε σε κομμάτια και ψήσε 1 ώρα στους 170°C. Περίχυσε κρύο σιρόπι με μέλι.'),
+  recipe(114, 'Χαλβάς με ταχίνι και φρούτο', 'dessert', ['afternoon'], [
+    ['Χαλβάς', 40], ['Μήλο', 120],
+  ], 'Ένα κομμάτι χαλβά με ένα φρούτο. Ιδανικό σνακ τη Σαρακοστή.'),
+  // ---------- Φρούτα (απόγευμα) ----------
+  recipe(120, 'Φρουτοσαλάτα με γιαούρτι και μέλι', 'fruit', AFTERNOON, [
+    ['Μήλο', 80], ['Μπανάνα', 60], ['Πορτοκάλι', 80], ['Φράουλες', 60], ['Γιαούρτι στραγγιστό 2%', 100], ['Μέλι', 10],
+  ], 'Κόψε τα φρούτα σε κομματάκια, βάλε από πάνω γιαούρτι και περίχυσε μέλι.'),
+  recipe(121, 'Μήλο με φυστικοβούτυρο', 'fruit', AFTERNOON, [
+    ['Μήλο', 180], ['Φυστικοβούτυρο', 20],
+  ], 'Κόψε το μήλο σε φέτες και βούτα τες στο φυστικοβούτυρο.'),
+  recipe(122, 'Καρπούζι με φέτα', 'fruit', AFTERNOON, [
+    ['Καρπούζι', 350], ['Φέτα', 40], ['Δυόσμος', 2],
+  ], 'Το καλοκαιρινό κλασικό: κρύο καρπούζι σε κύβους με φέτα και λίγο δυόσμο.'),
+  recipe(123, 'Ψητό μήλο με κανέλα και καρύδια', 'fruit', AFTERNOON, [
+    ['Μήλο', 200], ['Καρύδια', 15], ['Μέλι', 10], ['Κανέλα', 1], ['Γιαούρτι στραγγιστό 2%', 60],
+  ], 'Άδειασε το κέντρο του μήλου, γέμισε με καρύδια, μέλι και κανέλα και ψήσε 25 λεπτά στους 180°C. Σέρβιρε ζεστό με γιαούρτι.'),
+  recipe(124, 'Σύκα με γιαούρτι και μέλι', 'fruit', AFTERNOON, [
+    ['Σύκα', 150], ['Γιαούρτι στραγγιστό 2%', 120], ['Μέλι', 10], ['Καρύδια', 10],
+  ], 'Κόψε τα σύκα στα τέσσερα και σέρβιρε πάνω σε γιαούρτι με μέλι και καρύδια.'),
+  recipe(125, 'Πορτοκάλι με κανέλα και μέλι', 'fruit', AFTERNOON, [
+    ['Πορτοκάλι', 250], ['Μέλι', 8], ['Κανέλα', 0.5],
+  ], 'Κόψε το πορτοκάλι σε ροδέλες, περίχυσε λίγο μέλι και πασπάλισε κανέλα.'),
+  recipe(126, 'Smoothie φράουλα μπανάνα', 'fruit', ['breakfast', 'afternoon'], [
+    ['Φράουλες', 120], ['Μπανάνα', 100], ['Γάλα ελαφρύ', 200], ['Μέλι', 5],
+  ], 'Χτύπησε όλα τα υλικά στο μπλέντερ με λίγο πάγο.'),
+  recipe(127, 'Μπολ με μύρτιλα, βρώμη και γιαούρτι', 'fruit', ['breakfast', 'afternoon'], [
+    ['Γιαούρτι στραγγιστό 2%', 170], ['Μύρτιλα', 80], ['Βρώμη', 20], ['Μέλι', 8],
+  ], 'Στρώσε γιαούρτι, μύρτιλα και βρώμη σε μπολ και περίχυσε μέλι.'),
+  recipe(128, 'Ξερά σύκα με καρύδια', 'fruit', AFTERNOON, [
+    ['Ξερά σύκα', 40], ['Καρύδια', 15],
+  ], 'Ένα γλυκό σνακ για τον καναπέ: μερικά ξερά σύκα με καρύδια.'),
+  recipe(129, 'Χουρμάδες γεμιστοί με αμύγδαλα', 'fruit', AFTERNOON, [
+    ['Χουρμάδες', 40], ['Αμύγδαλα', 12],
+  ], 'Άνοιξε τους χουρμάδες, βγάλε το κουκούτσι και βάλε μέσα από ένα αμύγδαλο.'),
+  recipe(130, 'Κεράσια και βερίκοκα', 'fruit', AFTERNOON, [
+    ['Κεράσια', 150], ['Βερίκοκα', 120],
+  ], 'Πλύνε τα φρούτα και απόλαυσέ τα κρύα από το ψυγείο.'),
+  recipe(131, 'Ανανάς με κεφίρ', 'fruit', AFTERNOON, [
+    ['Ανανάς', 150], ['Κεφίρ', 200],
+  ], 'Ανανάς σε κύβους με ένα ποτήρι κρύο κεφίρ.'),
+  recipe(132, 'Μπανάνα με σοκολάτα και καρύδια', 'fruit', AFTERNOON, [
+    ['Μπανάνα', 120], ['Σοκολάτα υγείας', 15], ['Καρύδια', 10],
+  ], 'Λιώσε τη σοκολάτα, περίχυσε τη μπανάνα σε ροδέλες και πασπάλισε καρύδια.'),
+
+  // ---------- Comfort για το απόγευμα ----------
+  recipe(140, 'Τσουρέκι με γάλα', 'breakfast', MORNING, [
+    ['Τσουρέκι', 70], ['Γάλα ελαφρύ', 250],
+  ], 'Μια φέτα τσουρέκι με ένα ποτήρι ζεστό ή κρύο γάλα.'),
+  recipe(141, 'Κουλουράκια με καφέ', 'breakfast', AFTERNOON, [
+    ['Κουλουράκια βουτύρου', 50], ['Ελληνικός καφές', 100], ['Ζάχαρη', 5],
+  ], 'Τρία-τέσσερα κουλουράκια βουτηγμένα σε έναν ελληνικό.'),
+  recipe(142, 'Φρυγανιές με βούτυρο και μαρμελάδα', 'breakfast', MORNING, [
+    ['Φρυγανιές', 30], ['Βούτυρο', 10], ['Μαρμελάδα', 20],
+  ], 'Άλειψε τις φρυγανιές με λίγο βούτυρο και μαρμελάδα.'),
+  recipe(143, 'Λαδόψωμο με ντομάτα και ρίγανη', 'breakfast', AFTERNOON, [
+    ['Ψωμί χωριάτικο', 70], ['Ελαιόλαδο', 10], ['Ντομάτα', 100], ['Ρίγανη', 0.5], ['Αλάτι', 0.5],
+  ], 'Φέτα χωριάτικο ψωμί με ελαιόλαδο, τριμμένη ντομάτα, αλάτι και ρίγανη. Σαν τα παλιά.'),
+  recipe(144, 'Κριτσίνια με κασέρι', 'breakfast', AFTERNOON, [
+    ['Κριτσίνια', 30], ['Κασέρι', 30],
+  ], 'Μερικά κριτσίνια με κομματάκια κασέρι.'),
+  recipe(145, 'Κράκερ με κότατζ και ντοματίνια', 'breakfast', AFTERNOON, [
+    ['Κράκερ ολικής άλεσης', 30], ['Τυρί κότατζ', 100], ['Ντοματίνια', 80],
+  ], 'Άλειψε τα κράκερ με κότατζ και βάλε από πάνω ντοματίνια.'),
+  recipe(146, 'Ποπ κορν σπιτικό', 'breakfast', AFTERNOON, [
+    ['Καλαμπόκι για ποπ κορν', 40], ['Ηλιέλαιο', 5], ['Αλάτι', 0.5],
+  ], 'Ζέστανε λίγο λάδι σε κατσαρόλα, ρίξε το καλαμπόκι, σκέπασε και κούνα μέχρι να σταματήσει να σκάει.'),
+  recipe(147, 'Μπάρα πρωτεΐνης', 'breakfast', AFTERNOON, [['Μπάρα πρωτεΐνης', 60]], 'Για τις μέρες που τρέχεις.'),
+  recipe(148, 'Γιαούρτι με γλυκό του κουταλιού', 'dessert', AFTERNOON, [
+    ['Γιαούρτι στραγγιστό 2%', 170], ['Γλυκό του κουταλιού', 25],
+  ], 'Στραγγιστό γιαούρτι με μια κουταλιά γλυκό του κουταλιού (βύσσινο, κεράσι, σύκο).'),
+  recipe(149, 'Ζεστό κακάο με μπισκότα', 'dessert', AFTERNOON, [
+    ['Γάλα ελαφρύ', 250], ['Κακάο', 10], ['Ζάχαρη', 10], ['Μπισκότα πτι-μπερ', 25],
+  ], 'Ζέστανε το γάλα, ανακάτεψε κακάο και ζάχαρη και σέρβιρε με μπισκότα.'),
+  recipe(150, 'Μωσαϊκό (κορμός σοκολάτας)', 'dessert', AFTERNOON, [
+    ['Μπισκότα πτι-μπερ', 30], ['Σοκολάτα γάλακτος', 20], ['Βούτυρο', 10], ['Κακάο', 3], ['Ζάχαρη', 5],
+  ], 'Λιώσε σοκολάτα με βούτυρο, κακάο και ζάχαρη, ανακάτεψε με σπασμένα μπισκότα, τύλιξε σε μεμβράνη και βάλε στο ψυγείο 4 ώρες.'),
+  recipe(151, 'Λουκουμάδες με μέλι και καρύδια', 'dessert', AFTERNOON, [
+    ['Αλεύρι για όλες τις χρήσεις', 50], ['Ηλιέλαιο', 15], ['Μέλι', 20], ['Καρύδια', 10], ['Κανέλα', 0.5],
+  ], 'Φτιάξε χυλό με αλεύρι, μαγιά, νερό και αλάτι και άφησέ τον να φουσκώσει 1 ώρα. Ρίξε κουταλιές σε καυτό λάδι, στράγγισε και περίχυσε μέλι, καρύδια και κανέλα.'),
+  recipe(152, 'Τηγανίτες με μέλι', 'dessert', ['breakfast', 'afternoon'], [
+    ['Αλεύρι για όλες τις χρήσεις', 50], ['Γάλα ελαφρύ', 80], ['Αυγά', 25], ['Ηλιέλαιο', 5], ['Μέλι', 15], ['Μπέικιν πάουντερ', 2],
+  ], 'Ανακάτεψε αλεύρι, μπέικιν, γάλα και αυγό σε χυλό. Ψήσε κουταλιές σε αντικολλητικό τηγάνι και σέρβιρε με μέλι.'),
+  recipe(153, 'Κρέμα βανίλιας', 'dessert', AFTERNOON, [
+    ['Γάλα πλήρες', 200], ['Ζάχαρη', 20], ['Κορν φλάουρ', 15], ['Αυγά', 15], ['Βανίλια', 1], ['Κανέλα', 0.5],
+  ], 'Βράσε το γάλα με ζάχαρη και βανίλια. Πρόσθεσε κορν φλάουρ διαλυμένο σε λίγο κρύο γάλα με τον κρόκο και ανακάτευε μέχρι να πήξει. Σέρβιρε με κανέλα.'),
+  recipe(154, 'Πορτοκαλόπιτα', 'dessert', AFTERNOON, [
+    ['Φύλλο κρούστας', 25], ['Γιαούρτι στραγγιστό 10%', 30], ['Αυγά', 25], ['Ζάχαρη', 30], ['Ηλιέλαιο', 10], ['Πορτοκάλι', 40], ['Μπέικιν πάουντερ', 1],
+  ], 'Στέγνωσε και τρίψε τα φύλλα. Ανακάτεψε με αυγά, γιαούρτι, λάδι, ξύσμα πορτοκαλιού και μπέικιν. Ψήσε 40 λεπτά στους 180°C και περίχυσε κρύο σιρόπι πορτοκαλιού.'),
+  recipe(155, 'Μηλόπιτα', 'dessert', AFTERNOON, [
+    ['Φύλλο κρούστας', 25], ['Μήλο', 120], ['Ζάχαρη', 15], ['Καρύδια', 10], ['Σταφίδες', 10], ['Βούτυρο', 8], ['Κανέλα', 1],
+  ], 'Τρίψε τα μήλα, ανακάτεψε με ζάχαρη, κανέλα, καρύδια και σταφίδες. Τύλιξε σε φύλλα αλειμμένα με βούτυρο και ψήσε 40 λεπτά στους 180°C.'),
+  recipe(156, 'Κέικ βανίλιας', 'dessert', AFTERNOON, [
+    ['Αλεύρι για όλες τις χρήσεις', 30], ['Ζάχαρη', 20], ['Αυγά', 20], ['Βούτυρο', 15], ['Γάλα πλήρες', 20], ['Μπέικιν πάουντερ', 1], ['Βανίλια', 0.5],
+  ], 'Χτύπησε βούτυρο με ζάχαρη, πρόσθεσε αυγά, γάλα, βανίλια και αλεύρι με μπέικιν. Ψήσε σε φόρμα 45 λεπτά στους 175°C. Για καφέ με παρέα.'),
+  recipe(157, 'Παγωτό καϊμάκι με κεράσια', 'dessert', AFTERNOON, [
+    ['Παγωτό καϊμάκι', 80], ['Κεράσια', 80],
+  ], 'Δύο μπάλες παγωτό με φρέσκα κεράσια.'),
 ]

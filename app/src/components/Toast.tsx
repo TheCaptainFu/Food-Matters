@@ -52,7 +52,7 @@ function Toast({ toast, onClose }: ToastProps) {
         <button
           type="button"
           onClick={onClose}
-          aria-label="Dismiss"
+          aria-label="Κλείσιμο"
           className="font-bold text-14 leading-none hover:text-main-red cursor-pointer shrink-0"
         >
           ✕

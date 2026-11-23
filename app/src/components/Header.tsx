@@ -10,7 +10,7 @@ type HeaderProps = {
 
 function ProfileIcon({ user }: { user: User | null }) {
   if (user?.user_metadata?.avatar_url) {
-    return <img src={user.user_metadata.avatar_url} alt="Your profile" className="w-full h-full object-cover" />
+    return <img src={user.user_metadata.avatar_url} alt="Το προφίλ σου" className="w-full h-full object-cover" />
   }
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -30,7 +30,7 @@ function Header({ isMenuOpen, onToggleMenu, user, onOpenProfile }: HeaderProps) 
 
         <button
           type="button"
-          aria-label="Your profile"
+          aria-label="Το προφίλ σου"
           onClick={onOpenProfile}
           className="appearance-none main-btn flex items-center justify-center w-40 h-40 p-0 shrink-0 overflow-hidden"
         >
@@ -39,7 +39,7 @@ function Header({ isMenuOpen, onToggleMenu, user, onOpenProfile }: HeaderProps) 
 
         <button
           type="button"
-          aria-label="Open menu"
+          aria-label="Άνοιγμα μενού"
           aria-expanded={isMenuOpen}
           onClick={onToggleMenu}
           className="appearance-none main-btn tab:hidden flex flex-col justify-center gap-5 w-40 h-40 p-5 shrink-0"

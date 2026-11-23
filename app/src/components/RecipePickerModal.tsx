@@ -40,11 +40,11 @@ function RecipePickerModal({ recipes, onSave, onClose }: RecipePickerModalProps)
         onClick={(e) => e.stopPropagation()}
         className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-md"
       >
-        <h2 className="text-20 font-title font-bold uppercase">Choose Recipes</h2>
+        <h2 className="text-20 font-title font-bold uppercase">Επιλογή συνταγών</h2>
 
         <input
           type="text"
-          placeholder="Search…"
+          placeholder="Αναζήτηση…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border-3 border-black px-15 py-10 font-title"
@@ -53,7 +53,7 @@ function RecipePickerModal({ recipes, onSave, onClose }: RecipePickerModalProps)
 
         <div className="border-3 border-black max-h-[300px] overflow-y-auto">
           {filtered.length === 0 && (
-            <p className="p-15 text-14 font-title text-neutral-500 text-center">No matches.</p>
+            <p className="p-15 text-14 font-title text-neutral-500 text-center">Δεν βρέθηκε τίποτα.</p>
           )}
           {filtered.map((recipe, index) => {
             const isChecked = selectedIds.has(recipe.id)
@@ -85,7 +85,7 @@ function RecipePickerModal({ recipes, onSave, onClose }: RecipePickerModalProps)
 
         <div className="flex gap-10 justify-end">
           <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
-            Cancel
+            Άκυρο
           </button>
           <button
             type="button"
@@ -93,7 +93,7 @@ function RecipePickerModal({ recipes, onSave, onClose }: RecipePickerModalProps)
             disabled={selectedIds.size === 0}
             className="main-btn font-title font-bold bg-main-blue text-white px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
           >
-            Save{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+            Αποθήκευση{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
           </button>
         </div>
       </div>

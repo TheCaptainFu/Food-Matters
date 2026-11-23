@@ -55,7 +55,7 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
 
         {recipe.instructions && (
           <div className="flex flex-col gap-10">
-            <span className="text-16 font-title font-bold uppercase">How to make it</span>
+            <span className="text-16 font-title font-bold uppercase">Εκτέλεση</span>
             <p className="text-14 font-title whitespace-pre-line leading-relaxed">{recipe.instructions}</p>
           </div>
         )}
@@ -65,24 +65,24 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
             {Math.round(macros.calories)} kcal
           </span>
           <span className="text-14 font-title text-neutral-500">
-            Protein {Math.round(macros.protein)}g · Carbs {Math.round(macros.carbs)}g · Fat{' '}
+            Πρωτεΐνη {Math.round(macros.protein)}g · Υδατάνθρακες {Math.round(macros.carbs)}g · Λιπαρά{' '}
             {Math.round(macros.fat)}g
           </span>
         </div>
 
         <div className="flex gap-10 justify-end">
           <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
-            Cancel
+            Κλείσιμο
           </button>
           <button type="button" onClick={onEdit} className="main-btn font-title font-bold px-15 py-10">
-            Edit
+            Επεξεργασία
           </button>
           <button
             type="button"
             onClick={onDelete}
             className="main-btn font-title font-bold bg-main-red text-white px-15 py-10"
           >
-            Delete
+            Διαγραφή
           </button>
         </div>
       </div>

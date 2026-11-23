@@ -91,16 +91,16 @@ function AddRecipeModal({
             className="border-3 border-black bg-white shadow-[4px_4px_0_0_#000] p-20 sm:p-30 flex flex-col gap-25 w-full max-w-[680px] max-h-[90vh] overflow-y-auto"
           >
             <h2 className="text-20 font-title font-bold uppercase">
-              {initialRecipe ? 'Edit Recipe' : 'New Recipe'}
+              {initialRecipe ? 'Επεξεργασία συνταγής' : 'Νέα συνταγή'}
             </h2>
 
             {/* Name and type side by side on wider screens */}
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_220px] gap-15">
               <label className="flex flex-col gap-10">
-                <span className="text-16 font-title font-bold uppercase">Name</span>
+                <span className="text-16 font-title font-bold uppercase">Όνομα</span>
                 <input
                   type="text"
-                  placeholder="e.g. Chicken souvlaki"
+                  placeholder="π.χ. Κοτόπουλο λεμονάτο"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="border-3 border-black px-15 py-10 font-title"
@@ -110,7 +110,7 @@ function AddRecipeModal({
               </label>
 
               <label className="flex flex-col gap-10">
-                <span className="text-16 font-title font-bold uppercase">Type</span>
+                <span className="text-16 font-title font-bold uppercase">Είδος</span>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as Category)}
@@ -126,7 +126,7 @@ function AddRecipeModal({
             </div>
 
             <div className="flex flex-col gap-10">
-              <span className="text-16 font-title font-bold uppercase">When is this eaten?</span>
+              <span className="text-16 font-title font-bold uppercase">Πότε τρώγεται;</span>
               {/* Toggle chips in each meal's Calendar colour, so a recipe's
                   meals look the same here as on the plan. 2×2 on wider screens. */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
@@ -158,13 +158,13 @@ function AddRecipeModal({
               </div>
               <p className="text-14 font-title text-neutral-500">
                 {mealTypes.length === 0
-                  ? 'Pick at least one. Meal suggestions only offer it at these times.'
-                  : 'Meal suggestions only offer it at these times.'}
+                  ? 'Διάλεξε τουλάχιστον ένα. Οι προτάσεις θα τη δείχνουν μόνο σε αυτά τα γεύματα.'
+                  : 'Οι προτάσεις θα τη δείχνουν μόνο σε αυτά τα γεύματα.'}
               </p>
             </div>
 
             <div className="flex flex-col gap-10">
-              <span className="text-16 font-title font-bold uppercase">Ingredients</span>
+              <span className="text-16 font-title font-bold uppercase">Υλικά</span>
 
               {ingredients.map((ing, i) => {
                 const hint = ing.unit === 'g' ? spoonHint(ing.amount) : null
@@ -178,7 +178,7 @@ function AddRecipeModal({
                         <input
                           type="number"
                           min="0"
-                          placeholder="Qty"
+                          placeholder="Ποσότ."
                           value={ing.amount || ''}
                           onChange={(e) => updateIngredient(i, 'amount', e.target.value)}
                           className="border-3 border-black px-10 py-5 w-90 font-title"
@@ -198,7 +198,7 @@ function AddRecipeModal({
                           type="button"
                           onClick={() => removeIngredientRow(i)}
                           className="main-btn px-10"
-                          aria-label="Remove ingredient"
+                          aria-label="Αφαίρεση υλικού"
                         >
                           ✕
                         </button>
@@ -214,16 +214,16 @@ function AddRecipeModal({
                 onClick={() => setIsPickerOpen(true)}
                 className="main-btn font-title font-bold self-start px-15 py-5"
               >
-                + Ingredient
+                + Υλικό
               </button>
             </div>
 
             <label className="flex flex-col gap-10">
-              <span className="text-16 font-title font-bold uppercase">Instructions (optional)</span>
+              <span className="text-16 font-title font-bold uppercase">Εκτέλεση (προαιρετικά)</span>
               <textarea
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
-                placeholder="How do you make it?"
+                placeholder="Πώς τη φτιάχνεις;"
                 rows={5}
                 className="border-3 border-black px-15 py-10 font-title resize-y"
               />
@@ -232,18 +232,18 @@ function AddRecipeModal({
             <div className="flex gap-10 justify-end">
               {onBack && (
                 <button type="button" onClick={onBack} className="main-btn font-title font-bold px-15 py-10 mr-auto">
-                  ← Back
+                  ← Πίσω
                 </button>
               )}
               <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
-                Cancel
+                Άκυρο
               </button>
               <button
                 type="submit"
                 disabled={mealTypes.length === 0}
                 className="main-btn font-title font-bold bg-main-blue text-white px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
               >
-                {initialRecipe ? 'Save Changes' : 'Save'}
+                {initialRecipe ? 'Αποθήκευση αλλαγών' : 'Αποθήκευση'}
               </button>
             </div>
           </form>

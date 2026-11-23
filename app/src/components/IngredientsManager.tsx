@@ -42,7 +42,7 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
       <div className="flex flex-wrap items-center gap-10">
         <input
           type="search"
-          placeholder="Search ingredients…"
+          placeholder="Αναζήτηση υλικών…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border-3 border-black px-15 py-10 font-title flex-1 min-w-[200px]"
@@ -52,7 +52,7 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
           onChange={(e) => setCategoryFilter(e.target.value as 'all' | GroceryCategory)}
           className="bg-white border-3 border-black pl-15 pr-30 py-10 font-title"
         >
-          <option value="all">All aisles</option>
+          <option value="all">Όλοι οι διάδρομοι</option>
           {usedCategories.map((g) => (
             <option key={g.value} value={g.value}>
               {g.label}
@@ -64,25 +64,25 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
           onClick={() => setForm({ original: null })}
           className="main-btn font-title font-bold px-15 py-10 bg-main-blue text-white"
         >
-          + Add ingredient
+          + Νέο υλικό
         </button>
       </div>
 
       <p className="text-14 font-title text-neutral-500">
-        Nutrition is per 100g. Changes apply to every recipe that uses the ingredient.
+        Οι διατροφικές τιμές είναι ανά 100g. Οι αλλαγές ισχύουν για κάθε συνταγή που έχει το υλικό.
       </p>
 
       <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] overflow-x-auto">
         <table className="w-full text-14 font-title border-collapse">
           <thead>
             <tr className="border-b-3 border-black text-12 uppercase">
-              <th className="px-10 py-10 text-left">Ingredient</th>
-              <th className="px-10 py-10 text-left">Aisle</th>
+              <th className="px-10 py-10 text-left">Υλικό</th>
+              <th className="px-10 py-10 text-left">Διάδρομος</th>
               <th className={cell}>kcal</th>
-              <th className={cell}>Protein</th>
-              <th className={cell}>Carbs</th>
-              <th className={cell}>Fat</th>
-              <th className={cell}>Used in</th>
+              <th className={cell}>Πρωτεΐνη</th>
+              <th className={cell}>Υδατάνθρακες</th>
+              <th className={cell}>Λιπαρά</th>
+              <th className={cell}>Χρήση</th>
               <th className="px-10 py-10" />
             </tr>
           </thead>
@@ -90,7 +90,7 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
             {visible.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-10 py-15 text-center text-neutral-500">
-                  No ingredients match.
+                  Κανένα υλικό δεν ταιριάζει.
                 </td>
               </tr>
             )}
@@ -100,14 +100,14 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
                 <tr key={c.name} className="border-b border-neutral-200 last:border-b-0 hover:bg-neutral-50">
                   <td className="px-10 py-10 font-bold">{c.name}</td>
                   <td className="px-10 py-10 text-neutral-500 whitespace-nowrap">
-                    {GROCERY_CATEGORIES.find((g) => g.value === c.category)?.label ?? 'Other'}
+                    {GROCERY_CATEGORIES.find((g) => g.value === c.category)?.label ?? 'Άλλα'}
                   </td>
                   <td className={cell}>{Math.round(c.caloriesPer100g)}</td>
                   <td className={cell}>{c.proteinPer100g}g</td>
                   <td className={cell}>{c.carbsPer100g}g</td>
                   <td className={cell}>{c.fatPer100g}g</td>
                   <td className={`${cell} text-neutral-500`}>
-                    {usedIn === 0 ? '—' : `${usedIn} recipe${usedIn === 1 ? '' : 's'}`}
+                    {usedIn === 0 ? '—' : `${usedIn} ${usedIn === 1 ? 'συνταγή' : 'συνταγές'}`}
                   </td>
                   <td className="px-10 py-10 whitespace-nowrap text-right">
                     <span className="inline-flex gap-15">
@@ -116,7 +116,7 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
                         onClick={() => setForm({ original: c })}
                         className="font-bold underline cursor-pointer"
                       >
-                        Edit
+                        Επεξεργασία
                       </button>
                       <button
                         type="button"
@@ -124,12 +124,12 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
                         onClick={() => setConfirmDelete(c.name)}
                         title={
                           usedIn > 0
-                            ? `Used in ${usedIn} recipe${usedIn === 1 ? '' : 's'}. Remove it from those first.`
-                            : 'Delete'
+                            ? `Υπάρχει σε ${usedIn} ${usedIn === 1 ? 'συνταγή' : 'συνταγές'}. Αφαίρεσέ το πρώτα από εκεί.`
+                            : 'Διαγραφή'
                         }
                         className="font-bold underline text-main-red cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:no-underline"
                       >
-                        Delete
+                        Διαγραφή
                       </button>
                     </span>
                   </td>
@@ -156,8 +156,8 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
 
       {confirmDelete && (
         <ConfirmModal
-          message={`Delete "${confirmDelete}" from your ingredients?`}
-          confirmLabel="Delete"
+          message={`Διαγραφή του «${confirmDelete}» από τα υλικά σου;`}
+          confirmLabel="Διαγραφή"
           onConfirm={() => {
             onDelete(confirmDelete)
             setConfirmDelete(null)
@@ -211,21 +211,21 @@ function IngredientFormModal({ original, catalog, usedIn, onClose, onSave }: Ing
         onClick={(e) => e.stopPropagation()}
         className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[420px] max-h-[90vh] overflow-y-auto"
       >
-        <h2 className="text-20 font-title font-bold uppercase">{original ? 'Edit Ingredient' : 'New Ingredient'}</h2>
+        <h2 className="text-20 font-title font-bold uppercase">{original ? 'Επεξεργασία υλικού' : 'Νέο υλικό'}</h2>
         {original && usedIn > 0 && (
           <p className="text-14 font-title text-neutral-500">
-            Used in {usedIn} recipe{usedIn === 1 ? '' : 's'}. Changes apply to all of them.
+            Υπάρχει σε {usedIn} {usedIn === 1 ? 'συνταγή' : 'συνταγές'}. Οι αλλαγές ισχύουν για όλες.
           </p>
         )}
 
         <label className="flex flex-col gap-5">
-          <span className="text-14 font-title font-bold">Name</span>
+          <span className="text-14 font-title font-bold">Όνομα</span>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} autoFocus />
-          {isDuplicate && <span className="text-14 font-title text-main-red">There's already an ingredient with this name.</span>}
+          {isDuplicate && <span className="text-14 font-title text-main-red">Υπάρχει ήδη υλικό με αυτό το όνομα.</span>}
         </label>
 
         <label className="flex flex-col gap-5">
-          <span className="text-14 font-title font-bold">Aisle</span>
+          <span className="text-14 font-title font-bold">Διάδρομος</span>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value as GroceryCategory)}
@@ -240,28 +240,28 @@ function IngredientFormModal({ original, catalog, usedIn, onClose, onSave }: Ing
         </label>
 
         <label className="flex flex-col gap-5">
-          <span className="text-14 font-title font-bold">Calories per 100g</span>
+          <span className="text-14 font-title font-bold">Θερμίδες ανά 100g</span>
           <input type="number" min="0" value={calories} onChange={(e) => setCalories(e.target.value)} className={inputClass} />
         </label>
 
         <div className="grid grid-cols-3 gap-10">
           <label className="flex flex-col gap-5">
-            <span className="text-14 font-title font-bold">Protein (g)</span>
+            <span className="text-14 font-title font-bold">Πρωτεΐνη (g)</span>
             <input type="number" min="0" value={protein} onChange={(e) => setProtein(e.target.value)} className={inputClass} />
           </label>
           <label className="flex flex-col gap-5">
-            <span className="text-14 font-title font-bold">Carbs (g)</span>
+            <span className="text-14 font-title font-bold">Υδατάνθρακες (g)</span>
             <input type="number" min="0" value={carbs} onChange={(e) => setCarbs(e.target.value)} className={inputClass} />
           </label>
           <label className="flex flex-col gap-5">
-            <span className="text-14 font-title font-bold">Fat (g)</span>
+            <span className="text-14 font-title font-bold">Λιπαρά (g)</span>
             <input type="number" min="0" value={fat} onChange={(e) => setFat(e.target.value)} className={inputClass} />
           </label>
         </div>
 
         <div className="flex gap-10 justify-end">
           <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10 mr-auto">
-            ← Back
+            ← Πίσω
           </button>
           <button
             type="button"
@@ -269,7 +269,7 @@ function IngredientFormModal({ original, catalog, usedIn, onClose, onSave }: Ing
             disabled={!canSave}
             className="main-btn font-title font-bold bg-main-blue text-white px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
           >
-            {original ? 'Save' : 'Add'}
+            {original ? 'Αποθήκευση' : 'Προσθήκη'}
           </button>
         </div>
       </div>

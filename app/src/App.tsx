@@ -32,10 +32,10 @@ const PROFILE_KEY = 'food-matters-profile'
 // Bump this whenever DEFAULT_INGREDIENT_CATALOG grows — existing users get
 // the new entries merged into their saved catalog once, without touching
 // anything they've already added, edited, or deleted themselves.
-const CURRENT_CATALOG_VERSION = 2
+const CURRENT_CATALOG_VERSION = 3
 
 // Same idea, but for the seeded recipe library.
-const CURRENT_RECIPES_VERSION = 2
+const CURRENT_RECIPES_VERSION = 3
 
 const ALL_SLOT_KEYS = SLOT_KEYS.map((s) => s.value)
 
@@ -110,7 +110,7 @@ function initIngredientCatalog(): IngredientDef[] {
 
   const existingNames = new Set(normalized.map((c) => c.name.toLowerCase()))
   const missing = DEFAULT_INGREDIENT_CATALOG.filter((c) => !existingNames.has(c.name.toLowerCase()))
-  return [...normalized, ...missing].sort((a, b) => a.name.localeCompare(b.name))
+  return [...normalized, ...missing].sort((a, b) => a.name.localeCompare(b.name, 'el'))
 }
 
 function initWeeks(): Week[] {
@@ -185,7 +185,7 @@ function App() {
   // refer to ingredients by name, so otherwise they'd lose their nutrition.
   function handleEditIngredientDef(oldName: string, def: IngredientDef) {
     setIngredientCatalog((prev) =>
-      prev.map((c) => (c.name === oldName ? def : c)).sort((a, b) => a.name.localeCompare(b.name)),
+      prev.map((c) => (c.name === oldName ? def : c)).sort((a, b) => a.name.localeCompare(b.name, 'el')),
     )
     if (def.name !== oldName) {
       setRecipes((prev) =>
@@ -206,7 +206,7 @@ function App() {
     setIngredientCatalog((prev) =>
       prev.some((c) => c.name.toLowerCase() === def.name.toLowerCase())
         ? prev
-        : [...prev, def].sort((a, b) => a.name.localeCompare(b.name)),
+        : [...prev, def].sort((a, b) => a.name.localeCompare(b.name, 'el')),
     )
   }
 

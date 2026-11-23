@@ -2,7 +2,15 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { User } from '@supabase/supabase-js'
 import type { IngredientDef } from '../types'
-import { calculateMacroTargets, suggestedMacroTargets, calculateWaterTargetMl, ACTIVITY_LEVELS, GOALS } from '../nutrition'
+import {
+  calculateMacroTargets,
+  calorieBreakdown,
+  suggestedMacroTargets,
+  calculateWaterTargetMl,
+  ACTIVITY_LEVELS,
+  GOALS,
+  PACES,
+} from '../nutrition'
 import type { Profile } from '../nutrition'
 import { DIET_TYPES } from '../dietaryRestrictions'
 import { signInWithProvider, signOut } from '../useAuth'
@@ -20,9 +28,9 @@ type MacroKey = 'protein' | 'carbs' | 'fat'
 type MacroFields = Record<MacroKey, string>
 
 const MACRO_FIELDS: { key: MacroKey; label: string; kcalPerGram: number }[] = [
-  { key: 'protein', label: 'Protein', kcalPerGram: 4 },
-  { key: 'carbs', label: 'Carbs', kcalPerGram: 4 },
-  { key: 'fat', label: 'Fat', kcalPerGram: 9 },
+  { key: 'protein', label: 'Πρωτεΐνη', kcalPerGram: 4 },
+  { key: 'carbs', label: 'Υδατάνθρακες', kcalPerGram: 4 },
+  { key: 'fat', label: 'Λιπαρά', kcalPerGram: 9 },
 ]
 
 const inputClass = 'border-3 border-black px-15 py-10 text-16 font-title w-full'
@@ -112,6 +120,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
   const [sex, setSex] = useState<Profile['sex']>(profile?.sex ?? 'male')
   const [activity, setActivity] = useState<Profile['activity']>(profile?.activity ?? 'moderate')
   const [goal, setGoal] = useState<Profile['goal']>(profile?.goal ?? 'maintain')
+  const [pace, setPace] = useState<Profile['pace']>(profile?.pace ?? 'normal')
   const [worksOut, setWorksOut] = useState(profile?.worksOut ?? false)
   const [takesProtein, setTakesProtein] = useState(profile?.takesProtein ?? false)
   const [takesCreatine, setTakesCreatine] = useState(profile?.takesCreatine ?? false)
@@ -143,7 +152,9 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
   // the user types their own; customMacros holds those overrides, and null
   // means "use the suggestion". Derived during render rather than synced in
   // an effect, so there's no extra render and no stale values.
-  const suggested = suggestedMacroTargets({ age, weightKg, heightCm, sex, activity, goal, worksOut, takesProtein })
+  const vitals = { age, weightKg, heightCm, sex, activity, goal, pace, worksOut }
+  const suggested = suggestedMacroTargets(vitals)
+  const breakdown = calorieBreakdown(vitals)
   const [customMacros, setCustomMacros] = useState<MacroFields | null>(() => {
     if (!profile || (profile.customProtein == null && profile.customCarbs == null && profile.customFat == null)) {
       return null
@@ -183,6 +194,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
       sex,
       activity,
       goal,
+      pace,
       worksOut,
       takesProtein,
       takesCreatine,
@@ -207,18 +219,18 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
           <div className="flex items-start justify-between gap-15">
             <div className="flex flex-col gap-5">
               <h2 className="text-22 sm:text-26 font-title font-bold uppercase">
-                {profile ? 'Your Profile' : 'Welcome to Food Matters'}
+                {profile ? 'Το προφίλ σου' : 'Καλώς ήρθες στο Food Matters'}
               </h2>
               {!profile && (
                 <p className="text-16 font-title text-neutral-500">
-                  A few details so we can work out your daily targets. You can change them any time.
+                  Μερικά στοιχεία για να υπολογίσουμε τους ημερήσιους στόχους σου. Μπορείς να τα αλλάξεις όποτε θες.
                 </p>
               )}
             </div>
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close"
+              aria-label="Κλείσιμο"
               className="font-bold text-20 leading-none hover:text-main-red cursor-pointer shrink-0"
             >
               ✕
@@ -235,19 +247,19 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
                 />
               )}
               <span className="flex-1 min-w-0 text-14 font-title truncate">
-                Signed in as <span className="font-bold">{user.user_metadata?.full_name ?? user.email}</span>
+                Σύνδεση ως <span className="font-bold">{user.user_metadata?.full_name ?? user.email}</span>
               </span>
               <button
                 type="button"
                 onClick={() => signOut()}
                 className="text-14 font-title font-bold underline cursor-pointer shrink-0"
               >
-                Sign out
+                Αποσύνδεση
               </button>
             </div>
           ) : (
             <p className="text-14 font-title text-neutral-500">
-              You're using Food Matters as a guest, so your data stays in this browser only.
+              Χρησιμοποιείς το Food Matters ως επισκέπτης, οπότε τα δεδομένα σου μένουν μόνο σε αυτόν τον browser.
               {supabase && (
                 <>
                   {' '}
@@ -256,19 +268,19 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
                     onClick={() => signInWithProvider('google')}
                     className="font-bold text-black underline cursor-pointer"
                   >
-                    Sign in
+                    Συνδέσου
                   </button>{' '}
-                  to keep it.
+                  για να τα κρατήσεις.
                 </>
               )}
             </p>
           )}
 
           <div className="bg-main-yellow border-2 border-black px-20 py-15 flex flex-wrap items-baseline justify-between gap-x-20 gap-y-5 font-title">
-            <span className="text-14 font-bold uppercase">Your daily target</span>
+            <span className="text-14 font-bold uppercase">Ο ημερήσιος στόχος σου</span>
             <span className="text-16">
-              <span className="text-22 font-bold">{previewCalories} kcal</span> · P {macros.protein || 0}g · C{' '}
-              {macros.carbs || 0}g · F {macros.fat || 0}g · 💧 {waterL} L
+              <span className="text-22 font-bold">{previewCalories} kcal</span> · Π {macros.protein || 0}g · Υ{' '}
+              {macros.carbs || 0}g · Λ {macros.fat || 0}g · 💧 {waterL} L
             </span>
           </div>
         </div>
@@ -276,21 +288,21 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
         {/* Scrolling body */}
         <div className="flex flex-col gap-40 p-20 sm:p-30 overflow-y-auto">
           <section className="flex flex-col gap-20">
-            <span className={sectionTitleClass}>About you</span>
+            <span className={sectionTitleClass}>Στοιχεία σου</span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-20">
               <div className="flex flex-col gap-10">
-                <span className={labelClass}>Sex</span>
+                <span className={labelClass}>Φύλο</span>
                 <Segmented
                   options={[
-                    { value: 'male', label: 'Male' },
-                    { value: 'female', label: 'Female' },
+                    { value: 'male', label: 'Άνδρας' },
+                    { value: 'female', label: 'Γυναίκα' },
                   ]}
                   value={sex}
                   onChange={followSuggestion(setSex)}
                 />
               </div>
               <label className="flex flex-col gap-10">
-                <span className={labelClass}>Age</span>
+                <span className={labelClass}>Ηλικία</span>
                 <input
                   type="number"
                   min="0"
@@ -300,7 +312,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
                 />
               </label>
               <label className="flex flex-col gap-10">
-                <span className={labelClass}>Weight (kg)</span>
+                <span className={labelClass}>Βάρος (kg)</span>
                 <input
                   type="number"
                   min="0"
@@ -310,7 +322,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
                 />
               </label>
               <label className="flex flex-col gap-10">
-                <span className={labelClass}>Height (cm)</span>
+                <span className={labelClass}>Ύψος (cm)</span>
                 <input
                   type="number"
                   min="0"
@@ -320,19 +332,39 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
                 />
               </label>
             </div>
+            {age > 0 && age < 18 && (
+              <p className="text-14 font-title bg-main-orange/30 border-2 border-black px-15 py-10">
+                Οι υπολογισμοί είναι για ενήλικες. Για παιδιά και εφήβους μίλα με παιδίατρο ή διατροφολόγο.
+              </p>
+            )}
           </section>
 
           <section className="flex flex-col gap-20 border-t-2 border-neutral-200 pt-40">
-            <span className={sectionTitleClass}>Goal & activity</span>
+            <span className={sectionTitleClass}>Στόχος & δραστηριότητα</span>
             <div className="flex flex-col gap-10">
-              <span className={labelClass}>Goal</span>
+              <span className={labelClass}>Στόχος</span>
               <Segmented options={GOALS} value={goal} onChange={followSuggestion(setGoal)} />
             </div>
+            {goal !== 'maintain' && (
+              <div className="flex flex-col gap-10">
+                <span className={labelClass}>Ρυθμός</span>
+                <Segmented options={PACES} value={pace} onChange={followSuggestion(setPace)} />
+                <span className="text-14 font-title text-neutral-500">
+                  {goal === 'lose'
+                    ? `${Math.round((PACES.find((p) => p.value === pace)?.lose ?? 0) * 100)}% λιγότερες θερμίδες από όσες καις. ${
+                        pace === 'fast' ? 'Πιο γρήγορα αποτελέσματα, αλλά πιο δύσκολο να το κρατήσεις.' : 'Βιώσιμος ρυθμός για τους περισσότερους.'
+                      }`
+                    : `${Math.round((PACES.find((p) => p.value === pace)?.gain ?? 0) * 100)}% περισσότερες θερμίδες από όσες καις. ${
+                        pace === 'fast' ? 'Περισσότερος όγκος, αλλά και περισσότερο λίπος.' : 'Αργή αύξηση με λιγότερο λίπος.'
+                      }`}
+                </span>
+              </div>
+            )}
             <div className="flex flex-col gap-10">
-              <span className={labelClass}>Activity level</span>
+              <span className={labelClass}>Επίπεδο δραστηριότητας</span>
               {/* Cards instead of a dropdown: each level's description says how
                   often you exercise, and they need to be readable side by side. */}
-              <div role="radiogroup" aria-label="Activity level" className="grid grid-cols-1 sm:grid-cols-2 gap-10">
+              <div role="radiogroup" aria-label="Επίπεδο δραστηριότητας" className="grid grid-cols-1 sm:grid-cols-2 gap-10">
                 {ACTIVITY_LEVELS.map((a) => {
                   const isSelected = a.value === activity
                   return (
@@ -358,50 +390,50 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
               </div>
             </div>
             <div className="flex flex-col gap-10">
-              <span className={labelClass}>Training & supplements</span>
+              <span className={labelClass}>Προπόνηση & συμπληρώματα</span>
               <div className="flex flex-col gap-10">
                 <ToggleCard
                   checked={worksOut}
                   onChange={followSuggestion(setWorksOut)}
-                  title="Strength training"
-                  description="I lift weights regularly. Raises your protein and water targets."
+                  title="Προπόνηση με βάρη"
+                  description="Κάνω βάρη τακτικά. Ανεβάζει τον στόχο πρωτεΐνης και νερού."
                 />
                 <ToggleCard
                   checked={takesProtein}
-                  onChange={followSuggestion(setTakesProtein)}
-                  title="Protein powder"
-                  description="Meal Plan suggests a shake on days short of protein."
+                  onChange={setTakesProtein}
+                  title="Σκόνη πρωτεΐνης"
+                  description="Το πρόγραμμα προτείνει σέικ τις μέρες που λείπει πρωτεΐνη."
                 />
                 <ToggleCard
                   checked={takesCreatine}
                   onChange={setTakesCreatine}
-                  title="Creatine"
-                  description="No calories, but drink extra water: it pulls water into your muscles."
+                  title="Κρεατίνη"
+                  description="Δεν έχει θερμίδες, αλλά πίνε περισσότερο νερό."
                 />
               </div>
             </div>
           </section>
 
           <section className="flex flex-col gap-20 border-t-2 border-neutral-200 pt-40">
-            <span className={sectionTitleClass}>Food preferences</span>
+            <span className={sectionTitleClass}>Διατροφικές προτιμήσεις</span>
 
             <div className="flex flex-col gap-10">
-              <span className={labelClass}>Diet</span>
+              <span className={labelClass}>Διατροφή</span>
               <Segmented options={DIET_TYPES} value={diet} onChange={setDiet} />
             </div>
 
             <div className="flex flex-col gap-10">
               <div className="flex flex-col gap-5">
-                <span className={labelClass}>Ingredients to avoid</span>
+                <span className={labelClass}>Υλικά που αποφεύγεις</span>
                 <span className="text-14 font-title text-neutral-500">
-                  Allergies or things you don't like. Meal suggestions will skip recipes that use them.
+                  Αλλεργίες ή πράγματα που δεν σου αρέσουν. Οι προτάσεις θα παραλείπουν συνταγές που τα έχουν.
                 </span>
               </div>
 
               <div className="relative">
                 <input
                   type="search"
-                  placeholder="Add an ingredient, e.g. peanuts…"
+                  placeholder="Πρόσθεσε υλικό, π.χ. καρύδια…"
                   value={excludeSearch}
                   onChange={(e) => setExcludeSearch(e.target.value)}
                   className={inputClass}
@@ -416,7 +448,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
                         className="flex w-full items-center justify-between gap-10 text-left px-15 py-10 text-16 font-title font-bold hover:bg-main-yellow border-b border-neutral-200 last:border-b-0 cursor-pointer"
                       >
                         {c.name}
-                        <span className="text-14 font-normal text-neutral-500">+ Avoid</span>
+                        <span className="text-14 font-normal text-neutral-500">+ Αποφυγή</span>
                       </button>
                     ))}
                   </div>
@@ -434,8 +466,8 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
                       <button
                         type="button"
                         onClick={() => removeExcludedIngredient(name)}
-                        aria-label={`Stop avoiding ${name}`}
-                        title="Remove"
+                        aria-label={`Αφαίρεση: ${name}`}
+                        title="Αφαίρεση"
                         className="w-20 h-20 flex items-center justify-center leading-none hover:bg-black hover:text-white cursor-pointer"
                       >
                         ✕
@@ -444,28 +476,76 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
                   ))}
                 </div>
               ) : (
-                <span className="text-14 font-title text-neutral-400">Nothing excluded yet.</span>
+                <span className="text-14 font-title text-neutral-400">Δεν έχεις εξαιρέσει τίποτα.</span>
               )}
             </div>
           </section>
 
+          {/* How the calorie target is worked out, step by step, so it's not
+              a magic number. */}
+          <section className="flex flex-col gap-15 border-t-2 border-neutral-200 pt-40">
+            <span className={sectionTitleClass}>Πώς βγαίνει ο στόχος</span>
+            <div className="flex flex-col border-2 border-black font-title text-14">
+              <div className="flex items-baseline justify-between gap-10 px-15 py-10 border-b border-neutral-200">
+                <span>
+                  <span className="font-bold">Μεταβολισμός ηρεμίας</span>
+                  <span className="block text-12 text-neutral-500">Όσα καις χωρίς να κουνηθείς (Mifflin-St Jeor)</span>
+                </span>
+                <span className="font-bold whitespace-nowrap">{breakdown.bmr} kcal</span>
+              </div>
+              <div className="flex items-baseline justify-between gap-10 px-15 py-10 border-b border-neutral-200">
+                <span>
+                  <span className="font-bold">Με τη δραστηριότητά σου</span>
+                  <span className="block text-12 text-neutral-500">Αν τρως τόσες, το βάρος σου μένει ίδιο</span>
+                </span>
+                <span className="font-bold whitespace-nowrap">{breakdown.maintenance} kcal</span>
+              </div>
+              {goal !== 'maintain' && (
+                <div className="flex items-baseline justify-between gap-10 px-15 py-10 border-b border-neutral-200">
+                  <span>
+                    <span className="font-bold">{goal === 'lose' ? 'Έλλειμμα για απώλεια' : 'Πλεόνασμα για αύξηση'}</span>
+                    {breakdown.hitFloor && (
+                      <span className="block text-12 text-main-red">
+                        Περιορίστηκε για να μην πέσεις κάτω από {sex === 'female' ? 1200 : 1500} kcal
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-bold whitespace-nowrap">
+                    {breakdown.adjustment > 0 ? '+' : ''}
+                    {breakdown.adjustment} kcal
+                  </span>
+                </div>
+              )}
+              <div className="flex items-baseline justify-between gap-10 px-15 py-10 bg-main-yellow">
+                <span className="font-bold uppercase">Ημερήσιος στόχος</span>
+                <span className="text-18 font-bold whitespace-nowrap">{breakdown.calories} kcal</span>
+              </div>
+            </div>
+            {goal === 'lose' && (
+              <span className="text-12 font-title text-neutral-500">
+                Περίπου {((-breakdown.adjustment * 7) / 7700).toFixed(1).replace('.', ',')} kg την εβδομάδα. Οι
+                υπολογισμοί είναι εκτιμήσεις, όχι ιατρική συμβουλή.
+              </span>
+            )}
+          </section>
+
           <section className="flex flex-col gap-15 border-t-2 border-neutral-200 pt-40">
             <div className="flex items-center justify-between gap-10">
-              <span className={sectionTitleClass}>Macro targets</span>
+              <span className={sectionTitleClass}>Στόχοι μακροθρεπτικών</span>
               {customMacros && (
                 <button
                   type="button"
                   onClick={() => setCustomMacros(null)}
                   className="text-14 font-title font-bold underline text-neutral-500 hover:text-black cursor-pointer"
                 >
-                  Reset to suggested
+                  Επαναφορά προτεινόμενων
                 </button>
               )}
             </div>
             <span className="text-14 font-title text-neutral-500">
               {customMacros
-                ? 'Your own numbers. Changing anything above goes back to the suggested values.'
-                : 'Suggested from the details above. Type your own numbers to override them.'}
+                ? 'Δικά σου νούμερα. Αν αλλάξεις κάτι από πάνω, επιστρέφουν στα προτεινόμενα.'
+                : 'Προτείνονται από τα στοιχεία σου. Γράψε δικά σου νούμερα αν θες να τα αλλάξεις.'}
             </span>
             {/* One card per macro: grams to type, and what that is in kcal
                 and as a share of the day, so the numbers mean something. */}
@@ -495,7 +575,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
                       <span className="pr-15 text-16 font-title text-neutral-500">g</span>
                     </span>
                     <span className="text-12 font-title text-neutral-500">
-                      {Math.round(kcal)} kcal · {share}% of the day
+                      {Math.round(kcal)} kcal · {share}% της μέρας
                     </span>
                   </label>
                 )
@@ -507,14 +587,14 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
         {/* Footer */}
         <div className="flex flex-wrap gap-15 justify-end px-20 sm:px-30 py-15 sm:py-20 border-t-3 border-black">
           <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
-            {profile ? 'Cancel' : 'Skip for now'}
+            {profile ? 'Άκυρο' : 'Αργότερα'}
           </button>
           <button
             type="button"
             onClick={saveProfile}
             className="main-btn font-title font-bold bg-main-blue text-white px-15 py-10"
           >
-            Save Profile
+            Αποθήκευση
           </button>
         </div>
       </div>

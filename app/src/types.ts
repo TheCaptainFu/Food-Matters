@@ -1,10 +1,10 @@
 export type Unit = 'g' | 'package' | 'tsp' | 'tbsp'
 
 export const UNITS: { value: Unit; label: string }[] = [
-  { value: 'g', label: 'Grams' },
-  { value: 'package', label: 'Package' },
-  { value: 'tsp', label: 'Teaspoon' },
-  { value: 'tbsp', label: 'Tablespoon' },
+  { value: 'g', label: 'Γραμμάρια' },
+  { value: 'package', label: 'Συσκευασία' },
+  { value: 'tsp', label: 'Κουταλάκι' },
+  { value: 'tbsp', label: 'Κουτάλι' },
 ]
 
 export type Ingredient = { name: string; amount: number; unit: Unit }
@@ -14,38 +14,49 @@ export type Ingredient = { name: string; amount: number; unit: Unit }
 export type GroceryCategory =
   | 'vegetables'
   | 'fruits'
+  | 'bakery'
   | 'meat'
   | 'fish'
+  | 'deli'
+  | 'cheese'
   | 'dairy'
   | 'dairyAlternatives'
+  | 'frozen'
   | 'grains'
   | 'legumes'
-  | 'nuts'
   | 'oils'
   | 'condiments'
-  | 'sweeteners'
   | 'herbsSpices'
+  | 'nuts'
+  | 'sweeteners'
   | 'beverages'
   | 'protein'
   | 'other'
 
+// In the order you'd walk a Greek supermarket (fresh produce at the
+// entrance, counters, fridges, then the dry aisles), so the shopping list
+// follows the route through the store.
 export const GROCERY_CATEGORIES: { value: GroceryCategory; label: string }[] = [
-  { value: 'vegetables', label: 'Vegetables' },
-  { value: 'fruits', label: 'Fruits' },
-  { value: 'meat', label: 'Meat & Poultry' },
-  { value: 'fish', label: 'Fish & Seafood' },
-  { value: 'dairy', label: 'Dairy & Eggs' },
-  { value: 'dairyAlternatives', label: 'Dairy Alternatives' },
-  { value: 'grains', label: 'Grains & Starches' },
-  { value: 'legumes', label: 'Legumes' },
-  { value: 'nuts', label: 'Nuts & Seeds' },
-  { value: 'oils', label: 'Oils & Fats' },
-  { value: 'condiments', label: 'Condiments & Sauces' },
-  { value: 'sweeteners', label: 'Sweeteners & Baking' },
-  { value: 'herbsSpices', label: 'Herbs & Spices' },
-  { value: 'beverages', label: 'Beverages' },
-  { value: 'protein', label: 'Protein Supplements' },
-  { value: 'other', label: 'Other' },
+  { value: 'vegetables', label: 'Λαχανικά' },
+  { value: 'fruits', label: 'Φρούτα' },
+  { value: 'bakery', label: 'Αρτοποιείο' },
+  { value: 'meat', label: 'Κρεοπωλείο' },
+  { value: 'fish', label: 'Ιχθυοπωλείο' },
+  { value: 'deli', label: 'Αλλαντικά' },
+  { value: 'cheese', label: 'Τυριά' },
+  { value: 'dairy', label: 'Γαλακτοκομικά & Αυγά' },
+  { value: 'dairyAlternatives', label: 'Φυτικά ροφήματα' },
+  { value: 'frozen', label: 'Κατεψυγμένα' },
+  { value: 'grains', label: 'Ζυμαρικά, Ρύζι & Αλεύρι' },
+  { value: 'legumes', label: 'Όσπρια' },
+  { value: 'oils', label: 'Λάδι, Ξίδι & Ελιές' },
+  { value: 'condiments', label: 'Κονσέρβες & Σάλτσες' },
+  { value: 'herbsSpices', label: 'Μπαχαρικά & Αλάτι' },
+  { value: 'nuts', label: 'Ξηροί καρποί' },
+  { value: 'sweeteners', label: 'Ζάχαρη, Μέλι & Ζαχαροπλαστική' },
+  { value: 'beverages', label: 'Ροφήματα & Ποτά' },
+  { value: 'protein', label: 'Συμπληρώματα' },
+  { value: 'other', label: 'Άλλα' },
 ]
 
 // The ingredient catalog is user data (like recipes/weeks) — picked from a
@@ -63,25 +74,43 @@ export type IngredientDef = {
   fatPer100g: number
 }
 
-export type Category = 'pasta' | 'meat' | 'fish' | 'vegetarian' | 'dessert'
+export type Category =
+  | 'ladera'
+  | 'legumes'
+  | 'meat'
+  | 'poultry'
+  | 'fish'
+  | 'pasta'
+  | 'pies'
+  | 'salads'
+  | 'breakfast'
+  | 'fruit'
+  | 'dessert'
 
-// color classes are literal Tailwind class strings (kept whole, not
-// interpolated) so the CSS build can detect them
+// The way Greek home cooking is usually grouped. color classes are literal
+// Tailwind class strings (kept whole, not interpolated) so the CSS build
+// can detect them.
 export const CATEGORIES: { value: Category; label: string; color: string }[] = [
-  { value: 'pasta', label: 'Pasta', color: 'bg-main-yellow' },
-  { value: 'meat', label: 'Meat', color: 'bg-main-red' },
-  { value: 'fish', label: 'Fish', color: 'bg-main-teal' },
-  { value: 'vegetarian', label: 'Vegetarian', color: 'bg-main-orange' },
-  { value: 'dessert', label: 'Dessert', color: 'bg-main-blue' },
+  { value: 'ladera', label: 'Λαδερά', color: 'bg-lime-300' },
+  { value: 'legumes', label: 'Όσπρια', color: 'bg-amber-300' },
+  { value: 'meat', label: 'Κρέας', color: 'bg-main-red' },
+  { value: 'poultry', label: 'Πουλερικά', color: 'bg-orange-200' },
+  { value: 'fish', label: 'Ψάρι & Θαλασσινά', color: 'bg-main-teal' },
+  { value: 'pasta', label: 'Ζυμαρικά & Ρύζι', color: 'bg-main-yellow' },
+  { value: 'pies', label: 'Πίτες', color: 'bg-main-orange' },
+  { value: 'salads', label: 'Σαλάτες & Μεζέδες', color: 'bg-green-200' },
+  { value: 'breakfast', label: 'Πρωινό & Σνακ', color: 'bg-pink-200' },
+  { value: 'fruit', label: 'Φρούτα', color: 'bg-rose-300' },
+  { value: 'dessert', label: 'Γλυκά', color: 'bg-main-blue' },
 ]
 
 export type SlotKey = 'breakfast' | 'lunch' | 'afternoon' | 'dinner'
 
 export const SLOT_KEYS: { value: SlotKey; label: string }[] = [
-  { value: 'breakfast', label: 'Breakfast' },
-  { value: 'lunch', label: 'Lunch' },
-  { value: 'afternoon', label: 'Afternoon' },
-  { value: 'dinner', label: 'Dinner' },
+  { value: 'breakfast', label: 'Πρωινό' },
+  { value: 'lunch', label: 'Μεσημεριανό' },
+  { value: 'afternoon', label: 'Απογευματινό' },
+  { value: 'dinner', label: 'Βραδινό' },
 ]
 
 export type Recipe = {

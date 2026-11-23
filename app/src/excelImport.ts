@@ -8,10 +8,10 @@ async function loadXlsx() {
 }
 
 const SLOT_COLUMNS: { key: SlotKey; header: string }[] = [
-  { key: 'breakfast', header: 'Breakfast' },
-  { key: 'lunch', header: 'Lunch' },
-  { key: 'afternoon', header: 'Afternoon' },
-  { key: 'dinner', header: 'Dinner' },
+  { key: 'breakfast', header: 'Πρωινό' },
+  { key: 'lunch', header: 'Μεσημεριανό' },
+  { key: 'afternoon', header: 'Απογευματινό' },
+  { key: 'dinner', header: 'Βραδινό' },
 ]
 
 // A blank, ready-to-fill week — one row per day, one column per meal, cells
@@ -19,17 +19,17 @@ const SLOT_COLUMNS: { key: SlotKey; header: string }[] = [
 // the user so they know exactly what importWeekFromExcel expects back.
 export async function downloadWeekTemplate(recipes: Recipe[]) {
   const XLSX = await loadXlsx()
-  const header = ['Day', ...SLOT_COLUMNS.map((s) => s.header)]
-  const example = recipes[0]?.title ?? 'Greek Salad'
+  const header = ['Μέρα', ...SLOT_COLUMNS.map((s) => s.header)]
+  const example = recipes[0]?.title ?? 'Χωριάτικη σαλάτα'
   const rows = [
     header,
-    ['Monday', example, '', '', ''],
+    [DAY_LABELS[0], example, '', '', ''],
     ...DAY_LABELS.slice(1).map((label) => [label, '', '', '', '']),
   ]
   const sheet = XLSX.utils.aoa_to_sheet(rows)
   sheet['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 22 }]
   const book = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(book, sheet, 'Week')
+  XLSX.utils.book_append_sheet(book, sheet, 'Εβδομάδα')
   XLSX.writeFile(book, 'food-matters-week-template.xlsx')
 }
 

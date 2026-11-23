@@ -77,10 +77,10 @@ function IngredientPickerModal({
       >
         {isFormOpen ? (
           <>
-            <h2 className="text-20 font-title font-bold uppercase">New Ingredient</h2>
+            <h2 className="text-20 font-title font-bold uppercase">Νέο υλικό</h2>
 
             <label className="flex flex-col gap-5">
-              <span className="text-14 font-title font-bold">Name</span>
+              <span className="text-14 font-title font-bold">Όνομα</span>
               <input
                 type="text"
                 value={formName}
@@ -91,7 +91,7 @@ function IngredientPickerModal({
             </label>
 
             <label className="flex flex-col gap-5">
-              <span className="text-14 font-title font-bold">Category</span>
+              <span className="text-14 font-title font-bold">Διάδρομος</span>
               <select
                 value={formCategory}
                 onChange={(e) => setFormCategory(e.target.value as GroceryCategory)}
@@ -106,7 +106,7 @@ function IngredientPickerModal({
             </label>
 
             <label className="flex flex-col gap-5">
-              <span className="text-14 font-title font-bold">Calories per 100g</span>
+              <span className="text-14 font-title font-bold">Θερμίδες ανά 100g</span>
               <input
                 type="number"
                 min="0"
@@ -118,7 +118,7 @@ function IngredientPickerModal({
 
             <div className="grid grid-cols-3 gap-10">
               <label className="flex flex-col gap-5">
-                <span className="text-14 font-title font-bold">Protein (g)</span>
+                <span className="text-14 font-title font-bold">Πρωτεΐνη (g)</span>
                 <input
                   type="number"
                   min="0"
@@ -129,7 +129,7 @@ function IngredientPickerModal({
               </label>
 
               <label className="flex flex-col gap-5">
-                <span className="text-14 font-title font-bold">Carbs (g)</span>
+                <span className="text-14 font-title font-bold">Υδατάνθρακες (g)</span>
                 <input
                   type="number"
                   min="0"
@@ -140,7 +140,7 @@ function IngredientPickerModal({
               </label>
 
               <label className="flex flex-col gap-5">
-                <span className="text-14 font-title font-bold">Fat (g)</span>
+                <span className="text-14 font-title font-bold">Λιπαρά (g)</span>
                 <input
                   type="number"
                   min="0"
@@ -157,24 +157,24 @@ function IngredientPickerModal({
                 onClick={() => setIsFormOpen(false)}
                 className="main-btn font-title font-bold px-15 py-10 mr-auto"
               >
-                ← Back
+                ← Πίσω
               </button>
               <button
                 type="button"
                 onClick={handleFormSave}
                 className="main-btn font-title font-bold bg-main-blue text-white px-15 py-10"
               >
-                Add
+                Προσθήκη
               </button>
             </div>
           </>
         ) : (
           <>
-            <h2 className="text-20 font-title font-bold uppercase">Choose Ingredient</h2>
+            <h2 className="text-20 font-title font-bold uppercase">Επίλεξε υλικό</h2>
 
             <input
               type="text"
-              placeholder="Search…"
+              placeholder="Αναζήτηση…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="border-3 border-black px-15 py-10 font-title"
@@ -183,7 +183,7 @@ function IngredientPickerModal({
 
             <div className="border-3 border-black max-h-[300px] overflow-y-auto">
               {filtered.length === 0 && (
-                <p className="p-15 text-14 font-title text-neutral-500 text-center">No matches.</p>
+                <p className="p-15 text-14 font-title text-neutral-500 text-center">Δεν βρέθηκε τίποτα.</p>
               )}
               {filtered.map((c, index) => (
                 <div
@@ -206,12 +206,12 @@ function IngredientPickerModal({
             </div>
 
             <button type="button" onClick={openAddNew} className="main-btn font-title font-bold px-15 py-10 w-full">
-              + Add new ingredient
+              + Νέο υλικό
             </button>
 
             <div className="flex">
               <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
-                ← Back
+                ← Πίσω
               </button>
             </div>
           </>

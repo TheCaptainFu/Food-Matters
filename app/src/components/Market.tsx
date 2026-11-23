@@ -18,7 +18,7 @@ type MarketProps = {
 type ShoppingItem = { key: string; name: string; unit: string; amount: number; category: GroceryCategory }
 
 
-const UNIT_SHORT: Record<string, string> = { g: 'g', package: 'pkg', tsp: 'tsp', tbsp: 'tbsp' }
+const UNIT_SHORT: Record<string, string> = { g: 'g', package: 'συσκ.', tsp: 'κ.γλ.', tbsp: 'κ.σ.' }
 
 function formatAmount(amount: number, unit: string): string {
   const rounded = Math.round(amount * 10) / 10
@@ -110,14 +110,14 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
   )
   const weekHint =
     weekOffset === 0
-      ? 'This week'
+      ? 'Αυτή η εβδομάδα'
       : weekOffset === 1
-        ? 'Next week'
+        ? 'Επόμενη εβδομάδα'
         : weekOffset === -1
-          ? 'Last week'
+          ? 'Προηγούμενη εβδομάδα'
           : weekOffset > 0
-            ? `In ${weekOffset} weeks`
-            : `${-weekOffset} weeks ago`
+            ? `Σε ${weekOffset} εβδομάδες`
+            : `Πριν από ${-weekOffset} εβδομάδες`
 
   // "From today" only means something for the current week.
   const todayIndex = Math.round((parseISODate(today).getTime() - parseISODate(activeWeekStart).getTime()) / 86_400_000)
@@ -131,7 +131,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
   const extrasToBuy = state.extras.filter((e) => !checkedSet.has(e.id))
   const inCart = [
     ...items.filter((item) => checkedSet.has(item.key)).map((item) => ({ key: item.key, name: item.name, detail: formatAmount(item.amount, item.unit) })),
-    ...state.extras.filter((e) => checkedSet.has(e.id)).map((e) => ({ key: e.id, name: e.name, detail: 'Added by you' })),
+    ...state.extras.filter((e) => checkedSet.has(e.id)).map((e) => ({ key: e.id, name: e.name, detail: 'Πρόσθεσες εσύ' })),
   ]
   const total = items.length + state.extras.length
   const doneCount = inCart.length
@@ -167,23 +167,23 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
 
   // Plain-text list of what's still to buy, for pasting into a chat.
   async function copyList() {
-    const lines = [`Shopping list · ${weekLabel(activeWeekStart)}`]
+    const lines = [`Λίστα αγορών · ${weekLabel(activeWeekStart)}`]
     groupByCategory(toBuy).forEach((group) => {
       lines.push('', group.label)
       group.items.forEach((item) => lines.push(`- ${item.name} (${formatAmount(item.amount, item.unit)})`))
     })
     if (extrasToBuy.length > 0) {
-      lines.push('', 'Other')
+      lines.push('', 'Άλλα')
       extrasToBuy.forEach((e) => lines.push(`- ${e.name}`))
     }
     try {
       await navigator.clipboard.writeText(lines.join('\n'))
-      setToast((prev) => ({ id: (prev?.id ?? 0) + 1, message: 'Shopping list copied.', autoHideMs: 3000 }))
+      setToast((prev) => ({ id: (prev?.id ?? 0) + 1, message: 'Η λίστα αντιγράφηκε.', autoHideMs: 3000 }))
     } catch {
       setToast((prev) => ({
         id: (prev?.id ?? 0) + 1,
         tone: 'error',
-        message: "Couldn't copy. Your browser blocked access to the clipboard.",
+        message: 'Δεν έγινε αντιγραφή. Ο browser μπλόκαρε την πρόσβαση στο πρόχειρο.',
       }))
     }
   }
@@ -194,9 +194,9 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
     <div className="py-20">
       <div className="container flex flex-col gap-25">
         <div className="flex flex-col gap-5">
-          <h2 className="text-26 font-title font-bold uppercase">Shopping List</h2>
+          <h2 className="text-26 font-title font-bold uppercase">Λίστα αγορών</h2>
           <p className="text-14 font-title text-neutral-500">
-            Everything your Meal Plan needs, grouped by aisle. Tick things off as they go in the cart.
+            Ό,τι χρειάζεται το πρόγραμμά σου, ανά διάδρομο. Τσέκαρε ό,τι μπαίνει στο καλάθι.
           </p>
         </div>
 
@@ -205,7 +205,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
             <button
               type="button"
               onClick={() => setActiveWeekStart(toISODate(addDays(parseISODate(activeWeekStart), -7)))}
-              aria-label="Previous week"
+              aria-label="Προηγούμενη εβδομάδα"
               className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
               ‹
@@ -217,7 +217,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
             <button
               type="button"
               onClick={() => setActiveWeekStart(toISODate(addDays(parseISODate(activeWeekStart), 7)))}
-              aria-label="Next week"
+              aria-label="Επόμενη εβδομάδα"
               className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
               ›
@@ -228,7 +228,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
                 onClick={() => setActiveWeekStart(thisWeekStart)}
                 className="text-14 font-title font-bold underline cursor-pointer ml-5"
               >
-                Back to this week
+                Πίσω σε αυτή την εβδομάδα
               </button>
             )}
           </div>
@@ -245,7 +245,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
                       : 'main-btn font-title font-bold px-15 py-10'
                   }
                 >
-                  From today
+                  Από σήμερα
                 </button>
                 <button
                   type="button"
@@ -256,7 +256,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
                       : 'main-btn font-title font-bold px-15 py-10'
                   }
                 >
-                  Whole week
+                  Όλη η εβδομάδα
                 </button>
               </div>
             )}
@@ -266,18 +266,18 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
               disabled={toBuy.length + extrasToBuy.length === 0}
               className="main-btn font-title font-bold px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
             >
-              📋 Copy list
+              📋 Αντιγραφή λίστας
             </button>
           </div>
         </div>
 
-        {/* Always shown, so "+ Add extra" is reachable even on an empty list. */}
+        {/* Always shown, so "+ Πρόσθεσε έξτρα" is reachable even on an empty list. */}
         <div className="flex flex-wrap items-center gap-15">
             <div className="flex-1 min-w-[200px] flex flex-col gap-5">
               {total > 0 && (
                 <>
                   <span className="text-14 font-title font-bold">
-                    {doneCount} of {total} in the cart
+                    {doneCount} από {total} στο καλάθι
                   </span>
                   <div className="w-full h-10 border-2 border-black bg-neutral-100">
                     <div className="h-full bg-main-blue" style={{ width: `${Math.round((doneCount / total) * 100)}%` }} />
@@ -290,7 +290,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
               onClick={() => setIsAddOpen(true)}
               className="main-btn font-title font-bold px-15 py-10 shrink-0"
             >
-              + Add extra
+              + Πρόσθεσε έξτρα
             </button>
             <button
               type="button"
@@ -298,22 +298,22 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
               disabled={inCart.length === 0}
               className="main-btn font-title font-bold px-15 py-10 shrink-0 disabled:opacity-30 disabled:pointer-events-none"
             >
-              🛒 In the cart ({inCart.length})
+              🛒 Στο καλάθι ({inCart.length})
             </button>
         </div>
 
         {items.length === 0 && state.extras.length === 0 && (
           <p className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] p-20 text-14 font-title">
             {isThisWeek && fromToday && todayIndex > 0
-              ? 'Nothing planned from today to the end of the week.'
-              : 'No meals planned for this week yet. Plan some in Meal Plan and they’ll show up here.'}
+              ? 'Δεν έχει προγραμματιστεί τίποτα από σήμερα ως το τέλος της εβδομάδας.'
+              : 'Δεν υπάρχουν γεύματα γι’ αυτή την εβδομάδα. Πρόσθεσε μερικά στο Πρόγραμμα και θα εμφανιστούν εδώ.'}
           </p>
         )}
 
         {/* Added by hand — listed first, like any other group */}
         {extrasToBuy.length > 0 && (
           <section className="flex flex-col gap-10 pt-10">
-            <h3 className="text-16 font-title font-bold uppercase">Added by you</h3>
+            <h3 className="text-16 font-title font-bold uppercase">Πρόσθεσες εσύ</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
               {extrasToBuy.map((extra) => (
                 <div key={extra.id} className="relative">
@@ -324,8 +324,8 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
                   <button
                     type="button"
                     onClick={() => removeExtra(extra.id)}
-                    aria-label={`Remove ${extra.name}`}
-                    title="Remove from the list"
+                    aria-label={`Αφαίρεση: ${extra.name}`}
+                    title="Αφαίρεση από τη λίστα"
                     className="absolute top-1/2 -translate-y-1/2 right-15 font-bold text-14 hover:text-main-red cursor-pointer"
                   >
                     ✕
@@ -372,12 +372,12 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
               className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[400px]"
             >
               <div className="flex flex-col gap-5">
-                <h2 className="text-20 font-title font-bold uppercase">Add to the list</h2>
-                <span className="text-14 font-title text-neutral-500">Anything that isn't in a recipe.</span>
+                <h2 className="text-20 font-title font-bold uppercase">Προσθήκη στη λίστα</h2>
+                <span className="text-14 font-title text-neutral-500">Ό,τι δεν υπάρχει σε κάποια συνταγή.</span>
               </div>
               <input
                 type="text"
-                placeholder="e.g. Milk, kitchen paper…"
+                placeholder="π.χ. Γάλα, χαρτί κουζίνας…"
                 value={newExtra}
                 onChange={(e) => setNewExtra(e.target.value)}
                 className="border-3 border-black px-15 py-10 font-title"
@@ -389,14 +389,14 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
                   onClick={() => setIsAddOpen(false)}
                   className="main-btn font-title font-bold px-15 py-10 mr-auto"
                 >
-                  ← Back
+                  ← Πίσω
                 </button>
                 <button
                   type="submit"
                   disabled={!newExtra.trim()}
                   className="main-btn font-title font-bold bg-main-blue text-white px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
                 >
-                  Add
+                  Προσθήκη
                 </button>
               </div>
             </form>
@@ -415,12 +415,12 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
               className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[440px] max-h-[85vh]"
             >
               <div className="flex flex-col gap-5">
-                <h2 className="text-20 font-title font-bold uppercase">In the cart ({inCart.length})</h2>
-                <span className="text-14 font-title text-neutral-500">Tap something to put it back on the list.</span>
+                <h2 className="text-20 font-title font-bold uppercase">Στο καλάθι ({inCart.length})</h2>
+                <span className="text-14 font-title text-neutral-500">Πάτα κάτι για να το ξαναβάλεις στη λίστα.</span>
               </div>
               <div className="flex flex-col gap-10 overflow-y-auto">
                 {inCart.length === 0 && (
-                  <p className="text-14 font-title text-neutral-500">Nothing in the cart.</p>
+                  <p className="text-14 font-title text-neutral-500">Το καλάθι είναι άδειο.</p>
                 )}
                 {inCart.map((item) => (
                   <button
@@ -443,7 +443,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
                   onClick={() => setIsCartOpen(false)}
                   className="main-btn font-title font-bold px-15 py-10"
                 >
-                  Close
+                  Κλείσιμο
                 </button>
               </div>
             </div>

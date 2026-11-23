@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
+import { SLOT_KEYS } from '../types'
 import type { Macros, Profile } from '../nutrition'
 import { calculateMacroTargets, recipeMacros } from '../nutrition'
 import { filterCompatibleRecipes } from '../dietaryRestrictions'
@@ -26,11 +27,12 @@ function macroDistance(candidate: Macros, budget: Macros): number {
 
 // badge classes are literal Tailwind class strings (kept whole, not
 // interpolated) so the CSS build can detect them in this file
+const slotLabel = (key: SlotKey) => SLOT_KEYS.find((s) => s.value === key)?.label ?? key
 const SLOTS: { key: SlotKey; label: string; badge: string }[] = [
-  { key: 'breakfast', label: 'Breakfast', badge: 'bg-main-yellow text-black' },
-  { key: 'lunch', label: 'Lunch', badge: 'bg-main-orange text-black' },
-  { key: 'afternoon', label: 'Afternoon', badge: 'bg-main-teal text-black' },
-  { key: 'dinner', label: 'Dinner', badge: 'bg-main-blue text-white' },
+  { key: 'breakfast', label: slotLabel('breakfast'), badge: 'bg-main-yellow text-black' },
+  { key: 'lunch', label: slotLabel('lunch'), badge: 'bg-main-orange text-black' },
+  { key: 'afternoon', label: slotLabel('afternoon'), badge: 'bg-main-teal text-black' },
+  { key: 'dinner', label: slotLabel('dinner'), badge: 'bg-main-blue text-white' },
 ]
 
 // How the day's targets (calories and each macro alike) split across slots
@@ -189,14 +191,14 @@ function Calendar({
   )
   const weekHint =
     weekOffset === 0
-      ? 'This week'
+      ? 'Αυτή η εβδομάδα'
       : weekOffset === 1
-        ? 'Next week'
+        ? 'Επόμενη εβδομάδα'
         : weekOffset === -1
-          ? 'Last week'
+          ? 'Προηγούμενη εβδομάδα'
           : weekOffset > 0
-            ? `In ${weekOffset} weeks`
-            : `${-weekOffset} weeks ago`
+            ? `Σε ${weekOffset} εβδομάδες`
+            : `Πριν από ${-weekOffset} εβδομάδες`
 
   // Entering the page (or switching back to the current week) starts the
   // days row at today, so the day you care about is the first one you see.
@@ -255,15 +257,15 @@ function Calendar({
         showToast(
           skipped.length > 0
             ? {
-                message: `Imported ${imported.label}. These recipes weren't found in your Recipes list and were skipped:\n${skipped.join(', ')}`,
+                message: `Έγινε εισαγωγή: ${imported.label}. Αυτές οι συνταγές δεν βρέθηκαν στις Συνταγές σου και παραλείφθηκαν:\n${skipped.join(', ')}`,
               }
-            : { message: `Imported ${imported.label}.`, autoHideMs: 4000 },
+            : { message: `Έγινε εισαγωγή: ${imported.label}.`, autoHideMs: 4000 },
         )
       }
       if (weekHasMeals) {
         setPendingConfirm({
-          message: `Replace the meals planned for ${imported.label} with the ones from this file?`,
-          confirmLabel: 'Replace',
+          message: `Να αντικατασταθούν τα γεύματα της εβδομάδας ${imported.label} με αυτά του αρχείου;`,
+          confirmLabel: 'Αντικατάσταση',
           onConfirm: apply,
         })
       } else {
@@ -272,7 +274,7 @@ function Calendar({
     } catch {
       showToast({
         tone: 'error',
-        message: "Couldn't read that file. Make sure it's an .xlsx, .xls or .csv made from the downloaded template.",
+        message: 'Δεν ήταν δυνατή η ανάγνωση του αρχείου. Βεβαιώσου ότι είναι .xlsx, .xls ή .csv από το πρότυπο που κατέβασες.',
       })
     } finally {
       setIsImporting(false)
@@ -283,8 +285,8 @@ function Calendar({
     if (!storedWeek) return
     const startDate = activeWeekStart
     setPendingConfirm({
-      message: `Clear ${activeWeek.label}? This removes its planned meals and anything logged that week. This cannot be undone.`,
-      confirmLabel: 'Clear week',
+      message: `Άδειασμα εβδομάδας ${activeWeek.label}; Θα διαγραφούν τα γεύματά της και ό,τι έχεις καταγράψει. Δεν αναιρείται.`,
+      confirmLabel: 'Άδειασμα',
       onConfirm: () => setWeeks((prev) => prev.filter((w) => w.startDate !== startDate)),
     })
   }
@@ -342,12 +344,12 @@ function Calendar({
       }))
 
     updateSlot((ids) => ids.filter((_, idx) => idx !== recipeIndex))
-    const title = recipes.find((r) => r.id === recipeId)?.title ?? 'Recipe'
+    const title = recipes.find((r) => r.id === recipeId)?.title ?? 'Συνταγή'
     showToast({
-      message: `Removed ${title}.`,
+      message: `Αφαιρέθηκε: ${title}.`,
       autoHideMs: 5000,
       action: {
-        label: 'Undo',
+        label: 'Αναίρεση',
         onClick: () => updateSlot((ids) => [...ids.slice(0, recipeIndex), recipeId, ...ids.slice(recipeIndex)]),
       },
     })
@@ -526,7 +528,7 @@ function Calendar({
   function fillWeek() {
     if (dailyMacroTargets === null) return
     if (!weekHasEmptySlot) {
-      showToast({ message: 'Every meal this week is already planned.', autoHideMs: 4000 })
+      showToast({ message: 'Όλα τα γεύματα της εβδομάδας είναι ήδη προγραμματισμένα.', autoHideMs: 4000 })
       return
     }
     // Seed with what's already planned so fills favor variety around it.
@@ -558,8 +560,8 @@ function Calendar({
   function replanWeek() {
     if (dailyMacroTargets === null) return
     setPendingConfirm({
-      message: `Replace every meal in ${activeWeek.label} with a brand-new plan? Meals you picked yourself will be replaced too. This cannot be undone.`,
-      confirmLabel: 'Replan week',
+      message: `Νέο πρόγραμμα για την εβδομάδα ${activeWeek.label}; Θα αντικατασταθούν και τα γεύματα που διάλεξες εσύ. Δεν αναιρείται.`,
+      confirmLabel: 'Νέο πρόγραμμα',
       onConfirm: () => {
         const usageCounts = new Map<string, number>()
         const emptySlots: Day['slots'] = { breakfast: [], lunch: [], afternoon: [], dinner: [] }
@@ -595,19 +597,19 @@ function Calendar({
     <div className="py-20">
       <div className="container flex flex-col gap-20">
         <div className="flex flex-col gap-5">
-          <h2 className="text-26 font-title font-bold uppercase">Meal Plan</h2>
+          <h2 className="text-26 font-title font-bold uppercase">Πρόγραμμα</h2>
           <p className="text-14 font-title text-neutral-500">
-            Press Edit to change meals, or Fill Week to plan the empty ones for you.
+            Πάτα Επεξεργασία για να αλλάξεις γεύματα ή Συμπλήρωση εβδομάδας για να γεμίσουν αυτόματα τα κενά.
           </p>
         </div>
 
         {!profile && (
           <div className="bg-main-yellow border-3 border-black shadow-[4px_4px_0_0_#000] p-15 flex flex-wrap items-center justify-between gap-10">
             <span className="text-14 font-title font-bold">
-              Set up your profile to see daily calorie targets and fill your week automatically.
+              Φτιάξε το προφίλ σου για να βλέπεις τους ημερήσιους στόχους θερμίδων και να γεμίζεις την εβδομάδα αυτόματα.
             </span>
             <button type="button" onClick={onOpenProfile} className="main-btn font-title font-bold px-15 py-10">
-              Set up profile
+              Φτιάξε το προφίλ σου
             </button>
           </div>
         )}
@@ -617,7 +619,7 @@ function Calendar({
             <button
               type="button"
               onClick={() => goToWeek(-1)}
-              aria-label="Previous week"
+              aria-label="Προηγούμενη εβδομάδα"
               className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
               ‹
@@ -629,7 +631,7 @@ function Calendar({
             <button
               type="button"
               onClick={() => goToWeek(1)}
-              aria-label="Next week"
+              aria-label="Επόμενη εβδομάδα"
               className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
               ›
@@ -640,7 +642,7 @@ function Calendar({
                 onClick={() => setActiveWeekStart(thisWeekStart)}
                 className="text-14 font-title font-bold underline cursor-pointer ml-5"
               >
-                Back to this week
+                Πίσω σε αυτή την εβδομάδα
               </button>
             )}
           </div>
@@ -655,7 +657,7 @@ function Calendar({
                   : 'main-btn font-title font-bold px-15 py-10'
               }
             >
-              {isEditing ? 'Done' : 'Edit'}
+              {isEditing ? 'Τέλος' : 'Επεξεργασία'}
             </button>
             <button
               type="button"
@@ -663,12 +665,12 @@ function Calendar({
               disabled={dailyTarget === null}
               title={
                 dailyTarget === null
-                  ? 'Set up your profile first'
-                  : 'Fill the empty meals of this week to match your daily targets (planned meals stay)'
+                  ? 'Φτιάξε πρώτα το προφίλ σου'
+                  : 'Γέμισε τα κενά γεύματα της εβδομάδας με βάση τους ημερήσιους στόχους σου (τα υπάρχοντα μένουν)'
               }
               className="main-btn font-title font-bold px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
             >
-              Fill Week
+              Συμπλήρωση εβδομάδας
             </button>
             <WeekMenu
               isImporting={isImporting}
@@ -685,14 +687,14 @@ function Calendar({
         {isEditing && (
           <div className="bg-main-blue text-white border-3 border-black px-15 py-10 flex flex-wrap items-center justify-between gap-10">
             <span className="text-14 font-title font-bold">
-              Editing: add, swap, remove or drag meals. Changes save automatically.
+              Επεξεργασία: πρόσθεσε, άλλαξε, αφαίρεσε ή σύρε γεύματα. Οι αλλαγές αποθηκεύονται αυτόματα.
             </span>
             <button
               type="button"
               onClick={() => setIsEditing(false)}
               className="main-btn font-title font-bold text-14 px-15 py-5"
             >
-              Done
+              Τέλος
             </button>
           </div>
         )}
@@ -701,7 +703,7 @@ function Calendar({
           <button
             type="button"
             onClick={() => scrollDays(-1)}
-            aria-label="Previous day"
+            aria-label="Προηγούμενη μέρα"
             className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
           >
             ‹
@@ -709,7 +711,7 @@ function Calendar({
           <button
             type="button"
             onClick={() => scrollDays(1)}
-            aria-label="Next day"
+            aria-label="Επόμενη μέρα"
             className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
           >
             ›
@@ -754,17 +756,17 @@ function Calendar({
                     {day.label}
                     <span className="text-14 font-normal normal-case text-neutral-500">{formatDayDate(date)}</span>
                     {isToday && (
-                      <span className="bg-main-blue text-white text-12 px-5 py-[2px] normal-case">Today</span>
+                      <span className="bg-main-blue text-white text-12 px-5 py-[2px] normal-case">Σήμερα</span>
                     )}
                   </h3>
                   {isEditing && dailyTarget !== null && hasEmptySlot && (
                       <button
                         type="button"
                         onClick={() => autoFillDay(dayIndex)}
-                        title="Fill this day's empty meals to match your daily target"
+                        title="Γέμισε τα κενά γεύματα της μέρας με βάση τον ημερήσιο στόχο σου"
                         className="main-btn font-title font-bold px-10 py-5 text-12"
                       >
-                        Auto-fill
+                        Συμπλήρωση
                       </button>
                     )}
                 </div>
@@ -858,8 +860,8 @@ function Calendar({
                               <button
                                 type="button"
                                 onClick={() => setMoveTarget({ dayIndex, slotKey: slot.key, recipeIndex })}
-                                aria-label="Move to another day or meal"
-                                title="Move to another day or meal"
+                                aria-label="Μετακίνηση σε άλλη μέρα ή γεύμα"
+                                title="Μετακίνηση σε άλλη μέρα ή γεύμα"
                                 className="text-black hover:text-main-blue font-bold text-14 leading-none cursor-pointer"
                               >
                                 ↗
@@ -867,8 +869,8 @@ function Calendar({
                               <button
                                 type="button"
                                 onClick={() => setSuggestTarget({ dayIndex, slotKey: slot.key, recipeIndex })}
-                                aria-label="Swap for a similar recipe"
-                                title="Swap for a similar recipe"
+                                aria-label="Αλλαγή με παρόμοια συνταγή"
+                                title="Αλλαγή με παρόμοια συνταγή"
                                 className="text-black hover:text-main-blue font-bold text-14 leading-none cursor-pointer"
                               >
                                 ⇄
@@ -876,8 +878,8 @@ function Calendar({
                               <button
                                 type="button"
                                 onClick={() => removeRecipeFromSlot(dayIndex, slot.key, recipeIndex)}
-                                aria-label="Remove"
-                                title="Remove"
+                                aria-label="Αφαίρεση"
+                                title="Αφαίρεση"
                                 className="text-black hover:text-main-red font-bold text-14 leading-none cursor-pointer"
                               >
                                 ✕
@@ -892,7 +894,7 @@ function Calendar({
                           logged and edited on the Calories page. */}
                       {entry && (
                         <div
-                          title="What you actually ate (log and edit meals on the Calories page)"
+                          title="Τι έφαγες τελικά (καταγραφή και αλλαγές στη σελίδα Θερμίδες)"
                           className="flex items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5"
                         >
                           <span className="flex items-center gap-10 min-w-0">
@@ -910,7 +912,7 @@ function Calendar({
                       )}
 
                       {!isEditing && day.slots[slot.key].length === 0 && !entry && (
-                        <span className="text-12 font-title text-neutral-400">Nothing planned</span>
+                        <span className="text-12 font-title text-neutral-400">Δεν έχει προγραμματιστεί</span>
                       )}
 
                       {isEditing && day.slots[slot.key].length === 0 && (
@@ -964,7 +966,7 @@ function Calendar({
         <MoveRecipeModal
           recipeTitle={
             recipes.find((r) => r.id === activeWeek.days[moveTarget.dayIndex]?.slots[moveTarget.slotKey][moveTarget.recipeIndex])
-              ?.title ?? 'Recipe'
+              ?.title ?? 'Συνταγή'
           }
           days={activeWeek.days.map((day, i) => ({ label: day.label, date: formatDayDate(dayDate(activeWeek, i)) }))}
           from={moveTarget}
@@ -1032,9 +1034,9 @@ function DayProgress({ totals, targets, takesProtein }: DayProgressProps) {
         {showShake && (
           <span
             className="text-neutral-500 whitespace-nowrap"
-            title={`About ${proteinGap}g short of your protein target — ${scoops} scoop${scoops > 1 ? 's' : ''} of protein powder covers it`}
+            title={`Σου λείπουν περίπου ${proteinGap}g πρωτεΐνης — καλύπτονται με ${scoops === 1 ? '1 μεζούρα' : `${scoops} μεζούρες`} σέικ πρωτεΐνης`}
           >
-            💊 +{scoops} shake
+            💊 +{scoops} σέικ
           </span>
         )}
       </div>
@@ -1066,12 +1068,12 @@ function WeekMenu({ isImporting, canClear, canReplan, onReplan, onDownloadTempla
     <div className="relative">
       <button
         type="button"
-        aria-label="More week options"
+        aria-label="Περισσότερες επιλογές εβδομάδας"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((v) => !v)}
         className="main-btn font-title font-bold px-15 py-10"
       >
-        {isImporting ? 'Importing…' : '⋯'}
+        {isImporting ? 'Εισαγωγή…' : '⋯'}
       </button>
 
       {isOpen && (
@@ -1086,12 +1088,12 @@ function WeekMenu({ isImporting, canClear, canReplan, onReplan, onDownloadTempla
               }}
               className={itemClass}
             >
-              Download Excel template
+              Λήψη προτύπου Excel
             </button>
             {/* The menu closes only once a file is picked — closing on click
                 would unmount the input before the file dialog returns. */}
             <label className={itemClass}>
-              Import this week from Excel
+              Εισαγωγή εβδομάδας από Excel
               <input
                 type="file"
                 accept=".xlsx,.xls,.csv"
@@ -1112,7 +1114,7 @@ function WeekMenu({ isImporting, canClear, canReplan, onReplan, onDownloadTempla
               }}
               className={itemClass}
             >
-              Replan whole week
+              Νέο πρόγραμμα για όλη την εβδομάδα
             </button>
             <button
               type="button"
@@ -1123,7 +1125,7 @@ function WeekMenu({ isImporting, canClear, canReplan, onReplan, onDownloadTempla
               }}
               className={`${itemClass} text-main-red`}
             >
-              Clear this week
+              Άδειασμα εβδομάδας
             </button>
           </div>
         </>
@@ -1153,12 +1155,12 @@ function MoveRecipeModal({ recipeTitle, days, from, onMove, onClose }: MoveRecip
         className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-20 w-full max-w-[420px] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex flex-col gap-5">
-          <h2 className="text-20 font-title font-bold uppercase">Move Meal</h2>
+          <h2 className="text-20 font-title font-bold uppercase">Μετακίνηση γεύματος</h2>
           <span className="text-14 font-title text-neutral-500">{recipeTitle}</span>
         </div>
 
         <div className="flex flex-col gap-10">
-          <span className="text-14 font-title font-bold uppercase text-neutral-500">Day</span>
+          <span className="text-14 font-title font-bold uppercase text-neutral-500">Μέρα</span>
           <div className="grid grid-cols-4 gap-10">
             {days.map((day, i) => (
               <button
@@ -1179,7 +1181,7 @@ function MoveRecipeModal({ recipeTitle, days, from, onMove, onClose }: MoveRecip
         </div>
 
         <div className="flex flex-col gap-10">
-          <span className="text-14 font-title font-bold uppercase text-neutral-500">Meal</span>
+          <span className="text-14 font-title font-bold uppercase text-neutral-500">Γεύμα</span>
           <div className="grid grid-cols-2 gap-10">
             {SLOTS.map((slot) => (
               <button
@@ -1200,7 +1202,7 @@ function MoveRecipeModal({ recipeTitle, days, from, onMove, onClose }: MoveRecip
 
         <div className="flex gap-10 justify-end">
           <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10 mr-auto">
-            ← Back
+            ← Πίσω
           </button>
           <button
             type="button"
@@ -1208,7 +1210,7 @@ function MoveRecipeModal({ recipeTitle, days, from, onMove, onClose }: MoveRecip
             onClick={() => onMove({ dayIndex, slotKey })}
             className="main-btn font-title font-bold bg-main-blue text-white px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
           >
-            Move here
+            Μετακίνηση εδώ
           </button>
         </div>
       </div>
@@ -1233,15 +1235,15 @@ function SlotPicker({ recipes, onAdd, compact = false }: SlotPickerProps) {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        aria-label={compact ? 'Add another recipe' : undefined}
-        title={compact ? 'Add another recipe' : undefined}
+        aria-label={compact ? 'Προσθήκη κι άλλης συνταγής' : undefined}
+        title={compact ? 'Προσθήκη κι άλλης συνταγής' : undefined}
         className={
           compact
             ? 'text-neutral-500 hover:text-black font-bold text-16 leading-none px-5 cursor-pointer'
             : 'border-2 border-dashed border-neutral-400 hover:border-black px-10 py-5 text-12 text-neutral-600 hover:text-black font-title font-bold cursor-pointer text-left'
         }
       >
-        {compact ? '+' : '+ Add recipe'}
+        {compact ? '+' : '+ Προσθήκη συνταγής'}
       </button>
 
       {isOpen && (

@@ -9,9 +9,9 @@ type ConfirmModalProps = {
 }
 
 function ConfirmModal({
-  title = 'Are you sure?',
+  title = 'Σίγουρα;',
   message,
-  confirmLabel = 'Delete',
+  confirmLabel = 'Διαγραφή',
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
@@ -29,7 +29,7 @@ function ConfirmModal({
 
         <div className="flex gap-10 justify-end">
           <button type="button" onClick={onCancel} className="main-btn font-title font-bold px-15 py-10">
-            Cancel
+            Άκυρο
           </button>
           <button
             type="button"

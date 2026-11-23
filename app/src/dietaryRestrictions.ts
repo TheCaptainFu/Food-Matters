@@ -3,86 +3,91 @@ import type { Recipe } from './types'
 export type DietType = 'none' | 'vegetarian' | 'vegan'
 
 export const DIET_TYPES: { value: DietType; label: string }[] = [
-  { value: 'none', label: 'No restriction' },
-  { value: 'vegetarian', label: 'Vegetarian' },
+  { value: 'none', label: 'Χωρίς περιορισμό' },
+  { value: 'vegetarian', label: 'Χορτοφαγική' },
   { value: 'vegan', label: 'Vegan' },
 ]
 
 // Keyword-based, not a per-ingredient database — works on ingredient NAMES
-// (including ones the user adds themselves) rather than requiring every
-// catalog entry to carry its own diet tags.
+// (including ones the user adds themselves). Names are compared lowercase
+// and without Greek accents, so keywords are written without accents.
 const MEAT_FISH_KEYWORDS = [
-  'chicken',
-  'beef',
-  'pork',
-  'bacon',
-  'ham',
-  'sausage',
-  'turkey',
-  'lamb',
-  'veal',
-  'salmon',
-  'tuna',
-  'shrimp',
-  'cod',
-  'tilapia',
-  'sardine',
-  'mackerel',
-  'squid',
-  'mussel',
-  'fish',
-  'meat',
-  'duck',
-  'anchovy',
-  'crab',
-  'lobster',
-  'oyster',
-  'clam',
-  'gelatin',
+  'κοτοπουλ',
+  'κιμα',
+  'μοσχαρ',
+  'χοιριν',
+  'αρνι',
+  'κατσικ',
+  'γαλοπουλ',
+  'συκωτ',
+  'λουκανικ',
+  'ζαμπον',
+  'μπεικον',
+  'παστουρμα',
+  'σουτζουκ',
+  'κρεας',
+  'ψαρι',
+  'τσιπουρα',
+  'λαβρακι',
+  'σολομ',
+  'μπακαλιαρ',
+  'γαυρ',
+  'σαρδελ',
+  'σκουμπρ',
+  'γλωσσα',
+  'χταποδ',
+  'καλαμαρ',
+  'σουπια',
+  'γαριδ',
+  'μυδι',
+  'τονος',
+  'ζελατιν',
 ]
 
 const ANIMAL_PRODUCT_KEYWORDS = [
-  'egg',
-  'milk',
-  'yogurt',
-  'yoghurt',
-  'cheese',
-  'cream',
-  'butter',
-  'honey',
-  'mayonnaise',
+  'αυγ',
+  'γαλα',
+  'γιαουρτ',
+  'τζατζικ',
+  'τυρ',
+  'φετα',
+  'κεφαλοτυρ',
+  'γραβιερ',
+  'κασερ',
+  'μυζηθρ',
+  'ανθοτυρ',
+  'κατικ',
+  'χαλουμ',
+  'μοτσαρελ',
+  'παρμεζαν',
+  'κρεμα',
+  'βουτυρ',
+  'μελι',
+  'μαγιονεζ',
   'whey',
-  'ghee',
-  // named cheeses whose names don't contain the word "cheese"
-  'mozzarella',
-  'parmesan',
-  'ricotta',
-  'provolone',
-  'brie',
+  'ορου',
 ]
 
-// Plant-based ingredients whose names happen to contain a dairy keyword
-// ("milk", "butter", ...) — checked before the keyword match so they don't
-// get misclassified.
-const VEGAN_SAFE_EXCEPTIONS = [
-  'almond milk',
-  'oat milk',
-  'soy milk',
-  'coconut milk',
-  'peanut butter',
-  'cocoa butter',
-  'shea butter',
-  'almond flour',
-]
+// Plant-based ingredients whose names happen to contain an animal keyword
+// ("γάλα" in "ρόφημα", "βούτυρο" in "φυστικοβούτυρο", "μέλι" in
+// "μελιτζάνα"…) — checked before the keyword match.
+const VEGAN_SAFE_EXCEPTIONS = ['ροφημα', 'φυστικοβουτυρ', 'μελιτζαν', 'ζωμος λαχανικων']
+
+function normalize(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
 
 function containsKeyword(name: string, keywords: string[]): boolean {
-  const lower = name.toLowerCase()
-  return keywords.some((k) => lower.includes(k))
+  const n = normalize(name)
+  return keywords.some((k) => n.includes(k))
 }
 
 function isException(name: string): boolean {
-  const lower = name.toLowerCase()
-  return VEGAN_SAFE_EXCEPTIONS.some((e) => lower.includes(e))
+  const n = normalize(name)
+  return VEGAN_SAFE_EXCEPTIONS.some((e) => n.includes(e))
 }
 
 export function isIngredientVegetarian(name: string): boolean {

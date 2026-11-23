@@ -17,7 +17,7 @@ function Footer() {
             rel="noopener noreferrer"
             className="main-btn bg-main-yellow font-title font-bold uppercase px-15 py-10"
           >
-            ☕ Buy me a coffee
+            ☕ Κέρασέ με έναν καφέ
           </a>
         )}
       </div>

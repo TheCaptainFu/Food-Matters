@@ -121,13 +121,13 @@ function ActualEntryModal({
         onClick={(e) => e.stopPropagation()}
         className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[420px] max-h-[85vh] overflow-y-auto"
       >
-        <h2 className="text-20 font-title font-bold uppercase">What did you eat — {slotLabel}?</h2>
+        <h2 className="text-20 font-title font-bold uppercase">Τι έφαγες — {slotLabel};</h2>
 
         {step === 'pick' ? (
           <>
             <input
               type="search"
-              placeholder="Search your recipes…"
+              placeholder="Αναζήτηση στις συνταγές σου…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className={inputClass}
@@ -155,7 +155,7 @@ function ActualEntryModal({
                 ))
               ) : (
                 <p className="px-15 py-10 text-14 font-title text-neutral-500">
-                  No recipes match “{search.trim()}”.
+                  Καμία συνταγή δεν ταιριάζει με «{search.trim()}».
                 </p>
               )}
             </div>
@@ -165,22 +165,22 @@ function ActualEntryModal({
               onClick={goToCustom}
               className="border-2 border-dashed border-neutral-400 hover:border-black px-15 py-10 text-14 font-title font-bold text-left cursor-pointer"
             >
-              + Something not in my recipes{search.trim() ? `: “${search.trim()}”` : ''}
+              + Κάτι που δεν είναι στις συνταγές μου{search.trim() ? `: «${search.trim()}»` : ''}
             </button>
 
             <div className="flex gap-10 justify-end flex-wrap">
               <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
-                Cancel
+                Άκυρο
               </button>
             </div>
           </>
         ) : (
           <>
             <label className="flex flex-col gap-5">
-              <span className="text-14 font-title font-bold">What did you eat?</span>
+              <span className="text-14 font-title font-bold">Τι έφαγες;</span>
               <input
                 type="text"
-                placeholder="e.g. Souvlaki pita"
+                placeholder="π.χ. Σουβλάκι πίτα"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className={inputClass}
@@ -190,32 +190,32 @@ function ActualEntryModal({
 
             <div className="grid grid-cols-2 gap-10">
               <label className="flex flex-col gap-5">
-                <span className="text-14 font-title font-bold">Calories</span>
+                <span className="text-14 font-title font-bold">Θερμίδες</span>
                 <input type="number" min="0" value={calories} onChange={(e) => setCalories(e.target.value)} className={inputClass} />
               </label>
               <label className="flex flex-col gap-5">
-                <span className="text-14 font-title font-bold">Protein (g)</span>
+                <span className="text-14 font-title font-bold">Πρωτεΐνη (g)</span>
                 <input type="number" min="0" value={protein} onChange={(e) => setProtein(e.target.value)} className={inputClass} />
               </label>
               <label className="flex flex-col gap-5">
-                <span className="text-14 font-title font-bold">Carbs (g)</span>
+                <span className="text-14 font-title font-bold">Υδατάνθρακες (g)</span>
                 <input type="number" min="0" value={carbs} onChange={(e) => setCarbs(e.target.value)} className={inputClass} />
               </label>
               <label className="flex flex-col gap-5">
-                <span className="text-14 font-title font-bold">Fat (g)</span>
+                <span className="text-14 font-title font-bold">Λιπαρά (g)</span>
                 <input type="number" min="0" value={fat} onChange={(e) => setFat(e.target.value)} className={inputClass} />
               </label>
             </div>
 
             <label className="flex flex-col gap-5">
-              <span className="text-14 font-title font-bold">Photo (optional)</span>
+              <span className="text-14 font-title font-bold">Φωτογραφία (προαιρετικά)</span>
               {photo ? (
                 <div className="relative w-fit">
                   <img src={photo} alt="" className="main-btn max-h-[150px] object-cover" />
                   <button
                     type="button"
                     onClick={() => setPhoto(undefined)}
-                    aria-label="Remove photo"
+                    aria-label="Αφαίρεση φωτογραφίας"
                     className="absolute -top-10 -right-10 main-btn w-25 h-25 flex items-center justify-center bg-main-red text-white font-bold p-0"
                   >
                     ✕
@@ -230,7 +230,7 @@ function ActualEntryModal({
                   className="text-14 font-title"
                 />
               )}
-              {isUploading && <span className="text-12 font-title text-neutral-500">Uploading…</span>}
+              {isUploading && <span className="text-12 font-title text-neutral-500">Ανέβασμα…</span>}
             </label>
 
             <div className="flex gap-10 justify-end flex-wrap">
@@ -243,7 +243,7 @@ function ActualEntryModal({
                   onClick={() => setStep('pick')}
                   className="main-btn font-title font-bold px-15 py-10 mr-auto"
                 >
-                  ← Back
+                  ← Πίσω
                 </button>
               )}
               {initial && (
@@ -252,11 +252,11 @@ function ActualEntryModal({
                   onClick={onDelete}
                   className="main-btn font-title font-bold bg-main-red text-white px-15 py-10 mr-auto"
                 >
-                  Delete
+                  Διαγραφή
                 </button>
               )}
               <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
-                Cancel
+                Άκυρο
               </button>
               <button
                 type="button"
@@ -264,7 +264,7 @@ function ActualEntryModal({
                 disabled={!description.trim()}
                 className="main-btn font-title font-bold bg-main-blue text-white px-15 py-10 disabled:opacity-30 disabled:pointer-events-none"
               >
-                Save
+                Αποθήκευση
               </button>
             </div>
           </>

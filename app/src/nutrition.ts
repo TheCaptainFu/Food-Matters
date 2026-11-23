@@ -32,10 +32,10 @@ export function spoonHint(grams: number): string | null {
   if (grams < 2.5) return null
   if (grams < 12.5) {
     const tsp = Math.round((grams / 5) * 2) / 2
-    return `≈ ${formatSpoonCount(tsp)} tsp`
+    return `≈ ${formatSpoonCount(tsp)} κ.γλ.`
   }
   const tbsp = Math.round((grams / 15) * 2) / 2
-  return `≈ ${formatSpoonCount(tbsp)} tbsp`
+  return `≈ ${formatSpoonCount(tbsp)} κ.σ.`
 }
 
 export type Macros = { calories: number; protein: number; carbs: number; fat: number }
@@ -75,14 +75,14 @@ export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'ver
 export const ACTIVITY_LEVELS: { value: ActivityLevel; label: string; description: string; multiplier: number }[] = [
   // Descriptions spell out the frequency each standard multiplier assumes,
   // so people can place themselves instead of guessing what "active" means.
-  { value: 'sedentary', label: 'Sedentary', description: 'Desk job, little or no exercise', multiplier: 1.2 },
-  { value: 'light', label: 'Lightly active', description: 'Exercise 1–3 days a week', multiplier: 1.375 },
-  { value: 'moderate', label: 'Moderately active', description: 'Exercise 3–5 days a week', multiplier: 1.55 },
-  { value: 'active', label: 'Very active', description: 'Hard exercise 6–7 days a week', multiplier: 1.725 },
+  { value: 'sedentary', label: 'Καθιστική ζωή', description: 'Δουλειά γραφείου, λίγη ή καθόλου άσκηση', multiplier: 1.2 },
+  { value: 'light', label: 'Λίγο δραστήριος', description: 'Άσκηση 1–3 μέρες την εβδομάδα', multiplier: 1.375 },
+  { value: 'moderate', label: 'Μέτρια δραστήριος', description: 'Άσκηση 3–5 μέρες την εβδομάδα', multiplier: 1.55 },
+  { value: 'active', label: 'Πολύ δραστήριος', description: 'Έντονη άσκηση 6–7 μέρες την εβδομάδα', multiplier: 1.725 },
   {
     value: 'very_active',
-    label: 'Extremely active',
-    description: 'Physical job, or training twice a day',
+    label: 'Εξαιρετικά δραστήριος',
+    description: 'Χειρωνακτική δουλειά ή προπόνηση δύο φορές τη μέρα',
     multiplier: 1.9,
   },
 ]
@@ -90,9 +90,20 @@ export const ACTIVITY_LEVELS: { value: ActivityLevel; label: string; description
 export type Goal = 'lose' | 'maintain' | 'gain'
 
 export const GOALS: { value: Goal; label: string }[] = [
-  { value: 'lose', label: 'Lose weight' },
-  { value: 'maintain', label: 'Maintain weight' },
-  { value: 'gain', label: 'Gain weight' },
+  { value: 'lose', label: 'Απώλεια βάρους' },
+  { value: 'maintain', label: 'Διατήρηση' },
+  { value: 'gain', label: 'Αύξηση βάρους' },
+]
+
+// How fast to move towards the goal, as a share of maintenance calories —
+// a percentage scales with the person (a flat −500 kcal is a gentle cut for
+// a 100 kg man but a crash diet for a 50 kg woman).
+export type Pace = 'slow' | 'normal' | 'fast'
+
+export const PACES: { value: Pace; label: string; lose: number; gain: number }[] = [
+  { value: 'slow', label: 'Ήπια', lose: 0.1, gain: 0.05 },
+  { value: 'normal', label: 'Κανονικά', lose: 0.2, gain: 0.1 },
+  { value: 'fast', label: 'Γρήγορα', lose: 0.25, gain: 0.15 },
 ]
 
 export type Profile = {
@@ -102,6 +113,7 @@ export type Profile = {
   sex: Sex
   activity: ActivityLevel
   goal: Goal
+  pace: Pace
   worksOut: boolean
   takesProtein: boolean
   takesCreatine: boolean
@@ -122,6 +134,7 @@ export function normalizeProfile(stored: Partial<Profile>): Profile {
     sex: stored.sex ?? 'male',
     activity: stored.activity ?? 'moderate',
     goal: stored.goal ?? 'maintain',
+    pace: stored.pace ?? 'normal',
     worksOut: stored.worksOut ?? false,
     takesProtein: stored.takesProtein ?? false,
     takesCreatine: stored.takesCreatine ?? false,
@@ -135,48 +148,85 @@ export function normalizeProfile(stored: Partial<Profile>): Profile {
 
 // Only the fields the calorie/macro math actually needs — lets callers pass
 // a draft profile before diet/exclusions/etc. are known.
-type VitalStats = Pick<
-  Profile,
-  'age' | 'weightKg' | 'heightCm' | 'sex' | 'activity' | 'goal' | 'worksOut' | 'takesProtein'
->
+export type VitalStats = Pick<Profile, 'age' | 'weightKg' | 'heightCm' | 'sex' | 'activity' | 'goal' | 'pace' | 'worksOut'>
 
-// Mifflin-St Jeor equation — a standard, reasonably accurate estimate for
-// maintenance calories (BMR × activity multiplier), then shifted by a
-// moderate deficit/surplus for the user's goal.
-export function calculateDailyTarget(profile: VitalStats): number {
+// Below these, a diet is hard to get enough nutrients from without medical
+// supervision — the usual guidance is ~1200 kcal for women, ~1500 for men.
+const MIN_CALORIES: Record<Sex, number> = { female: 1200, male: 1500 }
+
+export type CalorieBreakdown = {
+  bmr: number // burned at complete rest
+  maintenance: number // with your activity — eating this keeps weight stable
+  adjustment: number // the deficit/surplus for the goal (negative = deficit)
+  calories: number // the daily target
+  hitFloor: boolean // the deficit was capped by the minimum
+}
+
+// Mifflin-St Jeor (the most accurate of the standard formulas for adults)
+// gives the BMR; × activity gives maintenance; the goal and pace shift it.
+export function calorieBreakdown(profile: VitalStats): CalorieBreakdown {
   const bmr =
-    profile.sex === 'male'
-      ? 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age + 5
-      : 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age - 161
-
+    10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age + (profile.sex === 'male' ? 5 : -161)
   const multiplier = ACTIVITY_LEVELS.find((a) => a.value === profile.activity)?.multiplier ?? 1.2
   const maintenance = bmr * multiplier
 
-  const adjustment = profile.goal === 'lose' ? -500 : profile.goal === 'gain' ? 300 : 0
-  return Math.max(1200, Math.round(maintenance + adjustment))
+  const pace = PACES.find((p) => p.value === profile.pace) ?? PACES[1]
+  const share = profile.goal === 'lose' ? -pace.lose : profile.goal === 'gain' ? pace.gain : 0
+  const wanted = maintenance * (1 + share)
+  const floor = MIN_CALORIES[profile.sex]
+  const calories = Math.round(Math.max(wanted, Math.min(floor, maintenance)))
+
+  return {
+    bmr: Math.round(bmr),
+    maintenance: Math.round(maintenance),
+    adjustment: calories - Math.round(maintenance),
+    calories,
+    hitFloor: calories > Math.round(wanted),
+  }
+}
+
+export function calculateDailyTarget(profile: VitalStats): number {
+  return calorieBreakdown(profile).calories
 }
 
 export type MacroTargets = { calories: number; protein: number; carbs: number; fat: number }
 
+// The weight protein and fat are worked out from. Above a BMI of ~27,
+// per-kg rules overshoot (fat mass doesn't need protein), so we use the
+// weight at BMI 25 plus a quarter of the excess (the usual "adjusted body
+// weight").
+function referenceWeight(weightKg: number, heightCm: number): number {
+  const heightM = heightCm / 100
+  const bmi = weightKg / (heightM * heightM)
+  if (bmi <= 27) return weightKg
+  const ideal = 25 * heightM * heightM
+  return ideal + 0.25 * (weightKg - ideal)
+}
+
 // Rough, widely-used sports-nutrition rules of thumb — not a substitute for
-// advice from a doctor or dietitian. Protein is prioritized (higher for
-// people who work out, and a bit higher still on a cut to protect muscle;
-// a bit higher again if supplementing, since hitting that target is easier
-// with a shake in the mix). Fat is set as a share of total calories — the
-// Academy of Nutrition and Dietetics range is 20-30% of calories, not a
-// flat amount per kg (a flat per-kg number can end up way outside that
-// range for someone with a very high or low calorie target). Carbs fill
-// whatever calories remain.
+// advice from a doctor or dietitian.
+// - Protein first: 1.6–2.0 g/kg if you lift (more on a cut, to keep muscle),
+//   1.2 otherwise, 1.5 when losing weight, and at least 1.2 from 65 up.
+// - Fat 28% of calories (within the 20–35% guideline), but never under
+//   0.6 g/kg — fat is needed for hormones and vitamin absorption.
+// - Carbs fill whatever calories remain.
 const FAT_SHARE_OF_CALORIES = 0.28
 
 export function suggestedMacroTargets(profile: VitalStats): MacroTargets {
   const calories = calculateDailyTarget(profile)
+  const refKg = referenceWeight(profile.weightKg, profile.heightCm)
 
-  let proteinPerKg = profile.worksOut ? (profile.goal === 'lose' ? 2.0 : 1.8) : 1.2
-  if (profile.takesProtein) proteinPerKg += 0.2
-  const protein = Math.round(profile.weightKg * proteinPerKg)
+  let proteinPerKg = profile.worksOut
+    ? profile.goal === 'lose'
+      ? 2.0
+      : 1.8
+    : profile.goal === 'lose'
+      ? 1.5
+      : 1.2
+  if (profile.age >= 65) proteinPerKg = Math.max(proteinPerKg, 1.2)
+  const protein = Math.round(refKg * proteinPerKg)
 
-  const fat = Math.round((calories * FAT_SHARE_OF_CALORIES) / 9)
+  const fat = Math.round(Math.max((calories * FAT_SHARE_OF_CALORIES) / 9, refKg * 0.6))
 
   const remaining = calories - protein * 4 - fat * 9
   const carbs = Math.max(0, Math.round(remaining / 4))

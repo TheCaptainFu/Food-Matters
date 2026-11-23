@@ -92,8 +92,8 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
       autoHideMs: 3500,
       message:
         added === 0
-          ? 'Already on this week’s shopping list.'
-          : `Added ${missing.length === 1 ? missing[0] : `${added} items`} to this week’s shopping list.`,
+          ? 'Υπάρχει ήδη στη λίστα αγορών της εβδομάδας.'
+          : `${missing.length === 1 ? `Το «${missing[0]}» μπήκε` : `${added} υλικά μπήκαν`} στη λίστα αγορών της εβδομάδας.`,
     }))
   }
 
@@ -107,9 +107,9 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
     <div className="py-20">
       <div className="container flex flex-col gap-30">
         <div className="flex flex-col gap-5">
-          <h2 className="text-26 font-title font-bold uppercase">What's in your fridge?</h2>
+          <h2 className="text-26 font-title font-bold uppercase">Τι έχεις στο ψυγείο;</h2>
           <p className="text-14 font-title text-neutral-500">
-            Add what you have on hand and we'll show you what you can cook with it.
+            Πρόσθεσε ό,τι έχεις και θα σου δείξουμε τι μπορείς να μαγειρέψεις.
           </p>
         </div>
 
@@ -119,7 +119,7 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
           <div className="relative flex-1 min-w-[220px] max-w-[420px]">
             <input
               type="search"
-              placeholder="Add an ingredient, e.g. eggs…"
+              placeholder="Πρόσθεσε υλικό, π.χ. αυγά…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {
@@ -140,13 +140,13 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
                     className="flex w-full items-center justify-between gap-10 text-left px-15 py-10 text-16 font-title font-bold hover:bg-main-yellow border-b border-neutral-200 last:border-b-0 cursor-pointer"
                   >
                     {c.name}
-                    <span className="text-14 font-normal text-neutral-500">+ Add</span>
+                    <span className="text-14 font-normal text-neutral-500">+ Προσθήκη</span>
                   </button>
                 ))}
               </div>
             )}
             {query && suggestions.length === 0 && (
-              <p className="pt-5 text-14 font-title text-neutral-500">No ingredient matches “{search.trim()}”.</p>
+              <p className="pt-5 text-14 font-title text-neutral-500">Κανένα υλικό δεν ταιριάζει με «{search.trim()}».</p>
             )}
           </div>
             <button
@@ -159,14 +159,14 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
                   : 'main-btn font-title font-bold px-15 py-10'
               }
             >
-              {isBrowsing ? 'Hide list' : 'Browse all'}
+              {isBrowsing ? 'Απόκρυψη' : 'Όλα τα υλικά'}
             </button>
           </div>
 
           <div className="flex flex-col gap-10">
             <div className="flex items-baseline gap-15">
               <span className="text-14 font-title font-bold uppercase text-neutral-500">
-                In your fridge ({have.length})
+                Στο ψυγείο σου ({have.length})
               </span>
               {have.length > 0 && (
                 <button
@@ -174,12 +174,12 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
                   onClick={() => setHave([])}
                   className="text-14 font-title font-bold underline text-main-red cursor-pointer"
                 >
-                  Clear all
+                  Καθαρισμός
                 </button>
               )}
             </div>
             {have.length === 0 ? (
-              <span className="text-14 font-title text-neutral-400">Nothing yet. Search above or browse below.</span>
+              <span className="text-14 font-title text-neutral-400">Τίποτα ακόμα. Ψάξε παραπάνω ή δες όλα τα υλικά.</span>
             ) : (
               <div className="flex flex-wrap gap-10">
                 {have.map((name) => (
@@ -191,7 +191,7 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
                     <button
                       type="button"
                       onClick={() => remove(name)}
-                      aria-label={`Remove ${name}`}
+                      aria-label={`Αφαίρεση: ${name}`}
                       className="w-20 h-20 flex items-center justify-center leading-none hover:bg-black hover:text-white cursor-pointer"
                     >
                       ✕
@@ -221,8 +221,8 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
                 {hasBasics ? '✓' : ''}
               </span>
               <span className="text-14 font-title">
-                <span className="font-bold">I have the basics</span>
-                <span className="text-neutral-500"> (oils, salt, pepper, herbs & spices)</span>
+                <span className="font-bold">Έχω τα βασικά</span>
+                <span className="text-neutral-500"> (λάδι, αλάτι, πιπέρι, μυρωδικά)</span>
               </span>
             </button>
           </div>
@@ -265,15 +265,15 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
         {/* ---------- Results ---------- */}
         {have.length === 0 ? (
           <p className={`${cardClass} p-20 text-16 font-title font-bold text-center`}>
-            Add the ingredients you have to see what you can cook.
+            Πρόσθεσε τα υλικά που έχεις για να δεις τι μπορείς να μαγειρέψεις.
           </p>
         ) : (
           <>
             <section className="flex flex-col gap-15">
-              <h3 className="text-20 font-title font-bold uppercase">You can make ({canMake.length})</h3>
+              <h3 className="text-20 font-title font-bold uppercase">Μπορείς να φτιάξεις ({canMake.length})</h3>
               {canMake.length === 0 ? (
                 <p className="text-14 font-title text-neutral-500">
-                  Nothing with just those yet. Add a few more ingredients.
+                  Τίποτα μόνο με αυτά. Πρόσθεσε μερικά υλικά ακόμα.
                 </p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-15">
@@ -302,9 +302,9 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
             </section>
 
             <section className="flex flex-col gap-15">
-              <h3 className="text-20 font-title font-bold uppercase">Missing just a few ({almost.length})</h3>
+              <h3 className="text-20 font-title font-bold uppercase">Λείπουν λίγα ({almost.length})</h3>
               {almost.length === 0 ? (
-                <p className="text-14 font-title text-neutral-500">No close matches.</p>
+                <p className="text-14 font-title text-neutral-500">Καμία κοντινή αντιστοιχία.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-15">
                   {almost.map(({ recipe, missing }) => (
@@ -320,14 +320,14 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
                         </span>
                       </button>
                       <span className="text-14 font-title text-neutral-500">
-                        Missing: <span className="font-bold text-black">{missing.join(', ')}</span>
+                        Λείπουν: <span className="font-bold text-black">{missing.join(', ')}</span>
                       </span>
                       <button
                         type="button"
                         onClick={() => addMissingToShopping(missing)}
                         className="self-start text-14 font-title font-bold underline cursor-pointer"
                       >
-                        🛒 Add to shopping list
+                        🛒 Στη λίστα αγορών
                       </button>
                     </div>
                   ))}

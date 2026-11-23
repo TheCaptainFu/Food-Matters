@@ -12,11 +12,11 @@ type SubheaderProps = {
 }
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'calendar', label: 'Calendar' },
-  { key: 'recipes', label: 'Recipes' },
-  { key: 'market', label: 'Market' },
-  { key: 'leftovers', label: 'Fridge' },
-  { key: 'calories', label: 'Calories' },
+  { key: 'calendar', label: 'Πρόγραμμα' },
+  { key: 'recipes', label: 'Συνταγές' },
+  { key: 'market', label: 'Σούπερ μάρκετ' },
+  { key: 'leftovers', label: 'Ψυγείο' },
+  { key: 'calories', label: 'Θερμίδες' },
 ]
 
 function Subheader({ activeTab, onChange, isOpen, onClose, onSignIn }: SubheaderProps) {
@@ -36,7 +36,7 @@ function Subheader({ activeTab, onChange, isOpen, onClose, onSignIn }: Subheader
           ))}
           {onSignIn && (
             <li className="main-btn ml-auto" onClick={onSignIn}>
-              Sign in
+              Σύνδεση
             </li>
           )}
         </ul>
@@ -50,7 +50,7 @@ function Subheader({ activeTab, onChange, isOpen, onClose, onSignIn }: Subheader
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close menu"
+              aria-label="Κλείσιμο μενού"
               className="main-btn font-title font-bold text-20 w-40 h-40 flex items-center justify-center absolute top-50 right-20"
             >
               ✕
@@ -68,7 +68,7 @@ function Subheader({ activeTab, onChange, isOpen, onClose, onSignIn }: Subheader
               ))}
               {onSignIn && (
                 <li className="main-btn" onClick={onSignIn}>
-                  Sign in
+                  Σύνδεση
                 </li>
               )}
             </ul>

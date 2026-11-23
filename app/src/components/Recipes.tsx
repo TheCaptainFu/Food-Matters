@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import AddRecipeModal from './AddRecipeModal'
+import ScrollRow from './ScrollRow'
 import IngredientsManager from './IngredientsManager'
 import type { Recipe, IngredientDef, SlotKey } from '../types'
 import { CATEGORIES, SLOT_KEYS } from '../types'
@@ -60,8 +61,8 @@ function Recipes({
           <div className="flex gap-10">
           {(
             [
-              { key: 'recipes', label: 'Recipes' },
-              { key: 'ingredients', label: 'Ingredients' },
+              { key: 'recipes', label: 'Συνταγές' },
+              { key: 'ingredients', label: 'Υλικά' },
             ] as const
           ).map((tab) => (
             <button
@@ -81,7 +82,7 @@ function Recipes({
           {view === 'recipes' && (
             <input
               type="search"
-              placeholder="Search recipes…"
+              placeholder="Αναζήτηση συνταγών…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="border-3 border-black px-15 py-5 mb-10 font-title w-full sm:w-[260px]"
@@ -99,16 +100,19 @@ function Recipes({
           />
         ) : (
         <>
-        {/* Two filters side by side: which meal it's for, and what kind of dish. */}
-        <div className="flex flex-wrap items-center gap-x-30 gap-y-15">
-          <div className="flex flex-wrap items-center gap-10">
-            <span className="text-14 font-title font-bold uppercase text-neutral-500 w-[50px]">Meal</span>
+        {/* Two filter rows: which meal it's for, and what kind of dish. Labels
+            share one width so both rows of chips start at the same line;
+            chips that don't fit scroll sideways instead of wrapping. */}
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center gap-10">
+            <span className="text-14 font-title font-bold uppercase text-neutral-500 w-[60px] shrink-0">Γεύμα</span>
+            <ScrollRow>
             <button
               type="button"
               onClick={() => setMealFilter('all')}
-              className={mealFilter === 'all' ? 'main-btn font-title font-bold text-14 px-10 py-5 bg-black text-white' : 'main-btn font-title font-bold text-14 px-10 py-5'}
+              className={mealFilter === 'all' ? 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5 bg-black text-white' : 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5'}
             >
-              All
+              Όλα
             </button>
             {SLOT_KEYS.map((slot) => (
               <button
@@ -116,24 +120,24 @@ function Recipes({
                 type="button"
                 onClick={() => setMealFilter(slot.value)}
                 className={
-                  mealFilter === slot.value ? `main-btn font-title font-bold text-14 px-10 py-5 ${MEAL_ACTIVE[slot.value]}` : 'main-btn font-title font-bold text-14 px-10 py-5'
+                  mealFilter === slot.value ? `main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5 ${MEAL_ACTIVE[slot.value]}` : 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5'
                 }
               >
                 {slot.label}
               </button>
             ))}
+            </ScrollRow>
           </div>
 
-          <div className="hidden lg:block w-[2px] self-stretch bg-neutral-200" />
-
-          <div className="flex flex-wrap items-center gap-10">
-            <span className="text-14 font-title font-bold uppercase text-neutral-500 w-[50px] lg:w-auto">Type</span>
+          <div className="flex items-center gap-10">
+            <span className="text-14 font-title font-bold uppercase text-neutral-500 w-[60px] shrink-0">Είδος</span>
+            <ScrollRow>
             <button
               type="button"
               onClick={() => setCategoryFilter('all')}
-              className={categoryFilter === 'all' ? 'main-btn font-title font-bold text-14 px-10 py-5 bg-black text-white' : 'main-btn font-title font-bold text-14 px-10 py-5'}
+              className={categoryFilter === 'all' ? 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5 bg-black text-white' : 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5'}
             >
-              All
+              Όλα
             </button>
             {CATEGORIES.map((c) => (
               <button
@@ -141,18 +145,19 @@ function Recipes({
                 type="button"
                 onClick={() => setCategoryFilter(c.value)}
                 className={
-                  categoryFilter === c.value ? `main-btn font-title font-bold text-14 text-black px-10 py-5 ${c.color}` : 'main-btn font-title font-bold text-14 px-10 py-5'
+                  categoryFilter === c.value ? `main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 text-black px-10 py-5 ${c.color}` : 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5'
                 }
               >
                 {c.label}
               </button>
             ))}
+            </ScrollRow>
           </div>
         </div>
 
         {visibleRecipes.length === 0 && (
           <p className="text-14 font-title text-neutral-500">
-            No recipes match these filters.{' '}
+            Καμία συνταγή δεν ταιριάζει με τα φίλτρα.{' '}
             <button
               type="button"
               onClick={() => {
@@ -162,7 +167,7 @@ function Recipes({
               }}
               className="font-bold text-black underline cursor-pointer"
             >
-              Clear filters
+              Καθαρισμός φίλτρων
             </button>
           </p>
         )}
@@ -171,7 +176,7 @@ function Recipes({
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            aria-label="Add recipe"
+            aria-label="Νέα συνταγή"
             className="main-btn flex items-center justify-center p-20 min-h-100 text-4xl font-title font-bold"
           >
             +

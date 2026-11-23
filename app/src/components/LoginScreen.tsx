@@ -31,7 +31,7 @@ function LoginScreen() {
         <div className="flex flex-col gap-15">
           <Logo className="text-46 text-center" />
           <p className="text-14 font-title text-neutral-500 text-center">
-            Sign in to save your recipes, plans and profile to your account.
+            Συνδέσου για να αποθηκεύεις τις συνταγές, τα προγράμματα και το προφίλ σου στον λογαριασμό σου.
           </p>
         </div>
 
@@ -41,7 +41,7 @@ function LoginScreen() {
           className="main-btn font-title font-bold px-15 py-15 flex items-center justify-center gap-10"
         >
           <GoogleIcon />
-          Continue with Google
+          Συνέχεια με Google
         </button>
       </div>
     </div>
