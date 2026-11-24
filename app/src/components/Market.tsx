@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import type { GroceryCategory, IngredientDef, Recipe, Week } from '../types'
 import { GROCERY_CATEGORIES } from '../types'
 import { addDays, makeWeek, mondayOf, parseISODate, toISODate, todayISO, weekLabel } from '../weekUtils'
-import { loadHousehold, loadShopping, saveHousehold, saveShopping, type WeekShopping } from '../shopping'
+import { loadHousehold, loadShopping, saveShopping, type WeekShopping } from '../shopping'
 import { formatShoppingAmount, toGrams } from '../quantities'
 import Toast, { type ToastData } from './Toast'
 
@@ -98,10 +98,8 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
     saveShopping(shopping)
   }, [shopping])
 
-  const [people, setPeople] = useState(loadHousehold)
-  useEffect(() => {
-    saveHousehold(people)
-  }, [people])
+  // Set by "Φτιάξε την εβδομάδα" (just me / how many of us).
+  const [people] = useState(loadHousehold)
 
   const [fromToday, setFromToday] = useState(true)
   const [newExtra, setNewExtra] = useState('')
@@ -251,30 +249,9 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
             days, progress, and the actions — instead of a row of loose buttons. */}
         <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] p-15 sm:p-20 flex flex-col gap-15">
           <div className="flex flex-wrap items-center justify-between gap-10">
-            {/* Recipes are per portion; this scales the list for the household. */}
-            <span className="flex items-center gap-10 text-14 font-title font-bold">
-              Για
-              <span className="flex items-center border-2 border-black h-30">
-                <button
-                  type="button"
-                  onClick={() => setPeople((n) => Math.max(1, n - 1))}
-                  aria-label="Λιγότερα άτομα"
-                  className="w-30 h-full font-bold cursor-pointer hover:bg-neutral-100"
-                >
-                  −
-                </button>
-                <span className="min-w-25 text-center">{people}</span>
-                <button
-                  type="button"
-                  onClick={() => setPeople((n) => Math.min(12, n + 1))}
-                  aria-label="Περισσότερα άτομα"
-                  className="w-30 h-full font-bold cursor-pointer hover:bg-neutral-100"
-                >
-                  +
-                </button>
-              </span>
-              {people === 1 ? 'άτομο' : 'άτομα'}
-            </span>
+            {/* Recipes are per portion; the list is scaled for the household
+                (asked in "Φτιάξε την εβδομάδα"). Nothing to say when it's just you. */}
+            {people > 1 && <span className="text-14 font-title font-bold">👨‍👩‍👧 Για {people} άτομα</span>}
             {isThisWeek && todayIndex > 0 && (
               <span className="flex border-2 border-black text-14 font-title font-bold">
                 <button

@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import type { ReactNode } from 'react'
+import { useScrollFade } from '../useScrollFade'
 
 // A single row of chips that scrolls sideways when it doesn't fit, instead
 // of wrapping onto a second line. No visible scrollbar: touch swipes it,
@@ -7,10 +8,12 @@ import type { ReactNode } from 'react'
 function ScrollRow({ children, className = '' }: { children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
+  const { style } = useScrollFade(ref)
 
   return (
     <div
       ref={ref}
+      style={style}
       className={`flex gap-10 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden py-5 pr-5 min-w-0 ${className}`}
       onWheel={(e) => {
         const el = ref.current

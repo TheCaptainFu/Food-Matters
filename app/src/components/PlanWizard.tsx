@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { Category } from '../types'
 import { CATEGORIES } from '../types'
 import { loadPlanPrefs, savePlanPrefs, type PlanPrefs } from '../recipeTraits'
+import { loadHousehold, saveHousehold } from '../shopping'
 
 type PlanWizardProps = {
   onDone: (prefs: PlanPrefs) => void
@@ -13,10 +14,11 @@ type PlanWizardProps = {
 // whether you cook once for two days — answered with big taps, then the
 // week is built around them. Last week's answers are pre-selected.
 
-type StepKey = 'budget' | 'time' | 'likes' | 'twice' | 'building'
-const STEPS: StepKey[] = ['budget', 'time', 'likes', 'twice', 'building']
+type StepKey = 'people' | 'budget' | 'time' | 'likes' | 'twice' | 'building'
+const STEPS: StepKey[] = ['people', 'budget', 'time', 'likes', 'twice', 'building']
 
 const STEP_BG: Record<StepKey, string> = {
+  people: 'bg-main-teal',
   budget: 'bg-main-yellow',
   time: 'bg-main-teal',
   likes: 'bg-white',
@@ -31,6 +33,9 @@ const LIKE_CHOICES: Category[] = ['ladera', 'legumes', 'meat', 'poultry', 'fish'
 function PlanWizard({ onDone, onClose }: PlanWizardProps) {
   const [prefs, setPrefs] = useState<PlanPrefs>(loadPlanPrefs)
   const [index, setIndex] = useState(0)
+  // Who eats from this plan: just you (1), or the whole household. Only
+  // the shopping list and the cost scale with it — calories stay yours.
+  const [people, setPeople] = useState(loadHousehold)
   const step = STEPS[index]
 
   const next = () => setIndex((i) => Math.min(STEPS.length - 1, i + 1))
@@ -38,6 +43,7 @@ function PlanWizard({ onDone, onClose }: PlanWizardProps) {
 
   function finish(final: PlanPrefs) {
     savePlanPrefs(final)
+    saveHousehold(people)
     setIndex(STEPS.indexOf('building'))
     // A short "building" moment so the result feels made, not instant.
     window.setTimeout(() => onDone(final), 1100)
@@ -103,6 +109,52 @@ function PlanWizard({ onDone, onClose }: PlanWizardProps) {
 
         <div className="overflow-y-auto">
         <div key={step} className={`onb-slide px-20 py-20 flex flex-col gap-15 ${step === 'building' ? 'bg-main-blue' : ''}`}>
+          {step === 'people' && (
+            <>
+              <h2 className="text-22 font-title font-bold uppercase leading-tight">Για ποιον είναι το πρόγραμμα;</h2>
+              <div className="flex flex-col gap-15">
+                <button type="button" onClick={() => setPeople(1)} className={bigChoice(people === 1)}>
+                  <span className="text-26">🙋</span>
+                  <span className="flex flex-col">
+                    <span className="text-16 font-title font-bold">Μόνο για μένα</span>
+                    <span className={sub(people === 1)}>Ψώνια και ποσότητες για ένα άτομο</span>
+                  </span>
+                </button>
+                <button type="button" onClick={() => setPeople((n) => (n > 1 ? n : 2))} className={bigChoice(people > 1)}>
+                  <span className="text-26">👨‍👩‍👧</span>
+                  <span className="flex flex-col">
+                    <span className="text-16 font-title font-bold">Τρώμε κι άλλοι μαζί</span>
+                    <span className={sub(people > 1)}>Τα ψώνια βγαίνουν για όλους, οι θερμίδες μένουν δικές σου</span>
+                  </span>
+                </button>
+                {people > 1 && (
+                  <div className="onb-pop flex items-center justify-between gap-10 border-3 border-black bg-white px-15 py-10">
+                    <span className="text-16 font-title font-bold">Πόσοι είστε μαζί με σένα;</span>
+                    <span className="flex items-center border-2 border-black h-40">
+                      <button
+                        type="button"
+                        onClick={() => setPeople((n) => Math.max(2, n - 1))}
+                        aria-label="Λιγότερα άτομα"
+                        className="w-40 h-full font-bold cursor-pointer hover:bg-neutral-100"
+                      >
+                        −
+                      </button>
+                      <span className="min-w-30 text-center font-title font-bold">{people}</span>
+                      <button
+                        type="button"
+                        onClick={() => setPeople((n) => Math.min(12, n + 1))}
+                        aria-label="Περισσότερα άτομα"
+                        className="w-40 h-full font-bold cursor-pointer hover:bg-neutral-100"
+                      >
+                        +
+                      </button>
+                    </span>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           {step === 'budget' && (
             <>
               <h2 className="text-22 font-title font-bold uppercase leading-tight">Πώς πάμε με τα λεφτά αυτή την εβδομάδα;</h2>

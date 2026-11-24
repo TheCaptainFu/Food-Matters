@@ -5,6 +5,7 @@ import { CATEGORIES, DIFFICULTIES, SLOT_KEYS } from '../types'
 import { recipeMacros, spoonHint } from '../nutrition'
 import { recipeInfo, formatEuro, formatMinutes } from '../recipeTraits'
 import { findDef, formatQuantity } from '../quantities'
+import { loadHousehold } from '../shopping'
 
 type RecipeDetailModalProps = {
   recipe: Recipe
@@ -19,8 +20,9 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
   const macros = recipeMacros(recipe, ingredientCatalog)
   const info = recipeInfo(recipe, ingredientCatalog)
   const baseServings = recipe.servings && recipe.servings > 0 ? recipe.servings : 1
-  // Scale the amounts for however many you're cooking for.
-  const [servings, setServings] = useState(baseServings)
+  // Scale the amounts for however many you're cooking for — starting from
+  // the household size set on the shopping list.
+  const [servings, setServings] = useState(loadHousehold)
   const scale = servings / baseServings
 
   return createPortal(

@@ -1,4 +1,5 @@
 import PlanWizard from './PlanWizard'
+import { useScrollFade } from '../useScrollFade'
 import { costPerServing, loadPlanPrefs, prefsPenalty, type PlanPrefs } from '../recipeTraits'
 import { loadHousehold } from '../shopping'
 import { dayInfo } from '../greekCalendar'
@@ -117,11 +118,16 @@ function Calendar({
   const daysRowRef = useRef<HTMLDivElement>(null)
   // Moves exactly one day: lines up the next/previous card with the left
   // edge, based on whichever card is currently first in view.
+  // Whether there's more to see left/right — the arrows hide at the ends,
+  // and the side with more days fades out softly.
+  const { style: daysFade, canLeft, canRight } = useScrollFade(daysRowRef, 40)
+
   function scrollDays(direction: 1 | -1) {
     const row = daysRowRef.current
     if (!row) return
     const cards = Array.from(row.children) as HTMLElement[]
-    const lefts = cards.map((card) => card.offsetLeft - row.offsetLeft - 20)
+    const padding = parseFloat(getComputedStyle(row).paddingLeft) || 0
+    const lefts = cards.map((card) => card.offsetLeft - row.offsetLeft - padding)
     const current = lefts.findIndex((left) => left >= row.scrollLeft - 5)
     const target = Math.min(cards.length - 1, Math.max(0, (current === -1 ? cards.length - 1 : current) + direction))
     row.scrollTo({ left: lefts[target], behavior: 'smooth' })
@@ -781,12 +787,13 @@ function Calendar({
           </div>
         )}
 
-        <div className="hidden sm:flex justify-end gap-10 -mb-10">
+        {/* The days, with ‹ › on either side (desktop; phones swipe). */}
+        <div className="relative sm:max-[1319px]:grid sm:max-[1319px]:grid-cols-[40px_minmax(0,1fr)_40px] sm:max-[1319px]:gap-15 sm:max-[1319px]:items-center">
           <button
             type="button"
             onClick={() => scrollDays(-1)}
             aria-label="Προηγούμενη μέρα"
-            className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
+            className={`hidden sm:flex min-[1320px]:absolute min-[1320px]:top-1/2 min-[1320px]:-translate-y-1/2 min-[1320px]:right-[calc(100%+25px)] main-btn font-title font-bold w-40 h-40 items-center justify-center transition-opacity ${canLeft ? '' : 'opacity-0 pointer-events-none'}`}
           >
             ‹
           </button>
@@ -794,14 +801,13 @@ function Calendar({
             type="button"
             onClick={() => scrollDays(1)}
             aria-label="Επόμενη μέρα"
-            className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
+            className={`hidden sm:flex sm:max-[1319px]:order-3 min-[1320px]:absolute min-[1320px]:top-1/2 min-[1320px]:-translate-y-1/2 min-[1320px]:left-[calc(100%+25px)] main-btn font-title font-bold w-40 h-40 items-center justify-center transition-opacity ${canRight ? '' : 'opacity-0 pointer-events-none'}`}
           >
             ›
           </button>
-        </div>
-
         <div
           ref={daysRowRef}
+          style={daysFade}
           onPointerDown={handleDaysPointerDown}
           onPointerMove={handleDaysPointerMove}
           onPointerUp={endDaysDrag}
@@ -809,8 +815,8 @@ function Calendar({
           onClickCapture={handleDaysClickCapture}
           className={
             isDraggingDays
-              ? 'flex gap-20 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden select-none cursor-grabbing pt-5 pb-20 -mx-20 px-20'
-              : 'flex gap-20 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-x touch-pan-y snap-x snap-proximity cursor-grab pt-5 pb-20 -mx-20 px-20 scroll-px-20'
+              ? 'flex gap-20 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden select-none cursor-grabbing pt-5 pb-20 -mx-20 px-20 sm:max-[1319px]:mx-0 sm:max-[1319px]:pl-0 sm:max-[1319px]:pr-10'
+              : 'flex gap-20 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-x touch-pan-y snap-x snap-proximity cursor-grab pt-5 pb-20 -mx-20 px-20 scroll-px-20 sm:max-[1319px]:mx-0 sm:max-[1319px]:pl-0 sm:max-[1319px]:pr-10 sm:max-[1319px]:scroll-px-0'
           }
         >
           {activeWeek.days.map((day, dayIndex) => {
@@ -1001,9 +1007,14 @@ function Calendar({
 
                       {/* What was actually eaten — shown here for context, but
                           logged and edited on the Calories page. */}
-                      {entry && (
+                      {entry?.skipped && (
+                        <div className="flex items-center gap-10 bg-neutral-100 border-2 border-dashed border-neutral-400 px-10 py-5">
+                          <span className="text-14 font-title font-bold text-neutral-500">✕ Δεν έφαγα</span>
+                        </div>
+                      )}
+                      {entry && !entry.skipped && (
                         <div
-                          title="Τι έφαγες τελικά (καταγραφή και αλλαγές στη σελίδα Θερμίδες)"
+                          title="Τι έφαγες τελικά (καταγραφή στο Σήμερα, αλλαγές στο Ιστορικό)"
                           className="flex items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5"
                         >
                           <span className="flex items-center gap-10 min-w-0">
@@ -1036,6 +1047,7 @@ function Calendar({
               </div>
             )
           })}
+        </div>
         </div>
       </div>
 

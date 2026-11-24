@@ -9,12 +9,14 @@ import {
   findDay,
   formatDayDate,
   parseISODate,
+  skippedEntry,
   slotExtras,
   toISODate,
   todayISO,
   weekdayName,
 } from '../weekUtils'
 import ActualEntryModal from './ActualEntryModal'
+import FadeScrollX from './FadeScrollX'
 import Toast, { type ToastData } from './Toast'
 
 const GLASS_ML = 250
@@ -28,6 +30,7 @@ type CaloriesProps = {
   onOpenRecipe: (id: string) => void
   onOpenProfile: () => void
   onGoToCalendar: () => void
+  onGoToToday: () => void
 }
 
 // badge classes are literal Tailwind class strings (kept whole, not
@@ -75,6 +78,7 @@ function Calories({
   onOpenRecipe,
   onOpenProfile,
   onGoToCalendar,
+  onGoToToday,
 }: CaloriesProps) {
   const [loggingSlot, setLoggingSlot] = useState<SlotKey | null>(null)
   // Extra food for a meal: index 'new' while adding one, or the one being edited.
@@ -82,7 +86,8 @@ function Calories({
   // Which week the day-by-day table shows; null = the latest one in History.
   const [tableWeekId, setTableWeekId] = useState<string | null>(null)
 
-  // The day being logged: today by default, or an earlier day you forgot.
+  // The day being corrected: yesterday by default, or any earlier day.
+  // Today itself is logged on the Today page.
   const [selectedISO, setSelectedISO] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastData | null>(null)
   const closeToast = useCallback(() => setToast(null), [])
@@ -92,12 +97,12 @@ function Calories({
 
   const targets = profile ? calculateMacroTargets(profile) : null
   const today = todayISO()
-  const dayISO = selectedISO && selectedISO < today ? selectedISO : today
-  const isToday = dayISO === today
   const yesterday = toISODate(addDays(parseISODate(today), -1))
+  const dayISO = selectedISO && selectedISO < yesterday ? selectedISO : yesterday
+  const isToday = false
   const todayRef = findDay(weeks, dayISO)
   const todayDay = todayRef ? todayRef.week.days[todayRef.dayIndex] : null
-  const dayTitle = isToday ? 'Σήμερα' : dayISO === yesterday ? 'Χθες' : weekdayName(parseISODate(dayISO))
+  const dayTitle = dayISO === yesterday ? 'Χθες' : weekdayName(parseISODate(dayISO))
   const waterTargetMl = profile ? calculateWaterTargetMl(profile) : null
 
   function plannedMacros(recipeIds: string[]): Macros {
@@ -196,6 +201,15 @@ function Calories({
     })
   }
 
+  function skipSlot(slotKey: SlotKey) {
+    updateTodaySlot(slotKey, skippedEntry())
+    showToast({
+      message: `Δεν έφαγες ${SLOTS.find((s) => s.key === slotKey)?.label.toLowerCase()}`,
+      action: { label: 'Αναίρεση', onClick: () => updateTodaySlot(slotKey, null) },
+      autoHideMs: 5000,
+    })
+  }
+
   // History counts only what was actually logged ("✓ Ate this" / "Something
   // else") — the plan is an intention, not intake. Per week, the average is
   // over days with at least one logged meal, so unlogged days don't drag it down.
@@ -222,15 +236,41 @@ function Calories({
   const tableWeek = history.find((h) => h.week.id === tableWeekId)?.week ?? history[0]?.week ?? null
   const tableAvg = history.find((h) => h.week.id === tableWeek?.id)?.avg ?? null
 
-  const loggingEntry = loggingSlot && todayDay ? (todayDay.actual[loggingSlot] ?? null) : null
+  // The last 7 full days (yesterday back), and how many days in a row
+  // ended within ±10% of the calorie target.
+  const isLogged = (day: Day) => SLOTS.some((slot) => day.actual[slot.key]) || allExtras(day).length > 0
+  const pastDay = (back: number) => {
+    const ref = findDay(weeks, toISODate(addDays(parseISODate(today), -back)))
+    return ref ? ref.week.days[ref.dayIndex] : null
+  }
+  const last7 = (() => {
+    const logged = Array.from({ length: 7 }, (_, i) => pastDay(i + 1)).filter((d): d is Day => !!d && isLogged(d))
+    const total = logged.reduce((sum, d) => sum + loggedMacros(d).calories, 0)
+    return { days: logged.length, avg: logged.length > 0 ? total / logged.length : null }
+  })()
+  let streak = 0
+  if (targets) {
+    for (let back = 1; back <= 365; back++) {
+      const d = pastDay(back)
+      if (!d || !isLogged(d) || Math.abs(loggedMacros(d).calories - targets.calories) > targets.calories * 0.1) break
+      streak++
+    }
+  }
+
+  const loggingActual = loggingSlot && todayDay ? todayDay.actual[loggingSlot] : undefined
+  const loggingEntry = loggingActual && !loggingActual.skipped ? loggingActual : null
 
   return (
     <div className="py-20">
       <div className="container flex flex-col gap-30">
         <div className="flex flex-col gap-5">
-          <h2 className="text-26 font-title font-bold uppercase">Θερμίδες</h2>
+          <h2 className="text-26 font-title font-bold uppercase">Ιστορικό</h2>
           <p className="text-14 font-title text-neutral-500">
-            Κατέγραψε τι τρως πραγματικά σήμερα και δες πώς πάνε οι εβδομάδες σου. Οι αριθμοί είναι κατά προσέγγιση.
+            Πώς πάνε οι μέρες και οι εβδομάδες σου. Ό,τι τρως σήμερα το γράφεις στο{' '}
+            <button type="button" onClick={onGoToToday} className="font-bold text-black underline cursor-pointer">
+              Σήμερα
+            </button>
+            . Οι αριθμοί είναι κατά προσέγγιση.
           </p>
         </div>
 
@@ -245,202 +285,53 @@ function Calories({
           </div>
         )}
 
-        {/* ---------- Today ---------- */}
-        <section className="flex flex-col gap-15">
-          <div className="flex flex-wrap items-center gap-10">
-            <button
-              type="button"
-              onClick={() => setSelectedISO(toISODate(addDays(parseISODate(dayISO), -1)))}
-              aria-label="Προηγούμενη μέρα"
-              className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
-            >
-              ‹
-            </button>
-            <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 pl-10 sm:flex-none sm:min-w-[220px]">
-              {dayTitle}
-              <span className="text-14 font-normal normal-case text-neutral-500">
-                {!isToday && dayISO !== yesterday ? '' : `${weekdayName(parseISODate(dayISO))} `}
-                {formatDayDate(parseISODate(dayISO))}
+        {/* ---------- At a glance ---------- */}
+        {targets && (
+          <section className="grid grid-cols-1 tab:grid-cols-3 gap-15">
+            <div className="bg-main-yellow border-3 border-black shadow-[4px_4px_0_0_#000] p-15 flex flex-col gap-5">
+              <span className="text-12 font-title font-bold uppercase">Μέσος όρος 7 ημερών</span>
+              {last7.avg ? (
+                <>
+                  <span className="font-title">
+                    <span className="text-32 font-bold">{Math.round(last7.avg)}</span>
+                    <span className="text-14"> / {targets.calories} kcal</span>
+                  </span>
+                  <span className="text-12 font-title">
+                    {Math.abs(last7.avg - targets.calories) <= targets.calories * 0.1
+                      ? 'Πάνω στον στόχο σου 👌'
+                      : last7.avg < targets.calories
+                        ? `${Math.round(targets.calories - last7.avg)} kcal κάτω από τον στόχο`
+                        : `${Math.round(last7.avg - targets.calories)} kcal πάνω από τον στόχο`}
+                  </span>
+                </>
+              ) : (
+                <span className="text-14 font-title">Δεν έχεις καταγράψει τίποτα τις τελευταίες 7 μέρες.</span>
+              )}
+            </div>
+            <div className="bg-main-teal border-3 border-black shadow-[4px_4px_0_0_#000] p-15 flex flex-col gap-5">
+              <span className="text-12 font-title font-bold uppercase">Σερί στον στόχο</span>
+              <span className="font-title">
+                <span className="text-32 font-bold">{streak}</span>
+                <span className="text-14"> {streak === 1 ? 'μέρα' : 'μέρες'} {streak >= 3 ? '🔥' : ''}</span>
               </span>
-            </h3>
-            <button
-              type="button"
-              onClick={() => setSelectedISO(toISODate(addDays(parseISODate(dayISO), 1)))}
-              disabled={isToday}
-              aria-label="Επόμενη μέρα"
-              className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"
-            >
-              ›
-            </button>
-            {!isToday && (
-              <button
-                type="button"
-                onClick={() => setSelectedISO(null)}
-                className="text-14 font-title font-bold underline cursor-pointer"
-              >
-                Πίσω στο σήμερα
-              </button>
-            )}
-          </div>
-
-          {!todayDay ? (
-            <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] p-20 flex flex-wrap items-center justify-between gap-15">
-              <span className="text-14 font-title">Δεν υπάρχει ακόμα πρόγραμμα για αυτή την {isToday ? 'εβδομάδα' : 'μέρα'}.</span>
-              <button
-                type="button"
-                onClick={onGoToCalendar}
-                className="main-btn font-title font-bold px-15 py-10 bg-main-blue text-white"
-              >
-                Στο πρόγραμμα
-              </button>
+              <span className="text-12 font-title">Μέρες στη σειρά μέσα στο ±10% των θερμίδων σου.</span>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-20 items-start">
-              <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] p-20 flex flex-col gap-15">
-                {SLOTS.map((slot, slotIndex) => {
-                  const planned = todayDay.slots[slot.key]
-                  const entry = todayDay.actual[slot.key]
-                  const plannedRecipes = planned
-                    .map((id) => recipes.find((r) => r.id === id))
-                    .filter((r): r is Recipe => !!r)
-                  return (
-                    <div
-                      key={slot.key}
-                      className={
-                        slotIndex > 0
-                          ? 'flex flex-col gap-10 pt-15 border-t border-neutral-200'
-                          : 'flex flex-col gap-10'
-                      }
-                    >
-                      <span
-                        className={`inline-block self-start px-5 py-[2px] text-12 font-title font-bold uppercase border-2 border-black ${slot.badge}`}
-                      >
-                        {slot.label}
-                      </span>
-
-                      {entry ? (
-                        <div className="flex flex-wrap items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5">
-                          <span className="flex items-center gap-10 min-w-0">
-                            {entry.photo ? (
-                              <img src={entry.photo} alt="" className="w-20 h-20 object-cover border border-black shrink-0" />
-                            ) : (
-                              <span className="font-bold text-14 leading-none shrink-0">✓</span>
-                            )}
-                            <span className="text-14 font-title font-bold">{entry.description}</span>
-                            <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
-                              {Math.round(entry.calories)} kcal
-                            </span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setLoggingSlot(slot.key)}
-                            className="text-12 font-title font-bold underline cursor-pointer"
-                          >
-                            Αλλαγή
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap items-center gap-10">
-                          {/* The planned meal in a box, same as on the Meal Plan */}
-                          {plannedRecipes.length > 0 ? (
-                            <span className="flex-1 min-w-[200px] flex flex-wrap items-baseline justify-between gap-x-10 bg-white border-2 border-black px-10 py-5">
-                              <span className="flex flex-wrap gap-x-10">
-                                {plannedRecipes.map((recipe, i) => (
-                                  <button
-                                    key={i}
-                                    type="button"
-                                    onClick={() => onOpenRecipe(recipe.id)}
-                                    className="text-14 font-title font-bold text-left hover:underline cursor-pointer"
-                                  >
-                                    {recipe.title}
-                                  </button>
-                                ))}
-                              </span>
-                              <span className="text-12 font-title text-neutral-500 whitespace-nowrap">
-                                {Math.round(plannedMacros(planned).calories)} kcal στο πρόγραμμα
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="flex-1 min-w-[200px] text-14 font-title text-neutral-400">Δεν έχει προγραμματιστεί</span>
-                          )}
-                          <span className="flex gap-10">
-                            {plannedRecipes.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => logPlanned(slot.key)}
-                                className="main-btn font-title font-bold px-10 py-5 text-12 bg-main-blue text-white"
-                              >
-                                ✓ Το έφαγα
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => setLoggingSlot(slot.key)}
-                              className="main-btn font-title font-bold px-10 py-5 text-12"
-                            >
-                              {plannedRecipes.length > 0 ? 'Κάτι άλλο' : 'Καταγραφή γεύματος'}
-                            </button>
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Extra food with this meal, on top of the main one */}
-                      {slotExtras(todayDay, slot.key).map((extra, i) => (
-                        <div
-                          key={i}
-                          className="flex flex-wrap items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5"
-                        >
-                          <span className="flex items-center gap-10 min-w-0">
-                            {extra.photo ? (
-                              <img src={extra.photo} alt="" className="w-20 h-20 object-cover border border-black shrink-0" />
-                            ) : (
-                              <span className="font-bold text-14 leading-none shrink-0">+</span>
-                            )}
-                            <span className="text-14 font-title font-bold">{extra.description}</span>
-                            <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
-                              {Math.round(extra.calories)} kcal
-                            </span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setLoggingExtra({ slot: slot.key, index: i })}
-                            className="text-12 font-title font-bold underline cursor-pointer"
-                          >
-                            Αλλαγή
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => setLoggingExtra({ slot: slot.key, index: 'new' })}
-                        className="self-start border-2 border-dashed border-neutral-400 hover:border-black px-10 py-5 text-12 text-neutral-600 hover:text-black font-title font-bold cursor-pointer"
-                      >
-                        + Πρόσθεσε έξτρα
-                      </button>
-                    </div>
-                  )
-                })}
-
-              </div>
-
-              <TodayProgress
-                title={isToday ? 'Έχεις φάει' : 'Έφαγες'}
-                eaten={loggedMacros(todayDay)}
-                planned={dayMacros(todayDay)}
-                targets={targets}
-                waterGlasses={todayDay.water ?? 0}
-                waterTargetGlasses={waterTargetMl !== null ? Math.ceil(waterTargetMl / GLASS_ML) : null}
-                onWaterChange={setWater}
-              />
+            <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] p-15 flex flex-col gap-5">
+              <span className="text-12 font-title font-bold uppercase">Καταγραφή</span>
+              <span className="font-title">
+                <span className="text-32 font-bold">{last7.days}</span>
+                <span className="text-14"> / 7 μέρες</span>
+              </span>
+              <span className="text-12 font-title text-neutral-500">Όσο πιο συχνά γράφεις, τόσο πιο σωστοί οι αριθμοί.</span>
             </div>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* ---------- History ---------- */}
         {history.length > 0 && (
           <section className="flex flex-col gap-15">
             <div className="flex flex-col gap-5">
-              <h3 className="text-20 font-title font-bold uppercase">Ιστορικό</h3>
+              <h3 className="text-20 font-title font-bold uppercase">Εβδομάδες</h3>
               <p className="text-12 font-title text-neutral-500">
                 Μετράνε μόνο τα γεύματα που κατέγραψες με «✓ Το έφαγα» ή «Κάτι άλλο». Ο μέσος όρος μετράει
                 τις μέρες με τουλάχιστον ένα καταγεγραμμένο γεύμα. Διάλεξε μια εβδομάδα για να τη δεις μέρα με μέρα.
@@ -505,6 +396,228 @@ function Calories({
             </div>
           </section>
         )}
+        {/* ---------- Fix a past day ---------- */}
+        <section className="flex flex-col gap-15">
+          <div className="flex flex-col gap-5">
+            <h3 className="text-20 font-title font-bold uppercase">Διόρθωσε μια μέρα</h3>
+            <p className="text-12 font-title text-neutral-500">Ξέχασες να γράψεις κάτι; Διάλεξε τη μέρα και πρόσθεσέ το.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-10">
+            <button
+              type="button"
+              onClick={() => setSelectedISO(toISODate(addDays(parseISODate(dayISO), -1)))}
+              aria-label="Προηγούμενη μέρα"
+              className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
+            >
+              ‹
+            </button>
+            <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 pl-10 sm:flex-none sm:min-w-[220px]">
+              {dayTitle}
+              <span className="text-14 font-normal normal-case text-neutral-500">
+                {!isToday && dayISO !== yesterday ? '' : `${weekdayName(parseISODate(dayISO))} `}
+                {formatDayDate(parseISODate(dayISO))}
+              </span>
+            </h3>
+            <button
+              type="button"
+              onClick={() => setSelectedISO(toISODate(addDays(parseISODate(dayISO), 1)))}
+              disabled={dayISO >= yesterday}
+              aria-label="Επόμενη μέρα"
+              className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"
+            >
+              ›
+            </button>
+            {dayISO !== yesterday && (
+              <button
+                type="button"
+                onClick={() => setSelectedISO(null)}
+                className="text-14 font-title font-bold underline cursor-pointer"
+              >
+                Πίσω στο χθες
+              </button>
+            )}
+          </div>
+
+          {!todayDay ? (
+            <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] p-20 flex flex-wrap items-center justify-between gap-15">
+              <span className="text-14 font-title">Δεν υπάρχει ακόμα πρόγραμμα για αυτή την {isToday ? 'εβδομάδα' : 'μέρα'}.</span>
+              <button
+                type="button"
+                onClick={onGoToCalendar}
+                className="main-btn font-title font-bold px-15 py-10 bg-main-blue text-white"
+              >
+                Στο πρόγραμμα
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-20 items-start">
+              <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] p-20 flex flex-col gap-15">
+                {SLOTS.map((slot, slotIndex) => {
+                  const planned = todayDay.slots[slot.key]
+                  const entry = todayDay.actual[slot.key]
+                  const plannedRecipes = planned
+                    .map((id) => recipes.find((r) => r.id === id))
+                    .filter((r): r is Recipe => !!r)
+                  return (
+                    <div
+                      key={slot.key}
+                      className={
+                        slotIndex > 0
+                          ? 'flex flex-col gap-10 pt-15 border-t border-neutral-200'
+                          : 'flex flex-col gap-10'
+                      }
+                    >
+                      <span
+                        className={`inline-block self-start px-5 py-[2px] text-12 font-title font-bold uppercase border-2 border-black ${slot.badge}`}
+                      >
+                        {slot.label}
+                      </span>
+
+                      {entry?.skipped ? (
+                        <div className="flex flex-wrap items-center justify-between gap-10 bg-neutral-100 border-2 border-dashed border-neutral-400 px-10 py-5">
+                          <span className="text-14 font-title font-bold text-neutral-500">✕ Δεν έφαγα</span>
+                          <span className="flex gap-15">
+                            <button
+                              type="button"
+                              onClick={() => setLoggingSlot(slot.key)}
+                              className="text-12 font-title font-bold underline cursor-pointer"
+                            >
+                              Τελικά έφαγα
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateTodaySlot(slot.key, null)}
+                              className="text-12 font-title font-bold underline cursor-pointer"
+                            >
+                              Αναίρεση
+                            </button>
+                          </span>
+                        </div>
+                      ) : entry ? (
+                        <div className="flex flex-wrap items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5">
+                          <span className="flex items-center gap-10 min-w-0">
+                            {entry.photo ? (
+                              <img src={entry.photo} alt="" className="w-20 h-20 object-cover border border-black shrink-0" />
+                            ) : (
+                              <span className="font-bold text-14 leading-none shrink-0">✓</span>
+                            )}
+                            <span className="text-14 font-title font-bold">{entry.description}</span>
+                            <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
+                              {Math.round(entry.calories)} kcal
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setLoggingSlot(slot.key)}
+                            className="text-12 font-title font-bold underline cursor-pointer"
+                          >
+                            Αλλαγή
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-10">
+                          {/* The planned meal in a box, same as on the Meal Plan */}
+                          {plannedRecipes.length > 0 ? (
+                            <span className="flex-1 min-w-[200px] flex flex-wrap items-baseline justify-between gap-x-10 bg-white border-2 border-black px-10 py-5">
+                              <span className="flex flex-wrap gap-x-10">
+                                {plannedRecipes.map((recipe, i) => (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => onOpenRecipe(recipe.id)}
+                                    className="text-14 font-title font-bold text-left hover:underline cursor-pointer"
+                                  >
+                                    {recipe.title}
+                                  </button>
+                                ))}
+                              </span>
+                              <span className="text-12 font-title text-neutral-500 whitespace-nowrap">
+                                {Math.round(plannedMacros(planned).calories)} kcal στο πρόγραμμα
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="flex-1 min-w-[200px] text-14 font-title text-neutral-400">Δεν έχει προγραμματιστεί</span>
+                          )}
+                          <span className="flex gap-10">
+                            {plannedRecipes.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => logPlanned(slot.key)}
+                                className="main-btn font-title font-bold px-10 py-5 text-12 bg-main-blue text-white"
+                              >
+                                ✓ Το έφαγα
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setLoggingSlot(slot.key)}
+                              className="main-btn font-title font-bold px-10 py-5 text-12"
+                            >
+                              {plannedRecipes.length > 0 ? 'Κάτι άλλο' : 'Καταγραφή γεύματος'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => skipSlot(slot.key)}
+                              className="main-btn font-title font-bold px-10 py-5 text-12 bg-neutral-100"
+                            >
+                              Δεν έφαγα
+                            </button>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Extra food with this meal, on top of the main one */}
+                      {slotExtras(todayDay, slot.key).map((extra, i) => (
+                        <div
+                          key={i}
+                          className="flex flex-wrap items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5"
+                        >
+                          <span className="flex items-center gap-10 min-w-0">
+                            {extra.photo ? (
+                              <img src={extra.photo} alt="" className="w-20 h-20 object-cover border border-black shrink-0" />
+                            ) : (
+                              <span className="font-bold text-14 leading-none shrink-0">+</span>
+                            )}
+                            <span className="text-14 font-title font-bold">{extra.description}</span>
+                            <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
+                              {Math.round(extra.calories)} kcal
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setLoggingExtra({ slot: slot.key, index: i })}
+                            className="text-12 font-title font-bold underline cursor-pointer"
+                          >
+                            Αλλαγή
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setLoggingExtra({ slot: slot.key, index: 'new' })}
+                        className="self-start border-2 border-dashed border-neutral-400 hover:border-black px-10 py-5 text-12 text-neutral-600 hover:text-black font-title font-bold cursor-pointer"
+                      >
+                        + Πρόσθεσε έξτρα
+                      </button>
+                    </div>
+                  )
+                })}
+
+              </div>
+
+              <TodayProgress
+                title={isToday ? 'Έχεις φάει' : 'Έφαγες'}
+                eaten={loggedMacros(todayDay)}
+                planned={dayMacros(todayDay)}
+                targets={targets}
+                waterGlasses={todayDay.water ?? 0}
+                waterTargetGlasses={waterTargetMl !== null ? Math.ceil(waterTargetMl / GLASS_ML) : null}
+                onWaterChange={setWater}
+              />
+            </div>
+          )}
+        </section>
+
       </div>
 
       {loggingExtra && todayDay && (
@@ -596,7 +709,8 @@ function DayTable({ week, today, targets, dayMacros, avg, waterTargetGlasses }: 
   }
 
   return (
-    <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] overflow-x-auto">
+    <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000]">
+      <FadeScrollX>
       <table className="w-full text-14 font-title border-collapse">
         <thead>
           <tr className="border-b-3 border-black text-12 uppercase">
@@ -708,6 +822,7 @@ function DayTable({ week, today, targets, dayMacros, avg, waterTargetGlasses }: 
           </tfoot>
         )}
       </table>
+      </FadeScrollX>
     </div>
   )
 }

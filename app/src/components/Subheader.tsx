@@ -19,7 +19,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'recipes', label: 'Συνταγές' },
   { key: 'market', label: 'Σούπερ μάρκετ' },
   { key: 'leftovers', label: 'Ψυγείο' },
-  { key: 'calories', label: 'Θερμίδες' },
+  { key: 'calories', label: 'Ιστορικό' },
 ]
 
 function Subheader({ activeTab, onChange, isOpen, onClose, onSignIn, onHelp }: SubheaderProps) {

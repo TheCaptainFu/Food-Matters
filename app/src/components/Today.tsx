@@ -3,7 +3,7 @@ import type { ActualEntry, Day, IngredientDef, Recipe, SlotKey, Week } from '../
 import { SLOT_KEYS } from '../types'
 import { calculateMacroTargets, calculateWaterTargetMl, recipeMacros } from '../nutrition'
 import type { Macros, Profile } from '../nutrition'
-import { addDays, allExtras, findDay, formatDayDate, todayISO, toISODate, updateDayInWeeks, weekdayName } from '../weekUtils'
+import { addDays, allExtras, findDay, skippedEntry, slotExtras, formatDayDate, todayISO, toISODate, updateDayInWeeks, weekdayName } from '../weekUtils'
 import { dayInfo } from '../greekCalendar'
 import type { TabKey } from './Subheader'
 import ActualEntryModal from './ActualEntryModal'
@@ -56,6 +56,8 @@ function Today({
   onPlanWeek,
 }: TodayProps) {
   const [logging, setLogging] = useState<SlotKey | null>(null)
+  // An extra with a meal: a new one, or the i-th one being changed.
+  const [loggingExtra, setLoggingExtra] = useState<{ slot: SlotKey; index: number | 'new' } | null>(null)
   const [toast, setToast] = useState<ToastData | null>(null)
   const closeToast = useCallback(() => setToast(null), [])
 
@@ -119,6 +121,30 @@ function Today({
     setToast((prev) => ({
       id: (prev?.id ?? 0) + 1,
       message: `Καταγράφηκε: ${entry.description}`,
+      action: { label: 'Αναίρεση', onClick: () => setSlotEntry(slot, null) },
+      autoHideMs: 5000,
+    }))
+  }
+
+  // Adds (index null), replaces or removes (entry null) one extra of a meal.
+  function updateExtra(slot: SlotKey, index: number | null, entry: ActualEntry | null) {
+    updateToday((d) => {
+      const list = [...slotExtras(d, slot)]
+      if (index === null) {
+        if (entry) list.push(entry)
+      } else if (entry) list[index] = entry
+      else list.splice(index, 1)
+      const bySlot = Object.fromEntries(SLOT_KEYS.map((s) => [s.value, slotExtras(d, s.value)]))
+      return { ...d, extras: { ...bySlot, [slot]: list } }
+    })
+  }
+
+  function skipIt(slot: SlotKey) {
+    setSlotEntry(slot, skippedEntry())
+    const label = SLOT_KEYS.find((s) => s.value === slot)?.label.toLowerCase() ?? ''
+    setToast((prev) => ({
+      id: (prev?.id ?? 0) + 1,
+      message: `Δεν έφαγες ${label}`,
       action: { label: 'Αναίρεση', onClick: () => setSlotEntry(slot, null) },
       autoHideMs: 5000,
     }))
@@ -197,6 +223,16 @@ function Today({
                 const ids = day?.slots[slot.value] ?? []
                 const titles = ids.map(recipeById).filter((r): r is Recipe => !!r)
                 const isNext = slot.value === nextSlot
+                const extras = day ? slotExtras(day, slot.value) : []
+                const addExtraButton = (
+                  <button
+                    type="button"
+                    onClick={() => setLoggingExtra({ slot: slot.value, index: 'new' })}
+                    className="main-btn font-title font-bold text-12 px-10 py-5 bg-main-yellow shrink-0"
+                  >
+                    + Έξτρα
+                  </button>
+                )
                 return (
                   <div
                     key={slot.value}
@@ -213,9 +249,36 @@ function Today({
                       {isNext && <span className="text-12 font-title font-bold text-main-blue">Επόμενο</span>}
                     </div>
                     {entry ? (
+                      <div className="flex items-center gap-10">
+                        <div className="flex-1 min-w-0">
+                    {entry.skipped ? (
+                      <div className="flex items-center justify-between gap-10 bg-neutral-100 border-2 border-dashed border-neutral-400 px-10 py-5">
+                        <span className="text-14 font-title font-bold text-neutral-500">✕ Δεν έφαγα</span>
+                        <button
+                          type="button"
+                          onClick={() => setSlotEntry(slot.value, null)}
+                          className="text-12 font-title font-bold underline cursor-pointer"
+                        >
+                          Αναίρεση
+                        </button>
+                      </div>
+                    ) : (
                       <div className="flex items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5">
-                        <span className="text-14 font-title font-bold">✓ {entry.description}</span>
-                        <span className="text-12 font-title text-neutral-600 whitespace-nowrap">{Math.round(entry.calories)} kcal</span>
+                        <span className="text-14 font-title font-bold min-w-0">✓ {entry.description}</span>
+                        <span className="flex items-center gap-10 shrink-0">
+                          <span className="text-12 font-title text-neutral-600 whitespace-nowrap">{Math.round(entry.calories)} kcal</span>
+                          <button
+                            type="button"
+                            onClick={() => setSlotEntry(slot.value, null)}
+                            className="text-12 font-title font-bold underline cursor-pointer"
+                          >
+                            Αναίρεση
+                          </button>
+                        </span>
+                      </div>
+                    )}
+                        </div>
+                        {extras.length === 0 && addExtraButton}
                       </div>
                     ) : (
                       <div className="flex flex-wrap items-center gap-10">
@@ -235,7 +298,7 @@ function Today({
                         ) : (
                           <span className="flex-1 min-w-[180px] text-14 font-title text-neutral-400">Τίποτα προγραμματισμένο</span>
                         )}
-                        <span className="flex gap-10">
+                        <span className="flex flex-wrap gap-10">
                           {titles.length > 0 && (
                             <button
                               type="button"
@@ -252,9 +315,37 @@ function Today({
                           >
                             {titles.length > 0 ? 'Κάτι άλλο' : 'Γράψε'}
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => skipIt(slot.value)}
+                            className="main-btn font-title font-bold text-12 px-10 py-5 bg-neutral-100"
+                          >
+                            Δεν έφαγα
+                          </button>
+                          {addExtraButton}
                         </span>
                       </div>
                     )}
+                    {/* Extra food with this meal, on top of the main one */}
+                    {extras.map((extra, i) => (
+                      <div key={i} className="flex items-center gap-10">
+                      <div className="flex-1 min-w-0 flex items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5">
+                        <span className="flex items-center gap-10 min-w-0">
+                          <span className="text-14 font-title font-bold">+ {extra.description}</span>
+                          <span className="text-12 font-title text-neutral-600 whitespace-nowrap">{Math.round(extra.calories)} kcal</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => updateExtra(slot.value, i, null)}
+                          className="text-12 font-title font-bold underline cursor-pointer"
+                        >
+                          Αφαίρεση
+                        </button>
+                      </div>
+                      {/* After a logged meal, "+ Έξτρα" sits by the last row. */}
+                      {entry && i === extras.length - 1 && addExtraButton}
+                      </div>
+                    ))}
                   </div>
                 )
               })
@@ -357,12 +448,13 @@ function Today({
                   </span>
                 )}
                 {tomorrowDay && SLOT_KEYS.some((s) => tomorrowDay.slots[s.value].length > 0) ? (
-                  <ul className="flex flex-col gap-[2px] text-14 font-title">
+                  <ul className="flex flex-col gap-10 pt-5">
                     {SLOT_KEYS.map((s) => {
                       const names = tomorrowDay.slots[s.value].map((id) => recipeById(id)?.title).filter(Boolean)
                       return names.length > 0 ? (
-                        <li key={s.value}>
-                          <span className="text-neutral-500">{s.label}:</span> {names.join(', ')}
+                        <li key={s.value} className="flex flex-col gap-[2px]">
+                          <span className="text-12 font-title font-bold uppercase text-neutral-500">{s.label}</span>
+                          <span className="text-16 font-title font-bold leading-snug">{names.join(', ')}</span>
                         </li>
                       ) : null
                     })}
@@ -388,6 +480,24 @@ function Today({
           }}
           onDelete={() => setLogging(null)}
           onClose={() => setLogging(null)}
+        />
+      )}
+
+      {loggingExtra && (
+        <ActualEntryModal
+          slotLabel={`έξτρα στο ${SLOT_KEYS.find((s) => s.value === loggingExtra.slot)?.label.toLowerCase() ?? ''}`}
+          recipes={recipes}
+          ingredientCatalog={ingredientCatalog}
+          initial={loggingExtra.index === 'new' || !day ? null : (slotExtras(day, loggingExtra.slot)[loggingExtra.index] ?? null)}
+          onSave={(entry) => {
+            updateExtra(loggingExtra.slot, loggingExtra.index === 'new' ? null : loggingExtra.index, entry)
+            setLoggingExtra(null)
+          }}
+          onDelete={() => {
+            if (loggingExtra.index !== 'new') updateExtra(loggingExtra.slot, loggingExtra.index, null)
+            setLoggingExtra(null)
+          }}
+          onClose={() => setLoggingExtra(null)}
         />
       )}
 

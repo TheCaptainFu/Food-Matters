@@ -144,3 +144,8 @@ export function updateDayInWeeks(weeks: Week[], iso: string, change: (day: Day) 
   week.days = week.days.map((day, i) => (i === dayIndex ? change(day) : day))
   return sortWeeks([...weeks, week])
 }
+
+// A meal skipped on purpose ("Δεν έφαγα").
+export function skippedEntry(): ActualEntry {
+  return { description: 'Δεν έφαγα', calories: 0, protein: 0, carbs: 0, fat: 0, skipped: true }
+}

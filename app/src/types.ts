@@ -160,6 +160,9 @@ export type ActualEntry = {
   // Logged with "✓ Ate this" — i.e. exactly the planned meal, so the plan
   // and the log are the same food and shouldn't be shown as two things.
   fromPlan?: boolean
+  // "Δεν έφαγα": the meal was skipped on purpose. Zero calories, but it
+  // still counts as logged, so the day doesn't look forgotten.
+  skipped?: boolean
 }
 
 export type Day = {

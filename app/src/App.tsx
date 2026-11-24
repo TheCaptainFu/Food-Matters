@@ -36,7 +36,7 @@ const PROFILE_KEY = 'food-matters-profile'
 // Bump this whenever DEFAULT_INGREDIENT_CATALOG grows — existing users get
 // the new entries merged into their saved catalog once, without touching
 // anything they've already added, edited, or deleted themselves.
-const CURRENT_CATALOG_VERSION = 4
+const CURRENT_CATALOG_VERSION = 5
 
 // Same idea, but for the seeded recipe library.
 const CURRENT_RECIPES_VERSION = 4
@@ -369,6 +369,7 @@ function App() {
           onOpenRecipe={setOpenRecipeId}
           onOpenProfile={() => setIsProfileOpen(true)}
           onGoToCalendar={() => handleTabChange('calendar')}
+          onGoToToday={() => handleTabChange('today')}
         />
       )}
 

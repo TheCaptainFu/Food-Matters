@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { GroceryCategory, IngredientDef, Recipe } from '../types'
 import { GROCERY_CATEGORIES } from '../types'
 import ConfirmModal from './ConfirmModal'
+import FadeScrollX from './FadeScrollX'
 
 type IngredientsManagerProps = {
   catalog: IngredientDef[]
@@ -72,7 +73,8 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
         Οι διατροφικές τιμές είναι ανά 100g. Οι αλλαγές ισχύουν για κάθε συνταγή που έχει το υλικό.
       </p>
 
-      <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] overflow-x-auto">
+      <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000]">
+        <FadeScrollX>
         <table className="w-full text-14 font-title border-collapse">
           <thead>
             <tr className="border-b-3 border-black text-12 uppercase">
@@ -138,6 +140,7 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
             })}
           </tbody>
         </table>
+        </FadeScrollX>
       </div>
 
       {form && (
