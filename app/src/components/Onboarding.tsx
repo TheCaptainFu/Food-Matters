@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Logo from './Logo'
-import { calculateWaterTargetMl, normalizeProfile, suggestedMacroTargets, PACES } from '../nutrition'
+import { ACTIVITY_LEVELS, GOALS, PACES, calculateWaterTargetMl, normalizeProfile, paceHint, suggestedMacroTargets } from '../nutrition'
+import { DIET_TYPES, type DietType } from '../dietaryRestrictions'
+import type { IngredientDef } from '../types'
 import type { ActivityLevel, Goal, Pace, Profile, Sex } from '../nutrition'
+import BrutalIcon, { type BrutalIconName } from './BrutalIcon'
 
 type OnboardingProps = {
+  ingredientCatalog: IngredientDef[]
   onFinish: (profile: Profile) => void
   onSkip: () => void
 }
@@ -13,20 +17,22 @@ type OnboardingProps = {
 // in its own colour, with big tap targets that move on by themselves — and
 // the daily target counting up at the end.
 
-const ACTIVITY_CHOICES: { value: ActivityLevel; emoji: string; label: string; description: string }[] = [
-  { value: 'sedentary', emoji: '🛋️', label: 'Χαλαρά', description: 'Γραφείο, καναπές, λίγο περπάτημα' },
-  { value: 'moderate', emoji: '🚶', label: 'Κινούμαι', description: 'Άσκηση 3–5 φορές την εβδομάδα' },
-  { value: 'active', emoji: '🔥', label: 'Δεν κάθομαι ποτέ', description: 'Άσκηση σχεδόν κάθε μέρα ή δουλειά με κίνηση' },
-]
+// Same choices, labels and descriptions as the profile — only the icons
+// are extra here.
+const ACTIVITY_ICONS: Record<ActivityLevel, BrutalIconName> = {
+  sedentary: 'sofa',
+  light: 'shoe',
+  moderate: 'heart',
+  active: 'flame',
+  very_active: 'star',
+}
+const ACTIVITY_CHOICES = ACTIVITY_LEVELS.map((a) => ({ ...a, icon: ACTIVITY_ICONS[a.value] }))
 
-const GOAL_CHOICES: { value: Goal; emoji: string; label: string; description: string }[] = [
-  { value: 'lose', emoji: '🪶', label: 'Να χάσω κιλά', description: 'Λιγότερες θερμίδες, αρκετή πρωτεΐνη' },
-  { value: 'maintain', emoji: '⚖️', label: 'Να μείνω όπως είμαι', description: 'Ισορροπία, τρώω σωστά' },
-  { value: 'gain', emoji: '💪', label: 'Να πάρω κιλά', description: 'Περισσότερη ενέργεια, μυς' },
-]
+const GOAL_ICONS: Record<Goal, BrutalIconName> = { lose: 'down', maintain: 'scale', gain: 'up' }
+const GOAL_CHOICES = GOALS.map((g) => ({ ...g, icon: GOAL_ICONS[g.value] }))
 
-type StepKey = 'welcome' | 'sex' | 'body' | 'goal' | 'activity' | 'extras' | 'result'
-const STEPS: StepKey[] = ['welcome', 'sex', 'body', 'goal', 'activity', 'extras', 'result']
+type StepKey = 'welcome' | 'sex' | 'body' | 'goal' | 'activity' | 'extras' | 'diet' | 'result'
+const STEPS: StepKey[] = ['welcome', 'sex', 'body', 'goal', 'activity', 'extras', 'diet', 'result']
 
 // Background per step — the brand colours, so every screen feels different.
 const STEP_BG: Record<StepKey, string> = {
@@ -36,6 +42,7 @@ const STEP_BG: Record<StepKey, string> = {
   goal: 'bg-main-orange',
   activity: 'bg-main-teal',
   extras: 'bg-main-yellow',
+  diet: 'bg-white',
   result: 'bg-main-blue',
 }
 
@@ -115,7 +122,14 @@ function useCountUp(target: number, run: boolean): number {
   return value
 }
 
-function Onboarding({ onFinish, onSkip }: OnboardingProps) {
+// Accent- and case-insensitive, so "κοτοπουλο" finds "Κοτόπουλο".
+const plain = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+function Onboarding({ ingredientCatalog, onFinish, onSkip }: OnboardingProps) {
   const [index, setIndex] = useState(0)
   const step = STEPS[index]
   const [sex, setSex] = useState<Sex | null>(null)
@@ -127,6 +141,17 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
   const [activity, setActivity] = useState<ActivityLevel | null>(null)
   const [worksOut, setWorksOut] = useState(false)
   const [observesFasting, setObservesFasting] = useState(false)
+  const [takesProtein, setTakesProtein] = useState(false)
+  const [takesCreatine, setTakesCreatine] = useState(false)
+  const [diet, setDiet] = useState<DietType>('none')
+  const [excluded, setExcluded] = useState<string[]>([])
+  const [excludeSearch, setExcludeSearch] = useState('')
+  const excludeSuggestions =
+    excludeSearch.trim().length === 0
+      ? []
+      : ingredientCatalog
+          .filter((c) => plain(c.name).includes(plain(excludeSearch.trim())) && !excluded.includes(c.name))
+          .slice(0, 6)
 
   const vitals = {
     age,
@@ -146,7 +171,7 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
   const back = () => setIndex((i) => Math.max(0, i - 1))
 
   function finish() {
-    onFinish(normalizeProfile({ ...vitals, observesFasting, takesProtein: false, takesCreatine: false }))
+    onFinish(normalizeProfile({ ...vitals, observesFasting, takesProtein, takesCreatine, diet, excludedIngredients: excluded }))
   }
 
   const bigChoice = (selected: boolean) =>
@@ -159,17 +184,10 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
   const progress = Math.round((index / (STEPS.length - 1)) * 100)
 
   return createPortal(
-    <div className={`fixed inset-0 z-50 flex flex-col border-[6px] sm:border-[10px] border-black transition-colors duration-500 ${STEP_BG[step]}`}>
-      {/* Top bar: back, progress, skip */}
+    <div className={`fixed inset-0 z-50 flex flex-col transition-colors duration-500 ${STEP_BG[step]}`}>
+      {/* Top bar: back, progress, skip — not on the welcome screen */}
+      {step !== 'welcome' && (
       <div className="flex items-center gap-15 px-20 pt-20 max-w-[520px] w-full mx-auto">
-        <button
-          type="button"
-          onClick={back}
-          aria-label="Πίσω"
-          className={index === 0 ? 'invisible w-30' : 'w-30 text-20 font-bold cursor-pointer'}
-        >
-          ←
-        </button>
         <div className="flex-1 h-[10px] border-2 border-black bg-white">
           <div className="h-full bg-black transition-[width] duration-500" style={{ width: `${progress}%` }} />
         </div>
@@ -177,9 +195,10 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
           Αργότερα
         </button>
       </div>
+      )}
 
       {/* One screen per step; the key restarts the slide-in animation */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <div key={step} className="onb-slide max-w-[520px] w-full mx-auto px-20 py-30 flex flex-col gap-25 min-h-full justify-center">
           {step === 'welcome' && (
             <div className="flex flex-col items-center text-center gap-25">
@@ -210,9 +229,17 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
                   </li>
                 ))}
               </ul>
-              <span className="text-14 font-title text-neutral-500">
-                Πρώτα, λίγα στοιχεία για σένα. Θέλει ένα λεπτό και μένουν μόνο στο κινητό σου.
-              </span>
+              <div className="flex flex-col items-center gap-10 w-full max-w-[380px]">
+                <button type="button" onClick={next} className="main-btn w-full py-15 bg-black text-white font-title font-bold text-20 uppercase">
+                  Πάμε! →
+                </button>
+                <span className="text-14 font-title text-neutral-500">
+                  Πρώτα, λίγα στοιχεία για σένα. Θέλει ένα λεπτό και μένουν μόνο στο κινητό σου.
+                </span>
+                <button type="button" onClick={onSkip} className="text-14 font-title font-bold underline cursor-pointer">
+                  Αργότερα
+                </button>
+              </div>
             </div>
           )}
 
@@ -222,8 +249,8 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
               <div className="grid grid-cols-2 gap-15">
                 {(
                   [
-                    ['female', '👩', 'Γυναίκα'],
-                    ['male', '👨', 'Άνδρας'],
+                    ['female', 'woman', 'Γυναίκα'],
+                    ['male', 'man', 'Άνδρας'],
                   ] as const
                 ).map(([value, emoji, label]) => (
                   <button
@@ -232,7 +259,7 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
                     onClick={() => setSex(value)}
                     className={`main-btn flex flex-col items-center gap-10 py-30 ${sex === value ? 'bg-black text-white' : 'bg-white'}`}
                   >
-                    <span className="text-[64px] leading-none">{emoji}</span>
+                    <BrutalIcon name={emoji} size={72} />
                     <span className="text-20 font-title font-bold">{label}</span>
                   </button>
                 ))}
@@ -245,7 +272,7 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
             <>
               <div className="flex flex-col gap-5">
                 <h2 className="text-32 font-title font-bold uppercase leading-tight">Λίγα νούμερα</h2>
-                <p className="text-16 font-title text-neutral-500">Μένουν μεταξύ μας 🤫</p>
+                <p className="text-16 font-title text-neutral-500">Μένουν μεταξύ μας.</p>
               </div>
               <div className="flex flex-col gap-25">
                 <Stepper label="Ηλικία" unit="χρονών" value={age} min={14} max={90} onChange={setAge} />
@@ -266,7 +293,7 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
                     onClick={() => setGoal(g.value)}
                     className={bigChoice(goal === g.value)}
                   >
-                    <span className="text-36">{g.emoji}</span>
+                    <BrutalIcon name={g.icon} size={44} />
                     <span className="flex flex-col">
                       <span className="text-20 font-title font-bold">{g.label}</span>
                       <span className={goal === g.value ? 'text-14 font-title text-white/80' : 'text-14 font-title text-neutral-500'}>
@@ -277,8 +304,13 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
                 ))}
               </div>
               {/* Losing or gaining needs a pace before moving on. */}
-              {goal && goal !== 'maintain' && (
-                <div className="onb-slide flex flex-col gap-10">
+              {/* Space is kept for it even when hidden, so picking a goal
+                  doesn't shift the choices above. */}
+              {(
+                <div
+                  aria-hidden={!goal || goal === 'maintain'}
+                  className={goal && goal !== 'maintain' ? 'onb-slide flex flex-col gap-10' : 'invisible flex flex-col gap-10'}
+                >
                   <span className="text-16 font-title font-bold uppercase">Με τι ρυθμό;</span>
                   <div className="grid grid-cols-3 gap-10">
                     {PACES.map((p) => (
@@ -288,11 +320,11 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
                         onClick={() => setPace(p.value)}
                         className={`main-btn py-10 font-title font-bold ${pace === p.value ? 'bg-black text-white' : 'bg-white'}`}
                       >
-                        {p.value === 'slow' ? '🐢 ' : p.value === 'fast' ? '🚀 ' : '👟 '}
-                        {p.label}
+                                                {p.label}
                       </button>
                     ))}
                   </div>
+                  <span className="text-14 font-title text-black/70">{goal ? paceHint(goal, pace) : ''}</span>
                 </div>
               )}
             </>
@@ -309,7 +341,7 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
                     onClick={() => setActivity(a.value)}
                     className={bigChoice(activity === a.value)}
                   >
-                    <span className="text-36">{a.emoji}</span>
+                    <BrutalIcon name={a.icon} size={44} />
                     <span className="flex flex-col">
                       <span className="text-20 font-title font-bold">{a.label}</span>
                       <span className={activity === a.value ? 'text-14 font-title text-white/80' : 'text-14 font-title text-neutral-500'}>
@@ -325,16 +357,17 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
           {step === 'extras' && (
             <>
               <div className="flex flex-col gap-5">
-                <h2 className="text-32 font-title font-bold uppercase leading-tight">Κάτι ακόμα;</h2>
+                <h2 className="text-32 font-title font-bold uppercase leading-tight">Προπόνηση & συμπληρώματα</h2>
                 <p className="text-16 font-title text-black/60">Διάλεξε όσα ισχύουν, ή κανένα.</p>
               </div>
               <div className="flex flex-col gap-15">
                 {(
                   [
-                    [worksOut, setWorksOut, '🏋️', 'Κάνω βάρη', 'Θα σου βάλω περισσότερη πρωτεΐνη'],
-                    [observesFasting, setObservesFasting, '✝️', 'Τηρώ τις νηστείες', 'Σαρακοστή, Τετάρτη, Παρασκευή… τα κανονίζω εγώ'],
+                    [worksOut, setWorksOut, 'dumbbell', 'Προπόνηση με βάρη', 'Κάνω βάρη τακτικά. Ανεβάζει τον στόχο πρωτεΐνης και νερού.'],
+                    [takesProtein, setTakesProtein, 'drumstick', 'Σκόνη πρωτεΐνης', 'Το πρόγραμμα προτείνει σέικ τις μέρες που λείπει πρωτεΐνη.'],
+                    [takesCreatine, setTakesCreatine, 'drop', 'Κρεατίνη', 'Δεν έχει θερμίδες, αλλά πίνε περισσότερο νερό.'],
                   ] as const
-                ).map(([checked, set, emoji, label, hint]) => (
+                ).map(([checked, set, icon, label, hint]) => (
                   <button
                     key={label}
                     type="button"
@@ -343,7 +376,7 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
                     onClick={() => set(!checked)}
                     className={bigChoice(checked)}
                   >
-                    <span className="text-36">{emoji}</span>
+                    <BrutalIcon name={icon} size={44} />
                     <span className="flex flex-col flex-1">
                       <span className="text-20 font-title font-bold">{label}</span>
                       <span className={checked ? 'text-14 font-title text-white/80' : 'text-14 font-title text-neutral-500'}>{hint}</span>
@@ -363,10 +396,115 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
             </>
           )}
 
+          {step === 'diet' && (
+            <>
+              <div className="flex flex-col gap-5">
+                <h2 className="text-32 font-title font-bold uppercase leading-tight">Πώς τρως;</h2>
+                <p className="text-16 font-title text-black/60">Για να σου προτείνουμε μόνο ό,τι τρως.</p>
+              </div>
+              <div className="flex flex-col gap-10">
+                <span className="text-16 font-title font-bold uppercase">Διατροφή</span>
+                <div className="grid grid-cols-2 gap-10">
+                  {DIET_TYPES.map((d) => (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => setDiet(d.value)}
+                      className={`main-btn py-10 px-10 font-title font-bold ${diet === d.value ? 'bg-black text-white' : 'bg-white'}`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-15">
+                {(
+                  [
+                    [observesFasting, setObservesFasting, 'cross', 'Τηρώ τις νηστείες', 'Σαρακοστή, Δεκαπενταύγουστος, Τετάρτη και Παρασκευή… Εκείνες τις μέρες μόνο νηστίσιμα.'],
+                  ] as const
+                ).map(([checked, set, icon, label, hint]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={checked}
+                    onClick={() => set(!checked)}
+                    className={bigChoice(checked)}
+                  >
+                    <BrutalIcon name={icon} size={44} />
+                    <span className="flex flex-col flex-1">
+                      <span className="text-20 font-title font-bold">{label}</span>
+                      <span className={checked ? 'text-14 font-title text-white/80' : 'text-14 font-title text-neutral-500'}>{hint}</span>
+                    </span>
+                    <span
+                      className={
+                        checked
+                          ? 'onb-pop w-30 h-30 shrink-0 border-3 border-white bg-white text-black font-bold flex items-center justify-center'
+                          : 'w-30 h-30 shrink-0 border-3 border-black bg-white'
+                      }
+                    >
+                      {checked && '✓'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-col gap-10">
+                <div className="flex flex-col gap-5">
+                  <span className="text-16 font-title font-bold uppercase">Υλικά που αποφεύγεις</span>
+                  <span className="text-14 font-title text-neutral-500">Αλλεργίες ή πράγματα που δεν σου αρέσουν. Προαιρετικό.</span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="search"
+                    placeholder="Πρόσθεσε υλικό, π.χ. καρύδια…"
+                    value={excludeSearch}
+                    onChange={(e) => setExcludeSearch(e.target.value)}
+                    className="w-full border-3 border-black bg-white px-15 py-10 text-16 font-title outline-none focus:shadow-[4px_4px_0_0_#000]"
+                  />
+                  {excludeSuggestions.length > 0 && (
+                    <div className="absolute z-10 top-full left-0 right-0 bg-white border-3 border-t-0 border-black shadow-[4px_4px_0_0_#000] max-h-[220px] overflow-y-auto">
+                      {excludeSuggestions.map((c) => (
+                        <button
+                          key={c.name}
+                          type="button"
+                          onClick={() => {
+                            setExcluded((prev) => [...prev, c.name])
+                            setExcludeSearch('')
+                          }}
+                          className="flex w-full items-center justify-between gap-10 text-left px-15 py-10 text-16 font-title font-bold hover:bg-main-yellow border-b border-neutral-200 last:border-b-0 cursor-pointer"
+                        >
+                          {c.name}
+                          <span className="text-14 font-normal text-neutral-500">+ Αποφυγή</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {excluded.length > 0 && (
+                  <div className="flex flex-wrap gap-10">
+                    {excluded.map((name) => (
+                      <span key={name} className="flex items-center gap-10 pl-10 pr-5 py-5 text-14 font-title font-bold bg-main-red/20 border-2 border-black">
+                        🚫 {name}
+                        <button
+                          type="button"
+                          onClick={() => setExcluded((prev) => prev.filter((n) => n !== name))}
+                          aria-label={`Αφαίρεση: ${name}`}
+                          className="w-20 h-20 flex items-center justify-center leading-none hover:bg-black hover:text-white cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           {step === 'result' && (
             <div className="flex flex-col items-center text-center gap-20 text-white">
-              <span className="onb-confetti text-[56px] leading-none" aria-hidden="true">
-                🎉
+              <span className="onb-confetti" aria-hidden="true">
+                <BrutalIcon name="star" size={64} />
               </span>
               <h2 className="text-26 font-title font-bold uppercase">Ο αριθμός σου είναι</h2>
               <div className="onb-pop bg-main-yellow text-black border-3 border-black shadow-[6px_6px_0_0_#000] px-30 py-20 flex flex-col items-center">
@@ -376,10 +514,10 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
               <div className="grid grid-cols-4 gap-10 w-full">
                 {(
                   [
-                    ['🍗', `${targets.protein}g`, 'Πρωτεΐνη'],
-                    ['🍝', `${targets.carbs}g`, 'Υδατ.'],
-                    ['🫒', `${targets.fat}g`, 'Λιπαρά'],
-                    ['💧', `${waterL}L`, 'Νερό'],
+                    ['drumstick', `${targets.protein}g`, 'Πρωτεΐνη'],
+                    ['pasta', `${targets.carbs}g`, 'Υδατ.'],
+                    ['olive', `${targets.fat}g`, 'Λιπαρά'],
+                    ['drop', `${waterL}L`, 'Νερό'],
                   ] as const
                 ).map(([emoji, value, label], i) => (
                   <div
@@ -387,7 +525,7 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
                     className="onb-rise bg-white text-black border-3 border-black py-10 flex flex-col items-center"
                     style={{ animationDelay: `${900 + i * 120}ms` }}
                   >
-                    <span className="text-20">{emoji}</span>
+                    <BrutalIcon name={emoji} size={28} />
                     <span className="text-16 font-title font-bold">{value}</span>
                     <span className="text-12 font-title text-neutral-500">{label}</span>
                   </div>
@@ -405,27 +543,39 @@ function Onboarding({ onFinish, onSkip }: OnboardingProps) {
         </div>
       </div>
 
-      {/* Bottom action */}
+      {/* Bottom action (the welcome screen has its own, under the cards) */}
+      {step !== 'welcome' && (
       <div className="px-20 pb-30 pt-10 max-w-[520px] w-full mx-auto">
-        {step === 'welcome' ? (
-          <button type="button" onClick={next} className="main-btn w-full py-15 bg-black text-white font-title font-bold text-20 uppercase">
-            Πάμε! →
-          </button>
-        ) : step === 'result' ? (
-          <button type="button" onClick={finish} className="main-btn w-full py-15 bg-main-yellow font-title font-bold text-20 uppercase">
-            Ξεκινάμε! 🚀
-          </button>
+        {step === 'result' ? (
+          <div className="grid grid-cols-[auto_1fr] gap-10">
+            <button type="button" onClick={back} className="main-btn py-15 px-20 bg-white font-title font-bold text-20 uppercase">
+              ←<span className="hidden sm:inline"> Πίσω</span>
+            </button>
+            <button type="button" onClick={finish} className="main-btn w-full py-15 bg-main-yellow font-title font-bold text-20 uppercase">
+              Ξεκινάμε! →
+            </button>
+          </div>
         ) : (
-          <button
-            type="button"
-            onClick={next}
-            disabled={!canContinue}
-            className="main-btn w-full py-15 bg-black text-white font-title font-bold text-20 uppercase disabled:opacity-30 disabled:pointer-events-none"
-          >
-            Συνέχεια →
-          </button>
+          <div className="grid grid-cols-[auto_1fr] gap-10">
+            <button
+              type="button"
+              onClick={back}
+              className="main-btn py-15 px-20 bg-white font-title font-bold text-20 uppercase"
+            >
+              ←<span className="hidden sm:inline"> Πίσω</span>
+            </button>
+            <button
+              type="button"
+              onClick={next}
+              disabled={!canContinue}
+              className="main-btn w-full py-15 bg-black text-white font-title font-bold text-20 uppercase disabled:opacity-30 disabled:pointer-events-none"
+            >
+              Συνέχεια →
+            </button>
+          </div>
         )}
       </div>
+      )}
     </div>,
     document.body,
   )

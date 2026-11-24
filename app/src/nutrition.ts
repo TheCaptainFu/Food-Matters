@@ -85,10 +85,10 @@ export const ACTIVITY_LEVELS: { value: ActivityLevel; label: string; description
 
 export type Goal = 'lose' | 'maintain' | 'gain'
 
-export const GOALS: { value: Goal; label: string }[] = [
-  { value: 'lose', label: 'Απώλεια βάρους' },
-  { value: 'maintain', label: 'Διατήρηση' },
-  { value: 'gain', label: 'Αύξηση βάρους' },
+export const GOALS: { value: Goal; label: string; description: string }[] = [
+  { value: 'lose', label: 'Απώλεια βάρους', description: 'Λιγότερες θερμίδες, αρκετή πρωτεΐνη' },
+  { value: 'maintain', label: 'Διατήρηση', description: 'Ισορροπία, τρώω σωστά' },
+  { value: 'gain', label: 'Αύξηση βάρους', description: 'Περισσότερη ενέργεια, μυς' },
 ]
 
 // How fast to move towards the goal, as a share of maintenance calories —
@@ -101,6 +101,23 @@ export const PACES: { value: Pace; label: string; lose: number; gain: number }[]
   { value: 'normal', label: 'Κανονικά', lose: 0.2, gain: 0.1 },
   { value: 'fast', label: 'Γρήγορα', lose: 0.25, gain: 0.15 },
 ]
+
+// What the chosen pace means, in one line — shown under the pace choice in
+// both the welcome wizard and the profile.
+export function paceHint(goal: Goal, pace: Pace): string {
+  const p = PACES.find((x) => x.value === pace) ?? PACES[1]
+  if (goal === 'lose') {
+    return `${Math.round(p.lose * 100)}% λιγότερες θερμίδες από όσες καις. ${
+      pace === 'fast' ? 'Πιο γρήγορα αποτελέσματα, αλλά πιο δύσκολο να το κρατήσεις.' : 'Βιώσιμος ρυθμός για τους περισσότερους.'
+    }`
+  }
+  if (goal === 'gain') {
+    return `${Math.round(p.gain * 100)}% περισσότερες θερμίδες από όσες καις. ${
+      pace === 'fast' ? 'Περισσότερος όγκος, αλλά και περισσότερο λίπος.' : 'Αργή αύξηση με λιγότερο λίπος.'
+    }`
+  }
+  return ''
+}
 
 export type Profile = {
   age: number

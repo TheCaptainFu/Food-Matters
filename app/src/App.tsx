@@ -377,6 +377,7 @@ function App() {
 
       {isOnboardingOpen && (
         <Onboarding
+          ingredientCatalog={ingredientCatalog}
           onFinish={(newProfile) => {
             setProfile(newProfile)
             setIsOnboardingOpen(false)

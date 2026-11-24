@@ -107,7 +107,7 @@ function PlanWizard({ onDone, onClose }: PlanWizardProps) {
           </div>
         )}
 
-        <div className="overflow-y-auto">
+        <div className="overflow-y-auto overflow-x-hidden">
         <div key={step} className={`onb-slide px-20 py-20 flex flex-col gap-15 ${step === 'building' ? 'bg-main-blue' : ''}`}>
           {step === 'people' && (
             <>

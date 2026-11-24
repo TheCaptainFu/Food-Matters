@@ -10,6 +10,7 @@ import {
   ACTIVITY_LEVELS,
   GOALS,
   PACES,
+  paceHint,
 } from '../nutrition'
 import type { Profile } from '../nutrition'
 import { DIET_TYPES } from '../dietaryRestrictions'
@@ -374,15 +375,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
               <div className="flex flex-col gap-10">
                 <span className={labelClass}>Ρυθμός</span>
                 <Segmented options={PACES} value={pace} onChange={followSuggestion(setPace)} />
-                <span className="text-14 font-title text-neutral-500">
-                  {goal === 'lose'
-                    ? `${Math.round((PACES.find((p) => p.value === pace)?.lose ?? 0) * 100)}% λιγότερες θερμίδες από όσες καις. ${
-                        pace === 'fast' ? 'Πιο γρήγορα αποτελέσματα, αλλά πιο δύσκολο να το κρατήσεις.' : 'Βιώσιμος ρυθμός για τους περισσότερους.'
-                      }`
-                    : `${Math.round((PACES.find((p) => p.value === pace)?.gain ?? 0) * 100)}% περισσότερες θερμίδες από όσες καις. ${
-                        pace === 'fast' ? 'Περισσότερος όγκος, αλλά και περισσότερο λίπος.' : 'Αργή αύξηση με λιγότερο λίπος.'
-                      }`}
-                </span>
+                <span className="text-14 font-title text-neutral-500">{paceHint(goal, pace)}</span>
               </div>
             )}
             <div className="flex flex-col gap-10">
