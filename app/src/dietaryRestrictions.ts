@@ -120,6 +120,14 @@ export function isRecipeFasting(recipe: Recipe): boolean {
   return recipe.ingredients.every((ing) => isIngredientFasting(ing.name))
 }
 
+// Fish-allowed fasting days (Ευαγγελισμός, Βαΐων, Μεταμόρφωση…): the fast
+// still holds for meat, dairy and eggs, but fish is fine.
+const FISH_KEYWORDS = ['ψαρι', 'τσιπουρα', 'λαβρακι', 'σολομ', 'μπακαλιαρ', 'γαυρ', 'σαρδελ', 'σκουμπρ', 'γλωσσα', 'τονος']
+
+export function isRecipeFastingWithFish(recipe: Recipe): boolean {
+  return recipe.ingredients.every((ing) => isIngredientFasting(ing.name) || containsKeyword(ing.name, FISH_KEYWORDS))
+}
+
 export function isIngredientVegan(name: string): boolean {
   if (isException(name)) return true
   return !containsKeyword(name, MEAT_FISH_KEYWORDS) && !containsKeyword(name, ANIMAL_PRODUCT_KEYWORDS)

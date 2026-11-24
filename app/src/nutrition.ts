@@ -16,7 +16,8 @@ function formatSpoonCount(value: number): string {
 // approximation already used for the calorie estimate above. It's an
 // estimate (spoon size varies by ingredient), so we only show it as a hint.
 export function spoonHint(grams: number): string | null {
-  if (grams < 2.5) return null
+  // Spoons only make sense for small amounts (oil, sugar, spices), not 150g of pineapple.
+  if (grams < 2.5 || grams > 60) return null
   if (grams < 12.5) {
     const tsp = Math.round((grams / 5) * 2) / 2
     return `≈ ${formatSpoonCount(tsp)} κ.γλ.`
@@ -118,6 +119,9 @@ export type Profile = {
   customCarbs?: number
   customFat?: number
   diet: DietType
+  // Follows the Orthodox fasts: on fasting days (Lent, Wednesdays and
+  // Fridays…) the plan only suggests fasting recipes.
+  observesFasting: boolean
   excludedIngredients: string[]
 }
 
@@ -137,6 +141,7 @@ export function normalizeProfile(stored: Partial<Profile>): Profile {
     customCarbs: stored.customCarbs,
     customFat: stored.customFat,
     diet: stored.diet ?? 'none',
+    observesFasting: stored.observesFasting ?? false,
     excludedIngredients: stored.excludedIngredients ?? [],
   }
 }

@@ -2,6 +2,16 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { ActualEntry, IngredientDef, Recipe } from '../types'
 import { recipeMacros } from '../nutrition'
+import { EATING_OUT, EATING_OUT_GROUPS, type EatingOutGroup, type EatingOutItem } from '../eatingOut'
+import ScrollRow from './ScrollRow'
+
+// Lowercase without Greek accents, so "φρεντο" finds "Φρέντο".
+function plainText(text: string) {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
 
 type ActualEntryModalProps = {
   slotLabel: string
@@ -56,6 +66,9 @@ function ActualEntryModal({
   // straight on the form.
   const [step, setStep] = useState<'pick' | 'custom'>(initial ? 'custom' : 'pick')
   const [search, setSearch] = useState('')
+  // Your own recipes, or the "eaten out" list (souvlaki, bakery, coffee…).
+  const [source, setSource] = useState<'recipes' | 'out'>('recipes')
+  const [outGroup, setOutGroup] = useState<EatingOutGroup>('street')
 
   const [description, setDescription] = useState(initial?.description ?? '')
   const [calories, setCalories] = useState(initial?.calories ? String(initial.calories) : '')
@@ -67,7 +80,7 @@ function ActualEntryModal({
 
   const query = search.trim().toLowerCase()
   const matchingRecipes = recipes
-    .filter((r) => r.title.toLowerCase().includes(query))
+    .filter((r) => plainText(r.title).includes(plainText(query)))
     .sort((a, b) => a.title.localeCompare(b.title))
 
   function pickRecipe(recipe: Recipe) {
@@ -79,6 +92,14 @@ function ActualEntryModal({
       carbs: Math.round(m.carbs),
       fat: Math.round(m.fat),
     })
+  }
+
+  const outMatches = query
+    ? EATING_OUT.filter((item) => plainText(item.name).includes(plainText(query)))
+    : EATING_OUT.filter((item) => item.group === outGroup)
+
+  function pickOut(item: EatingOutItem) {
+    onSave({ description: item.name, calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat })
   }
 
   function goToCustom() {
@@ -125,15 +146,72 @@ function ActualEntryModal({
 
         {step === 'pick' ? (
           <>
+            <div className="flex border-3 border-black font-title font-bold text-14">
+              <button
+                type="button"
+                onClick={() => setSource('recipes')}
+                className={source === 'recipes' ? 'flex-1 py-5 bg-black text-white cursor-pointer' : 'flex-1 py-5 cursor-pointer hover:bg-neutral-100'}
+              >
+                📖 Οι συνταγές μου
+              </button>
+              <button
+                type="button"
+                onClick={() => setSource('out')}
+                className={source === 'out' ? 'flex-1 py-5 bg-black text-white cursor-pointer' : 'flex-1 py-5 cursor-pointer hover:bg-neutral-100'}
+              >
+                🥙 Φαγητό έξω
+              </button>
+            </div>
+
             <input
               type="search"
-              placeholder="Αναζήτηση στις συνταγές σου…"
+              placeholder={source === 'recipes' ? 'Αναζήτηση στις συνταγές σου…' : 'π.χ. σουβλάκι, φρέντο, τυρόπιτα…'}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className={inputClass}
               autoFocus
             />
 
+            {source === 'out' && !query && (
+              <ScrollRow className="-my-5">
+                {EATING_OUT_GROUPS.map((g) => (
+                  <button
+                    key={g.value}
+                    type="button"
+                    onClick={() => setOutGroup(g.value)}
+                    className={
+                      g.value === outGroup
+                        ? 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-12 px-10 py-5 bg-black text-white'
+                        : 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-12 px-10 py-5'
+                    }
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </ScrollRow>
+            )}
+
+            {source === 'out' ? (
+              <div className="border-3 border-black max-h-[280px] overflow-y-auto">
+                {outMatches.length > 0 ? (
+                  outMatches.map((item) => (
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={() => pickOut(item)}
+                      className="w-full flex items-baseline justify-between gap-10 text-left px-15 py-10 text-14 font-title font-bold hover:bg-main-yellow border-b-2 border-black last:border-b-0 cursor-pointer"
+                    >
+                      <span>{item.name}</span>
+                      <span className="text-12 font-normal text-neutral-500 whitespace-nowrap">{item.calories} kcal</span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="px-15 py-10 text-14 font-title text-neutral-500">
+                    Δεν βρέθηκε «{search.trim()}». Πρόσθεσέ το με το κουμπί από κάτω.
+                  </p>
+                )}
+              </div>
+            ) : (
             <div className="border-3 border-black max-h-[280px] overflow-y-auto">
               {matchingRecipes.length > 0 ? (
                 matchingRecipes.map((r, i) => (
@@ -159,6 +237,7 @@ function ActualEntryModal({
                 </p>
               )}
             </div>
+            )}
 
             <button
               type="button"

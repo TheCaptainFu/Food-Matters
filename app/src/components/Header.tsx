@@ -31,6 +31,7 @@ function Header({ isMenuOpen, onToggleMenu, user, onOpenProfile }: HeaderProps) 
         <button
           type="button"
           aria-label="Το προφίλ σου"
+          data-tour="profile"
           onClick={onOpenProfile}
           className="appearance-none main-btn flex items-center justify-center w-40 h-40 p-0 shrink-0 overflow-hidden"
         >
@@ -40,6 +41,7 @@ function Header({ isMenuOpen, onToggleMenu, user, onOpenProfile }: HeaderProps) 
         <button
           type="button"
           aria-label="Άνοιγμα μενού"
+          data-tour="menu"
           aria-expanded={isMenuOpen}
           onClick={onToggleMenu}
           className="appearance-none main-btn tab:hidden flex flex-col justify-center gap-5 w-40 h-40 p-5 shrink-0"

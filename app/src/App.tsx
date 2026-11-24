@@ -1,5 +1,8 @@
 import Header from './components/Header'
 import Footer from './components/Footer'
+import Today from './components/Today'
+import Onboarding from './components/Onboarding'
+import TourGuide from './components/TourGuide'
 import Subheader, { type TabKey } from './components/Subheader'
 import Recipes from './components/Recipes'
 import Calendar from './components/Calendar'
@@ -163,9 +166,9 @@ function App() {
   // A brand-new visitor (no profile saved yet) lands on Calories, where the
   // profile wizard opens automatically — not on an empty Calendar with no
   // explanation of what to do next.
-  const [activeTab, setActiveTab] = useState<TabKey>(() =>
-    loadFromStorage<Partial<Profile> | null>(PROFILE_KEY, null) ? 'calendar' : 'calories',
-  )
+  // Everyone lands on Σήμερα, the home page; a brand-new visitor also gets
+  // the short welcome wizard on top of it.
+  const [activeTab, setActiveTab] = useState<TabKey>('today')
   const [recipes, setRecipes] = useState<Recipe[]>(initRecipes)
 
   // New users start with an empty Week 1 — no demo meals already assigned —
@@ -188,7 +191,18 @@ function App() {
   // Opens automatically for a brand-new visitor (no profile yet) regardless
   // of which tab they land on, same as the old Calories-only wizard did —
   // just not tied to being on that specific tab anymore.
-  const [isProfileOpen, setIsProfileOpen] = useState(!profile)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(!profile)
+  // Σήμερα's "plan my week" goes to Πρόγραμμα with the questions already open.
+  const [planWizardOnOpen, setPlanWizardOnOpen] = useState(false)
+  // The guided tour: right after the welcome, or from "Βοήθεια" in the menu.
+  const [isTourOpen, setIsTourOpen] = useState(false)
+
+  function planWeek() {
+    setActiveWeekStart(toISODate(mondayOf(new Date())))
+    setPlanWizardOnOpen(true)
+    handleTabChange('calendar')
+  }
 
   function handleTabChange(tab: TabKey) {
     setActiveTab(tab)
@@ -282,7 +296,24 @@ function App() {
         isOpen={isNavOpen}
         onClose={() => setIsNavOpen(false)}
         onSignIn={canSignIn ? () => signInWithProvider('google') : undefined}
+        onHelp={() => {
+          setIsNavOpen(false)
+          setIsTourOpen(true)
+        }}
       />
+      {activeTab === 'today' && (
+        <Today
+          recipes={recipes}
+          weeks={weeks}
+          setWeeks={setWeeks}
+          ingredientCatalog={ingredientCatalog}
+          profile={profile}
+          onOpenRecipe={setOpenRecipeId}
+          onOpenProfile={() => (profile ? setIsProfileOpen(true) : setIsOnboardingOpen(true))}
+          onGoTo={handleTabChange}
+          onPlanWeek={planWeek}
+        />
+      )}
       {activeTab === 'recipes' && (
         <Recipes
           recipes={recipes}
@@ -307,6 +338,8 @@ function App() {
           onOpenProfile={() => setIsProfileOpen(true)}
           onAddRecipe={handleAddRecipe}
           onAddIngredientDef={handleAddIngredientDef}
+          startWithPlanWizard={planWizardOnOpen && !!profile}
+          onPlanWizardClosed={() => setPlanWizardOnOpen(false)}
         />
       )}
       {activeTab === 'market' && (
@@ -340,6 +373,25 @@ function App() {
       )}
 
       <Footer />
+
+      {isOnboardingOpen && (
+        <Onboarding
+          onFinish={(newProfile) => {
+            setProfile(newProfile)
+            setIsOnboardingOpen(false)
+            setIsTourOpen(true)
+          }}
+          onSkip={() => setIsOnboardingOpen(false)}
+        />
+      )}
+
+      {isTourOpen && (
+        <TourGuide
+          onNavigate={handleTabChange}
+          onPlanWeek={() => (profile ? planWeek() : setIsOnboardingOpen(true))}
+          onClose={() => setIsTourOpen(false)}
+        />
+      )}
 
       {isProfileOpen && (
         <ProfileModal

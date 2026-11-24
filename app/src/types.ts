@@ -110,6 +110,14 @@ export const CATEGORIES: { value: Category; label: string; color: string }[] = [
   { value: 'dessert', label: 'Γλυκά', color: 'bg-main-blue' },
 ]
 
+export type Difficulty = 'easy' | 'medium' | 'hard'
+
+export const DIFFICULTIES: { value: Difficulty; label: string }[] = [
+  { value: 'easy', label: 'Εύκολη' },
+  { value: 'medium', label: 'Μέτρια' },
+  { value: 'hard', label: 'Δύσκολη' },
+]
+
 export type SlotKey = 'breakfast' | 'lunch' | 'afternoon' | 'dinner'
 
 export const SLOT_KEYS: { value: SlotKey; label: string }[] = [
@@ -129,6 +137,10 @@ export type Recipe = {
   // Ingredient amounts are for this many portions (default 1); calories
   // shown anywhere are per portion.
   servings?: number
+  // Total time in minutes and how hard it is. Optional: when missing they're
+  // estimated from the instructions and ingredients (see recipeTraits.ts).
+  minutes?: number
+  difficulty?: Difficulty
   ingredients: Ingredient[]
   // How to actually make it — optional so older/legacy recipes without one
   // just don't show a "how to make it" section instead of breaking.

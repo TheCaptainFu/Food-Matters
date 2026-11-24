@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import type { Recipe, Ingredient, Unit, Category, IngredientDef, SlotKey } from '../types'
-import { UNITS, CATEGORIES, SLOT_KEYS } from '../types'
+import type { Recipe, Ingredient, Unit, Category, IngredientDef, SlotKey, Difficulty } from '../types'
+import { UNITS, CATEGORIES, SLOT_KEYS, DIFFICULTIES } from '../types'
 import { spoonHint } from '../nutrition'
 import { findDef, toGrams } from '../quantities'
 import IngredientPickerModal from './IngredientPickerModal'
@@ -40,6 +40,9 @@ function AddRecipeModal({
   const [instructions, setInstructions] = useState(initialRecipe?.instructions ?? '')
   const [ingredients, setIngredients] = useState<Ingredient[]>(initialRecipe?.ingredients ?? [])
   const [servings, setServings] = useState(initialRecipe?.servings ?? 1)
+  // Optional: left empty, time and difficulty are estimated from the recipe.
+  const [minutes, setMinutes] = useState(initialRecipe?.minutes ? String(initialRecipe.minutes) : '')
+  const [difficulty, setDifficulty] = useState<Difficulty | ''>(initialRecipe?.difficulty ?? '')
   const [isPickerOpen, setIsPickerOpen] = useState(false)
 
   function toggleMealType(slot: SlotKey) {
@@ -79,6 +82,8 @@ function AddRecipeModal({
       category,
       mealTypes,
       servings: Math.max(1, servings),
+      minutes: Number(minutes) > 0 ? Math.round(Number(minutes)) : undefined,
+      difficulty: difficulty || undefined,
       ingredients: cleanIngredients,
       instructions: instructions.trim() || undefined,
     })
@@ -167,6 +172,35 @@ function AddRecipeModal({
                   ? 'Διάλεξε τουλάχιστον ένα. Οι προτάσεις θα τη δείχνουν μόνο σε αυτά τα γεύματα.'
                   : 'Οι προτάσεις θα τη δείχνουν μόνο σε αυτά τα γεύματα.'}
               </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-15">
+              <label className="flex flex-col gap-10">
+                <span className="text-16 font-title font-bold uppercase">Χρόνος (λεπτά)</span>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Αυτόματα"
+                  value={minutes}
+                  onChange={(e) => setMinutes(e.target.value)}
+                  className="border-3 border-black px-15 py-10 font-title"
+                />
+              </label>
+              <label className="flex flex-col gap-10">
+                <span className="text-16 font-title font-bold uppercase">Δυσκολία</span>
+                <select
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value as Difficulty | '')}
+                  className="bg-white border-3 border-black pl-15 pr-30 py-10 font-title"
+                >
+                  <option value="">Αυτόματα</option>
+                  {DIFFICULTIES.map((d) => (
+                    <option key={d.value} value={d.value}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
 
             <div className="flex flex-col gap-10">

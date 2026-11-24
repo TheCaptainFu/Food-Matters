@@ -126,3 +126,21 @@ export function makeWeek(startDate: string, days: Day[] = DAY_LABELS.map(makeDay
     days,
   }
 }
+
+// Applies a change to one day (by date), creating that day's week if
+// nobody has planned it yet — e.g. logging water on an unplanned day.
+export function updateDayInWeeks(weeks: Week[], iso: string, change: (day: Day) => Day): Week[] {
+  const ref = findDay(weeks, iso)
+  if (ref) {
+    return weeks.map((week) =>
+      week.id !== ref.week.id
+        ? week
+        : { ...week, days: week.days.map((day, i) => (i === ref.dayIndex ? change(day) : day)) },
+    )
+  }
+  const startDate = toISODate(mondayOf(parseISODate(iso)))
+  const week = makeWeek(startDate)
+  const dayIndex = Math.round((parseISODate(iso).getTime() - parseISODate(startDate).getTime()) / 86_400_000)
+  week.days = week.days.map((day, i) => (i === dayIndex ? change(day) : day))
+  return sortWeeks([...weeks, week])
+}

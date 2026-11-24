@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import AddRecipeModal from './AddRecipeModal'
-import { isRecipeFasting } from '../dietaryRestrictions'
+import { recipeInfo, formatMinutes, formatEuro, COST_LABEL, type Season } from '../recipeTraits'
 import ScrollRow from './ScrollRow'
 import IngredientsManager from './IngredientsManager'
 import type { Recipe, IngredientDef, SlotKey } from '../types'
@@ -14,6 +14,8 @@ const MEAL_ACTIVE: Record<SlotKey, string> = {
   afternoon: 'bg-main-teal text-black',
   dinner: 'bg-main-blue text-white',
 }
+
+type SortKey = 'az' | 'kcal' | 'protein' | 'cost' | 'time'
 
 type RecipesProps = {
   recipes: Recipe[]
@@ -43,19 +45,49 @@ function Recipes({
   const [categoryFilter, setCategoryFilter] = useState<'all' | Recipe['category']>('all')
   const [search, setSearch] = useState('')
   const [fastingOnly, setFastingOnly] = useState(false)
+  // Quick filters on what people actually decide by, plus a sort.
+  const [quickOnly, setQuickOnly] = useState(false)
+  const [cheapOnly, setCheapOnly] = useState(false)
+  const [seasonalOnly, setSeasonalOnly] = useState(false)
+  const [sort, setSort] = useState<SortKey>('az')
 
   function handleAddRecipe(recipe: Recipe) {
     onAddRecipe(recipe)
     setIsModalOpen(false)
   }
 
-  const visibleRecipes = recipes.filter((recipe) => {
-    const matchesMeal = mealFilter === 'all' || (recipe.mealTypes ?? []).includes(mealFilter)
-    const matchesCategory = categoryFilter === 'all' || recipe.category === categoryFilter
-    const matchesSearch = recipe.title.toLowerCase().includes(search.trim().toLowerCase())
-    const matchesFasting = !fastingOnly || isRecipeFasting(recipe)
-    return matchesMeal && matchesCategory && matchesSearch && matchesFasting
-  })
+  const infoById = new Map(recipes.map((r) => [r.id, recipeInfo(r, ingredientCatalog)]))
+  const month = new Date().getMonth() + 1
+  const currentSeason: Season = month >= 5 && month <= 9 ? 'summer' : month >= 11 || month <= 3 ? 'winter' : null
+
+  const visibleRecipes = recipes
+    .filter((recipe) => {
+      const info = infoById.get(recipe.id)!
+      const matchesMeal = mealFilter === 'all' || (recipe.mealTypes ?? []).includes(mealFilter)
+      const matchesCategory = categoryFilter === 'all' || recipe.category === categoryFilter
+      const matchesSearch = recipe.title.toLowerCase().includes(search.trim().toLowerCase())
+      const matchesFasting = !fastingOnly || info.fasting
+      const matchesQuick = !quickOnly || info.minutes <= 30
+      const matchesCheap = !cheapOnly || info.costTier === 'cheap'
+      const matchesSeason = !seasonalOnly || info.season === null || info.season === currentSeason
+      return matchesMeal && matchesCategory && matchesSearch && matchesFasting && matchesQuick && matchesCheap && matchesSeason
+    })
+    .sort((a, b) => {
+      const x = infoById.get(a.id)!
+      const y = infoById.get(b.id)!
+      switch (sort) {
+        case 'kcal':
+          return x.macros.calories - y.macros.calories
+        case 'protein':
+          return y.macros.protein - x.macros.protein
+        case 'cost':
+          return x.cost - y.cost
+        case 'time':
+          return x.minutes - y.minutes
+        default:
+          return a.title.localeCompare(b.title, 'el')
+      }
+    })
 
   return (
     <div className="py-20">
@@ -131,19 +163,6 @@ function Recipes({
                 {slot.label}
               </button>
             ))}
-            <span className="w-[2px] shrink-0 self-stretch bg-neutral-200 mx-5" />
-            <button
-              type="button"
-              aria-pressed={fastingOnly}
-              onClick={() => setFastingOnly((v) => !v)}
-              className={
-                fastingOnly
-                  ? 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5 bg-black text-white'
-                  : 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5'
-              }
-            >
-              ✝ Νηστίσιμα
-            </button>
             </ScrollRow>
           </div>
 
@@ -171,6 +190,46 @@ function Recipes({
             ))}
             </ScrollRow>
           </div>
+
+          <div className="flex items-center gap-10">
+            <span className="text-14 font-title font-bold uppercase text-neutral-500 w-[60px] shrink-0">Μόνο</span>
+            <ScrollRow>
+              {(
+                [
+                  [quickOnly, setQuickOnly, '⚡ Γρήγορα (ως 30\')'],
+                  [cheapOnly, setCheapOnly, '€ Οικονομικά'],
+                  [fastingOnly, setFastingOnly, '✝ Νηστίσιμα'],
+                  [seasonalOnly, setSeasonalOnly, currentSeason === 'summer' ? '☀️ Της εποχής' : '❄️ Της εποχής'],
+                ] as const
+              ).map(([on, set, label]) => (
+                <button
+                  key={label}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => set((v: boolean) => !v)}
+                  className={
+                    on
+                      ? 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5 bg-black text-white'
+                      : 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-14 px-10 py-5'
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortKey)}
+                aria-label="Ταξινόμηση"
+                className="shrink-0 bg-white border-3 border-black pl-10 pr-30 py-[3px] font-title font-bold text-14"
+              >
+                <option value="az">Α → Ω</option>
+                <option value="kcal">Λιγότερες θερμίδες</option>
+                <option value="protein">Περισσότερη πρωτεΐνη</option>
+                <option value="cost">Πιο φθηνά</option>
+                <option value="time">Πιο γρήγορα</option>
+              </select>
+            </ScrollRow>
+          </div>
         </div>
 
         {visibleRecipes.length === 0 && (
@@ -183,6 +242,9 @@ function Recipes({
                 setCategoryFilter('all')
                 setSearch('')
                 setFastingOnly(false)
+                setQuickOnly(false)
+                setCheapOnly(false)
+                setSeasonalOnly(false)
               }}
               className="font-bold text-black underline cursor-pointer"
             >
@@ -202,17 +264,28 @@ function Recipes({
           </button>
 
           {visibleRecipes.map((recipe) => {
-            const categoryColor = CATEGORIES.find((c) => c.value === recipe.category)?.color ?? 'bg-neutral-200'
+            const category = CATEGORIES.find((c) => c.value === recipe.category)
+            const info = infoById.get(recipe.id)!
             return (
               <button
                 key={recipe.id}
                 type="button"
                 onClick={() => onOpenRecipe(recipe.id)}
-                className="main-btn flex flex-col p-0 min-h-100 overflow-hidden"
+                className="main-btn flex flex-col p-0 min-h-100 overflow-hidden text-left"
               >
-                <span className={`h-10 w-full ${categoryColor}`} />
-                <span className="flex-1 flex items-center justify-center p-20 text-center font-title font-bold uppercase">
-                  {recipe.title}
+                <span className={`h-10 w-full ${category?.color ?? 'bg-neutral-200'}`} />
+                <span className="flex-1 flex flex-col gap-5 p-15">
+                  <span className="flex items-center justify-between gap-5 text-12 font-title font-bold uppercase text-neutral-500">
+                    {category?.label}
+                    {info.fasting && <span title="Νηστίσιμο">✝</span>}
+                  </span>
+                  <span className="flex-1 font-title font-bold uppercase leading-tight">{recipe.title}</span>
+                  {/* At a glance: time, price, calories per portion */}
+                  <span className="flex flex-wrap gap-x-10 gap-y-[2px] text-12 font-title text-neutral-600 pt-5 border-t border-neutral-200">
+                    <span>⏱ {formatMinutes(info.minutes)}</span>
+                    <span title={`~${formatEuro(info.cost)} τη μερίδα`}>{COST_LABEL[info.costTier]}</span>
+                    <span>{Math.round(info.macros.calories)} kcal</span>
+                  </span>
                 </span>
               </button>
             )

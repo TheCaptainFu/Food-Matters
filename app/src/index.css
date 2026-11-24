@@ -171,3 +171,74 @@
 
 
 
+
+/* ==========================================================================
+   Welcome wizard animations
+   ========================================================================== */
+
+@keyframes onb-slide {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.onb-slide { animation: onb-slide 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes onb-pop {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+.onb-pop { animation: onb-pop 0.35s ease-out both; }
+
+@keyframes onb-float {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-14px) rotate(4deg); }
+}
+.onb-float { animation: onb-float 2.4s ease-in-out infinite; }
+
+@keyframes onb-confetti {
+  0% { transform: scale(0) rotate(-30deg); }
+  50% { transform: scale(1.4) rotate(15deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+.onb-confetti { animation: onb-confetti 0.7s ease-out both; }
+
+@keyframes onb-rise {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.onb-rise { animation: onb-rise 0.4s ease-out both; }
+
+/* Chunky black slider to match the buttons */
+.onb-range {
+  appearance: none;
+  height: 10px;
+  background: #fff;
+  border: 3px solid #000;
+  cursor: pointer;
+}
+.onb-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  background: #ffec62;
+  border: 3px solid #000;
+  box-shadow: 3px 3px 0 0 #000;
+}
+.onb-range::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 0;
+  background: #ffec62;
+  border: 3px solid #000;
+  box-shadow: 3px 3px 0 0 #000;
+}
+
+@keyframes onb-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+  40% { transform: translateY(-6px); opacity: 1; }
+}
+.onb-dot { animation: onb-dot 1s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .onb-slide, .onb-pop, .onb-float, .onb-confetti, .onb-rise, .onb-dot { animation: none; }
+}

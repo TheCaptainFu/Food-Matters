@@ -1,3 +1,7 @@
+import PlanWizard from './PlanWizard'
+import { costPerServing, loadPlanPrefs, prefsPenalty, type PlanPrefs } from '../recipeTraits'
+import { loadHousehold } from '../shopping'
+import { dayInfo } from '../greekCalendar'
 import { findDef } from '../quantities'
 import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -5,7 +9,7 @@ import type { Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
 import { SLOT_KEYS } from '../types'
 import type { Macros, Profile } from '../nutrition'
 import { calculateMacroTargets, recipeMacros } from '../nutrition'
-import { filterCompatibleRecipes } from '../dietaryRestrictions'
+import { isRecipeFasting, isRecipeFastingWithFish, filterCompatibleRecipes } from '../dietaryRestrictions'
 import { addDays, allExtras, dayDate, formatDayDate, makeWeek, mondayOf, parseISODate, sortWeeks, toISODate, todayISO } from '../weekUtils'
 import ConfirmModal from './ConfirmModal'
 import AddRecipeModal from './AddRecipeModal'
@@ -59,6 +63,9 @@ type CalendarProps = {
   // For "Create new recipe" from the Swap dialog.
   onAddRecipe: (recipe: Recipe) => void
   onAddIngredientDef: (def: IngredientDef) => void
+  // Opens the "plan my week" questions right away (from Σήμερα).
+  startWithPlanWizard?: boolean
+  onPlanWizardClosed?: () => void
 }
 
 type PendingConfirm = {
@@ -81,6 +88,8 @@ function Calendar({
   onOpenProfile,
   onAddRecipe,
   onAddIngredientDef,
+  startWithPlanWizard = false,
+  onPlanWizardClosed,
 }: CalendarProps) {
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null)
   const [isImporting, setIsImporting] = useState(false)
@@ -94,6 +103,7 @@ function Calendar({
   // The week is read-only by default so the plan stays easy to scan; one
   // Edit button reveals the add/swap/remove controls on every day.
   const [isEditing, setIsEditing] = useState(false)
+  const [isPlanWizardOpen, setIsPlanWizardOpen] = useState(startWithPlanWizard)
 
   const [toast, setToast] = useState<ToastData | null>(null)
   const closeToast = useCallback(() => setToast(null), [])
@@ -173,11 +183,19 @@ function Calendar({
   // gets offered pasta, for instance. Falls back to the full compatible
   // list if nothing is tagged for that slot yet (e.g. a brand-new recipe
   // library), rather than offering nothing at all.
-  function recipesForSlot(slotKey: SlotKey): Recipe[] {
+  // With a date, also respects the Orthodox fast for that day when the
+  // profile follows it (falling back to the unfiltered list if no recipe
+  // fits, rather than offering nothing).
+  function recipesForSlot(slotKey: SlotKey, date?: Date): Recipe[] {
     // Guard against recipes saved before mealTypes existed (no field on
     // them yet) — treat those as fitting every slot rather than crashing.
     const tagged = compatibleRecipes.filter((r) => (r.mealTypes ?? []).includes(slotKey))
-    return tagged.length > 0 ? tagged : compatibleRecipes
+    const pool = tagged.length > 0 ? tagged : compatibleRecipes
+    if (!date || !profile?.observesFasting) return pool
+    const info = dayInfo(date)
+    if (!info.fasting) return pool
+    const fasting = pool.filter(info.fishAllowed ? isRecipeFastingWithFish : isRecipeFasting)
+    return fasting.length > 0 ? fasting : pool
   }
 
   // The shown week is picked by date with ‹ › arrows, not from a growing
@@ -370,7 +388,7 @@ function Calendar({
   // full macro profile (calories, protein, carbs, fat) is closest to the
   // given recipe's — candidates for an "I don't feel like this one" swap
   // that doesn't throw off the day's targets.
-  function getAlternatives(current: Recipe, slotKey: SlotKey): Recipe[] {
+  function getAlternatives(current: Recipe, slotKey: SlotKey, date?: Date): Recipe[] {
     const currentMacros = recipeMacros(current, ingredientCatalog)
     const byCloseness = (list: Recipe[]) =>
       [...list].sort(
@@ -380,7 +398,7 @@ function Calendar({
       )
     const isSupplement = (r: Recipe) =>
       r.ingredients.some((ing) => findDef(ing.name, ingredientCatalog)?.category === 'protein')
-    const others = recipesForSlot(slotKey).filter((r) => r.id !== current.id && !isSupplement(r))
+    const others = recipesForSlot(slotKey, date).filter((r) => r.id !== current.id && !isSupplement(r))
     // Same kind of dish first; if there aren't 3 of those for this meal,
     // top up with the closest of the rest, so there's always a choice.
     const sameKind = byCloseness(others.filter((r) => r.category === current.category))
@@ -459,7 +477,11 @@ function Calendar({
   function pickFillsForDay(
     slots: Day['slots'],
     usageCounts: Map<string, number>,
+    date: Date,
+    prefs: PlanPrefs = loadPlanPrefs(),
   ): Partial<Record<SlotKey, Recipe>> {
+    const weekday = date.getDay()
+    const isWeekday = weekday >= 1 && weekday <= 5
     if (dailyMacroTargets === null || compatibleRecipes.length === 0) return {}
 
     const emptySlots = SLOTS.filter((slot) => slots[slot.key].length === 0)
@@ -480,10 +502,12 @@ function Calendar({
         fat: dailyMacroTargets.fat * share,
       }
       const score = (r: Recipe) =>
-        macroDistance(recipeMacros(r, ingredientCatalog), slotBudget) + (usageCounts.get(r.id) ?? 0) * REPEAT_PENALTY
+        macroDistance(recipeMacros(r, ingredientCatalog), slotBudget) +
+        (usageCounts.get(r.id) ?? 0) * REPEAT_PENALTY +
+        prefsPenalty(r, ingredientCatalog, prefs, isWeekday)
       // Supplements (shake, protein bar) aren't meals — the plan suggests a
       // shake separately — so auto-fill leaves them out unless nothing else fits.
-      const pool = recipesForSlot(slot.key)
+      const pool = recipesForSlot(slot.key, date)
       const meals = pool.filter(
         (r) => !r.ingredients.some((ing) => findDef(ing.name, ingredientCatalog)?.category === 'protein'),
       )
@@ -523,7 +547,7 @@ function Calendar({
     if (dailyMacroTargets === null) return
     const day = activeWeek.days[dayIndex]
     const usageCounts = new Map<string, number>()
-    const picks = pickFillsForDay(day.slots, usageCounts)
+    const picks = pickFillsForDay(day.slots, usageCounts, dayDate(activeWeek, dayIndex))
 
     SLOTS.forEach((slot) => {
       const recipe = picks[slot.key]
@@ -538,12 +562,24 @@ function Calendar({
   // Fills only the empty meals of the week, leaving anything already
   // planned (by hand or by an earlier fill) untouched — so it's always safe
   // to press. Each day is balanced around what's already in it.
-  function fillWeek() {
+  // The button asks a few questions first (budget, time, likes…); a full
+  // week needs no questions, just says so.
+  function openPlanWizard() {
     if (dailyMacroTargets === null) return
     if (!weekHasEmptySlot) {
       showToast({ message: 'Όλα τα γεύματα της εβδομάδας είναι ήδη προγραμματισμένα.', autoHideMs: 4000 })
       return
     }
+    setIsPlanWizardOpen(true)
+  }
+
+  function closePlanWizard() {
+    setIsPlanWizardOpen(false)
+    onPlanWizardClosed?.()
+  }
+
+  function fillWeek(prefs: PlanPrefs) {
+    if (dailyMacroTargets === null) return
     // Seed with what's already planned so fills favor variety around it.
     const usageCounts = new Map<string, number>()
     activeWeek.days.forEach((day) =>
@@ -551,8 +587,8 @@ function Calendar({
         day.slots[slot.key].forEach((id) => usageCounts.set(id, (usageCounts.get(id) ?? 0) + 1)),
       ),
     )
-    const filledDays = activeWeek.days.map((day) => {
-      const picks = pickFillsForDay(day.slots, usageCounts)
+    const filledDays = activeWeek.days.map((day, i) => {
+      const picks = pickFillsForDay(day.slots, usageCounts, dayDate(activeWeek, i), prefs)
       const slots = { ...day.slots }
       SLOTS.forEach((slot) => {
         const recipe = picks[slot.key]
@@ -562,10 +598,49 @@ function Calendar({
       })
       return { ...day, slots }
     })
+
+    // "Cook once, eat twice": a dinner this fill chose becomes tomorrow's
+    // lunch, if that lunch was empty too — one pot, two meals.
+    let leftovers = 0
+    if (prefs.cookTwice) {
+      for (let i = 0; i < 6; i++) {
+        const dinnerWasEmpty = activeWeek.days[i].slots.dinner.length === 0
+        const nextLunchWasEmpty = activeWeek.days[i + 1].slots.lunch.length === 0
+        const dinner = filledDays[i].slots.dinner
+        if (dinnerWasEmpty && nextLunchWasEmpty && dinner.length > 0) {
+          filledDays[i + 1] = { ...filledDays[i + 1], slots: { ...filledDays[i + 1].slots, lunch: [...dinner] } }
+          leftovers++
+        }
+      }
+    }
+
     updateWeekAt(activeWeekStart, (week) => ({
       ...week,
       days: week.days.map((day, i) => ({ ...day, slots: filledDays[i].slots })),
     }))
+
+    // Rough cost of the whole week's food, for everyone in the household.
+    const people = loadHousehold()
+    const cost = filledDays.reduce(
+      (sum, day) =>
+        sum +
+        SLOTS.reduce(
+          (s, slot) =>
+            s +
+            day.slots[slot.key].reduce((t, id) => {
+              const r = recipes.find((x) => x.id === id)
+              return r ? t + costPerServing(r, ingredientCatalog) : t
+            }, 0),
+          0,
+        ),
+      0,
+    )
+    showToast({
+      message: `Έτοιμη η εβδομάδα! 🍽 Εκτιμώμενο κόστος: ~${Math.round(cost * people)}€${
+        people > 1 ? ` για ${people} άτομα` : ''
+      }${leftovers > 0 ? ` · ${leftovers} φορές τρως από την κατσαρόλα της προηγούμενης μέρας` : ''}.`,
+      autoHideMs: 7000,
+    })
   }
 
   // Throws away the whole week's plan and builds a new one from scratch —
@@ -578,8 +653,8 @@ function Calendar({
       onConfirm: () => {
         const usageCounts = new Map<string, number>()
         const emptySlots: Day['slots'] = { breakfast: [], lunch: [], afternoon: [], dinner: [] }
-        const newSlots = activeWeek.days.map(() => {
-          const picks = pickFillsForDay(emptySlots, usageCounts)
+        const newSlots = activeWeek.days.map((_, i) => {
+          const picks = pickFillsForDay(emptySlots, usageCounts, dayDate(activeWeek, i), loadPlanPrefs())
           const slots: Day['slots'] = { breakfast: [], lunch: [], afternoon: [], dinner: [] }
           SLOTS.forEach((slot) => {
             const recipe = picks[slot.key]
@@ -674,7 +749,7 @@ function Calendar({
             </button>
             <button
               type="button"
-              onClick={fillWeek}
+              onClick={openPlanWizard}
               disabled={dailyTarget === null}
               title={
                 dailyTarget === null
@@ -746,6 +821,9 @@ function Calendar({
             const isPast = !isEditing && toISODate(date) < today
             const totals = dayTotalMacros(day)
             const hasEmptySlot = SLOTS.some((slot) => day.slots[slot.key].length === 0)
+            const calendarInfo = dayInfo(date)
+            // Fasting badges only for people who keep the fasts; feasts for everyone.
+            const showFast = !!profile?.observesFasting && calendarInfo.fasting
 
             return (
               <div
@@ -777,6 +855,30 @@ function Calendar({
                       </button>
                     )}
                 </div>
+
+                {(calendarInfo.feast || showFast || calendarInfo.reason?.startsWith('Τυροφάγου')) && (
+                  <div className="flex flex-wrap gap-5 -mt-5">
+                    {calendarInfo.feast && (
+                      <span className="px-5 py-[2px] text-12 font-title font-bold bg-main-yellow border-2 border-black">
+                        🎉 {calendarInfo.feast}
+                      </span>
+                    )}
+                    {showFast && (
+                      <span
+                        title={calendarInfo.reason}
+                        className="px-5 py-[2px] text-12 font-title font-bold bg-white border-2 border-black"
+                      >
+                        ✝ Νηστεία{calendarInfo.fishAllowed ? ' · επιτρέπεται ψάρι' : ''}
+                        {calendarInfo.reason && !calendarInfo.feast ? ` · ${calendarInfo.reason}` : ''}
+                      </span>
+                    )}
+                    {!!profile?.observesFasting && calendarInfo.reason?.startsWith('Τυροφάγου') && (
+                      <span className="px-5 py-[2px] text-12 font-title font-bold bg-white border-2 border-black">
+                        🧀 {calendarInfo.reason}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <DayProgress
                   totals={totals}
@@ -826,7 +928,7 @@ function Calendar({
                         {isEditing && day.slots[slot.key].length > 0 && (
                           <SlotPicker
                             compact
-                            recipes={recipesForSlot(slot.key)}
+                            recipes={recipesForSlot(slot.key, date)}
                             onAdd={(recipeIds) => addRecipesToSlot(dayIndex, slot.key, recipeIds)}
                           />
                         )}
@@ -924,7 +1026,7 @@ function Calendar({
 
                       {isEditing && day.slots[slot.key].length === 0 && (
                         <SlotPicker
-                          recipes={recipesForSlot(slot.key)}
+                          recipes={recipesForSlot(slot.key, date)}
                           onAdd={(recipeIds) => addRecipesToSlot(dayIndex, slot.key, recipeIds)}
                         />
                       )}
@@ -936,6 +1038,16 @@ function Calendar({
           })}
         </div>
       </div>
+
+      {isPlanWizardOpen && (
+        <PlanWizard
+          onClose={closePlanWizard}
+          onDone={(prefs) => {
+            fillWeek(prefs)
+            closePlanWizard()
+          }}
+        />
+      )}
 
       {toast && <Toast toast={toast} onClose={closeToast} />}
 
@@ -954,7 +1066,7 @@ function Calendar({
       {suggestTarget && suggestCurrentRecipe && (
         <SuggestAlternativesModal
           current={suggestCurrentRecipe}
-          alternatives={getAlternatives(suggestCurrentRecipe, suggestTarget.slotKey)}
+          alternatives={getAlternatives(suggestCurrentRecipe, suggestTarget.slotKey, dayDate(activeWeek, suggestTarget.dayIndex))}
           allRecipes={compatibleRecipes}
           onCreateNew={() => {
             setCreateTarget(suggestTarget)

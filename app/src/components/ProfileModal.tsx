@@ -125,6 +125,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
   const [takesProtein, setTakesProtein] = useState(profile?.takesProtein ?? false)
   const [takesCreatine, setTakesCreatine] = useState(profile?.takesCreatine ?? false)
   const [diet, setDiet] = useState<Profile['diet']>(profile?.diet ?? 'none')
+  const [observesFasting, setObservesFasting] = useState(profile?.observesFasting ?? false)
   const [excludedIngredients, setExcludedIngredients] = useState<string[]>(profile?.excludedIngredients ?? [])
   const [excludeSearch, setExcludeSearch] = useState('')
 
@@ -204,6 +205,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
       customCarbs: customMacros ? Number(customMacros.carbs) || 0 : undefined,
       customFat: customMacros ? Number(customMacros.fat) || 0 : undefined,
       diet,
+      observesFasting,
       excludedIngredients,
     })
     onClose()
@@ -444,6 +446,13 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
               <span className={labelClass}>Διατροφή</span>
               <Segmented options={DIET_TYPES} value={diet} onChange={setDiet} />
             </div>
+
+            <ToggleCard
+              checked={observesFasting}
+              onChange={setObservesFasting}
+              title="✝ Τηρώ τις νηστείες"
+              description="Σαρακοστή, Δεκαπενταύγουστος, Τετάρτη και Παρασκευή… Το πρόγραμμα βάζει μόνο νηστίσιμα εκείνες τις μέρες (και ψάρι όπου επιτρέπεται)."
+            />
 
             <div className="flex flex-col gap-10">
               <div className="flex flex-col gap-5">

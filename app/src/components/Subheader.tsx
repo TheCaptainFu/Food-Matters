@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom'
 
-export type TabKey = 'recipes' | 'calendar' | 'market' | 'leftovers' | 'calories'
+export type TabKey = 'today' | 'recipes' | 'calendar' | 'market' | 'leftovers' | 'calories'
 
 type SubheaderProps = {
   activeTab: TabKey
@@ -9,9 +9,12 @@ type SubheaderProps = {
   onClose: () => void
   // Shown as a menu entry only for guests (undefined hides it).
   onSignIn?: () => void
+  // Restarts the guided tour.
+  onHelp: () => void
 }
 
 const TABS: { key: TabKey; label: string }[] = [
+  { key: 'today', label: 'Σήμερα' },
   { key: 'calendar', label: 'Πρόγραμμα' },
   { key: 'recipes', label: 'Συνταγές' },
   { key: 'market', label: 'Σούπερ μάρκετ' },
@@ -19,7 +22,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'calories', label: 'Θερμίδες' },
 ]
 
-function Subheader({ activeTab, onChange, isOpen, onClose, onSignIn }: SubheaderProps) {
+function Subheader({ activeTab, onChange, isOpen, onClose, onSignIn, onHelp }: SubheaderProps) {
   return (
     <>
       {/* Desktop: a plain horizontal tab row, always visible. */}
@@ -28,14 +31,18 @@ function Subheader({ activeTab, onChange, isOpen, onClose, onSignIn }: Subheader
           {TABS.map((tab) => (
             <li
               key={tab.key}
+              data-tour={tab.key}
               className={activeTab === tab.key ? 'main-btn bg-main-blue text-white' : 'main-btn'}
               onClick={() => onChange(tab.key)}
             >
               {tab.label}
             </li>
           ))}
+          <li data-tour="help" className="main-btn ml-auto" onClick={onHelp}>
+            ❓ Βοήθεια
+          </li>
           {onSignIn && (
-            <li className="main-btn ml-auto" onClick={onSignIn}>
+            <li className="main-btn" onClick={onSignIn}>
               Σύνδεση
             </li>
           )}
@@ -66,6 +73,9 @@ function Subheader({ activeTab, onChange, isOpen, onClose, onSignIn }: Subheader
                   {tab.label}
                 </li>
               ))}
+              <li className="main-btn" onClick={onHelp}>
+                ❓ Βοήθεια
+              </li>
               {onSignIn && (
                 <li className="main-btn" onClick={onSignIn}>
                   Σύνδεση

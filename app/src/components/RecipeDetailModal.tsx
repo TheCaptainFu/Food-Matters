@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { IngredientDef, Recipe } from '../types'
-import { CATEGORIES } from '../types'
+import { CATEGORIES, DIFFICULTIES, SLOT_KEYS } from '../types'
 import { recipeMacros, spoonHint } from '../nutrition'
-import { isRecipeFasting } from '../dietaryRestrictions'
+import { recipeInfo, formatEuro, formatMinutes } from '../recipeTraits'
 import { findDef, formatQuantity } from '../quantities'
 
 type RecipeDetailModalProps = {
@@ -17,6 +17,7 @@ type RecipeDetailModalProps = {
 function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelete }: RecipeDetailModalProps) {
   const category = CATEGORIES.find((c) => c.value === recipe.category)
   const macros = recipeMacros(recipe, ingredientCatalog)
+  const info = recipeInfo(recipe, ingredientCatalog)
   const baseServings = recipe.servings && recipe.servings > 0 ? recipe.servings : 1
   // Scale the amounts for however many you're cooking for.
   const [servings, setServings] = useState(baseServings)
@@ -41,7 +42,7 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
               {category.label}
             </span>
           )}
-          {isRecipeFasting(recipe) && (
+          {info.fasting && (
             <span className="main-btn inline-block self-start px-10 py-5 text-14 font-title font-bold uppercase bg-white">
               ✝ Νηστίσιμο
             </span>
@@ -69,6 +70,38 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
               +
             </button>
           </span>
+        </div>
+
+        {/* At a glance: time, effort, cost, how long it keeps, season, meals */}
+        <div className="grid grid-cols-2 gap-10 font-title">
+          {(
+            [
+              ['⏱ Χρόνος', formatMinutes(info.minutes)],
+              ['📊 Δυσκολία', DIFFICULTIES.find((d) => d.value === info.difficulty)?.label ?? ''],
+              [
+                '💶 Κόστος',
+                servings > 1
+                  ? `~${formatEuro(info.cost * servings)} για ${servings}`
+                  : `~${formatEuro(info.cost)} τη μερίδα`,
+              ],
+              ['🧊 Στο ψυγείο', info.keepsDays === 1 ? 'Τρώγεται φρέσκο' : `Κρατάει ${info.keepsDays} μέρες`],
+              ...(info.season
+                ? ([['🗓 Εποχή', info.season === 'summer' ? 'Καλοκαιρινό' : 'Χειμωνιάτικο']] as const)
+                : []),
+              [
+                '🍽 Γεύματα',
+                (recipe.mealTypes ?? [])
+                  .map((m) => SLOT_KEYS.find((s) => s.value === m)?.label)
+                  .filter(Boolean)
+                  .join(', '),
+              ],
+            ] as const
+          ).map(([label, value]) => (
+            <div key={label} className="border-2 border-black px-10 py-5 flex flex-col">
+              <span className="text-12 text-neutral-500">{label}</span>
+              <span className="text-14 font-bold">{value}</span>
+            </div>
+          ))}
         </div>
 
         <div className="flex flex-col gap-15">
@@ -108,17 +141,17 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
           </span>
         </div>
 
-        <div className="flex gap-10 justify-end">
-          <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
+        <div className="grid grid-cols-3 gap-10">
+          <button type="button" onClick={onClose} className="main-btn font-title font-bold text-14 px-5 py-10">
             Κλείσιμο
           </button>
-          <button type="button" onClick={onEdit} className="main-btn font-title font-bold px-15 py-10">
+          <button type="button" onClick={onEdit} className="main-btn font-title font-bold text-14 px-5 py-10">
             Επεξεργασία
           </button>
           <button
             type="button"
             onClick={onDelete}
-            className="main-btn font-title font-bold bg-main-red text-white px-15 py-10"
+            className="main-btn font-title font-bold text-14 bg-main-red text-white px-5 py-10"
           >
             Διαγραφή
           </button>
