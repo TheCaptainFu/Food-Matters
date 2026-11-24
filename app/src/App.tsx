@@ -39,7 +39,7 @@ const PROFILE_KEY = 'food-matters-profile'
 const CURRENT_CATALOG_VERSION = 5
 
 // Same idea, but for the seeded recipe library.
-const CURRENT_RECIPES_VERSION = 4
+const CURRENT_RECIPES_VERSION = 5
 
 const ALL_SLOT_KEYS = SLOT_KEYS.map((s) => s.value)
 
@@ -86,6 +86,10 @@ function initRecipes(): Recipe[] {
         instructions: sample.instructions ?? r.instructions,
         ingredients: sample.ingredients,
         servings: sample.servings,
+        category: sample.category,
+        minutes: sample.minutes,
+        difficulty: sample.difficulty,
+        keepsDays: sample.keepsDays,
       }
     }
     return {

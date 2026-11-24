@@ -1,5 +1,6 @@
 import PlanWizard from './PlanWizard'
 import { useScrollFade } from '../useScrollFade'
+import { planScore } from '../planScoring'
 import { costPerServing, loadPlanPrefs, prefsPenalty, type PlanPrefs } from '../recipeTraits'
 import { loadHousehold } from '../shopping'
 import { dayInfo } from '../greekCalendar'
@@ -21,16 +22,6 @@ import { downloadWeekTemplate, importWeekFromExcel } from '../excelImport'
 
 // Normalized distance across calories + all three macros, so "closest
 // match" accounts for hitting protein/carbs/fat, not just total calories.
-function macroDistance(candidate: Macros, budget: Macros): number {
-  const rel = (value: number, target: number) => (target > 0 ? Math.abs(value - target) / target : 0)
-  return (
-    rel(candidate.calories, budget.calories) +
-    rel(candidate.protein, budget.protein) +
-    rel(candidate.carbs, budget.carbs) +
-    rel(candidate.fat, budget.fat)
-  )
-}
-
 // badge classes are literal Tailwind class strings (kept whole, not
 // interpolated) so the CSS build can detect them in this file
 const slotLabel = (key: SlotKey) => SLOT_KEYS.find((s) => s.value === key)?.label ?? key
@@ -399,8 +390,8 @@ function Calendar({
     const byCloseness = (list: Recipe[]) =>
       [...list].sort(
         (a, b) =>
-          macroDistance(recipeMacros(a, ingredientCatalog), currentMacros) -
-          macroDistance(recipeMacros(b, ingredientCatalog), currentMacros),
+          planScore(recipeMacros(a, ingredientCatalog), currentMacros) -
+          planScore(recipeMacros(b, ingredientCatalog), currentMacros),
       )
     const isSupplement = (r: Recipe) =>
       r.ingredients.some((ing) => findDef(ing.name, ingredientCatalog)?.category === 'protein')
@@ -495,8 +486,8 @@ function Calendar({
 
     const lockedMacros = lockedDayMacros(slots)
     const REPEAT_PENALTY = 0.3
-    const CANDIDATES_PER_SLOT = 5
-    const TRIALS = 60
+    const CANDIDATES_PER_SLOT = 8
+    const TRIALS = 300
 
     const shortlists = new Map<SlotKey, Recipe[]>()
     emptySlots.forEach((slot) => {
@@ -508,7 +499,7 @@ function Calendar({
         fat: dailyMacroTargets.fat * share,
       }
       const score = (r: Recipe) =>
-        macroDistance(recipeMacros(r, ingredientCatalog), slotBudget) +
+        planScore(recipeMacros(r, ingredientCatalog), slotBudget) +
         (usageCounts.get(r.id) ?? 0) * REPEAT_PENALTY +
         prefsPenalty(r, ingredientCatalog, prefs, isWeekday)
       // Supplements (shake, protein bar) aren't meals — the plan suggests a
@@ -537,7 +528,7 @@ function Calendar({
         comboMacros.carbs += m.carbs
         comboMacros.fat += m.fat
       })
-      const score = macroDistance(comboMacros, dailyMacroTargets)
+      const score = planScore(comboMacros, dailyMacroTargets)
       if (score < bestScore) {
         bestScore = score
         best = combo

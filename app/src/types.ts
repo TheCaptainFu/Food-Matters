@@ -89,6 +89,7 @@ export type Category =
   | 'pasta'
   | 'pies'
   | 'salads'
+  | 'eggs'
   | 'breakfast'
   | 'fruit'
   | 'dessert'
@@ -105,6 +106,7 @@ export const CATEGORIES: { value: Category; label: string; color: string }[] = [
   { value: 'pasta', label: 'Ζυμαρικά & Ρύζι', color: 'bg-main-yellow' },
   { value: 'pies', label: 'Πίτες', color: 'bg-main-orange' },
   { value: 'salads', label: 'Σαλάτες & Μεζέδες', color: 'bg-green-200' },
+  { value: 'eggs', label: 'Αυγά', color: 'bg-amber-100' },
   { value: 'breakfast', label: 'Πρωινό & Σνακ', color: 'bg-pink-200' },
   { value: 'fruit', label: 'Φρούτα', color: 'bg-rose-300' },
   { value: 'dessert', label: 'Γλυκά', color: 'bg-main-blue' },
@@ -141,6 +143,8 @@ export type Recipe = {
   // estimated from the instructions and ingredients (see recipeTraits.ts).
   minutes?: number
   difficulty?: Difficulty
+  // How many days it keeps in the fridge (estimated when missing).
+  keepsDays?: number
   ingredients: Ingredient[]
   // How to actually make it — optional so older/legacy recipes without one
   // just don't show a "how to make it" section instead of breaking.

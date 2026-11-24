@@ -51,6 +51,10 @@ const PRICE_OVERRIDES: Record<string, number> = {
   'Καλαμάρι': 12,
   'Σουπιά': 11,
   'Γαύρος': 7,
+  'Σκουμπρί': 5,
+  'Τσιπούρα': 10,
+  'Λαβράκι': 10,
+  'Γλώσσα φιλέτο': 11,
   'Σαρδέλες': 6,
   'Μύδια': 6,
   'Μπακαλιάρος παστός': 16,
@@ -91,6 +95,7 @@ const DEFAULT_MINUTES: Record<Category, number> = {
   pasta: 25,
   pies: 70,
   salads: 10,
+  eggs: 15,
   breakfast: 5,
   fruit: 5,
   dessert: 40,
@@ -126,8 +131,9 @@ export function estimateDifficulty(recipe: Recipe): Difficulty {
 // How many days it keeps in the fridge — what "cook once, eat twice" relies
 // on. Stews and oven dishes keep; fried, grilled and fresh things don't.
 export function keepsDays(recipe: Recipe): number {
+  if (recipe.keepsDays && recipe.keepsDays > 0) return recipe.keepsDays
   const text = recipe.instructions ?? ''
-  if (['salads', 'breakfast', 'fruit'].includes(recipe.category)) return 1
+  if (['salads', 'breakfast', 'fruit', 'eggs'].includes(recipe.category)) return 1
   if (/τηγάνισ|σχάρα|καυτό λάδι/i.test(text) && !/σιγόβρασ|κατσαρόλα/i.test(text)) return 1
   if (['ladera', 'legumes', 'pies'].includes(recipe.category)) return 3
   if (/σιγόβρασ|φούρνο|ταψί|κατσαρόλα|ψυγείο/i.test(text)) return 3

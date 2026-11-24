@@ -28,7 +28,7 @@ const STEP_BG: Record<StepKey, string> = {
 
 // Main dishes only — breakfast, fruit and sweets aren't a "what do you like
 // for lunch" answer.
-const LIKE_CHOICES: Category[] = ['ladera', 'legumes', 'meat', 'poultry', 'fish', 'pasta', 'pies', 'salads']
+const LIKE_CHOICES: Category[] = ['ladera', 'legumes', 'meat', 'poultry', 'fish', 'pasta', 'pies', 'salads', 'eggs']
 
 function PlanWizard({ onDone, onClose }: PlanWizardProps) {
   const [prefs, setPrefs] = useState<PlanPrefs>(loadPlanPrefs)
