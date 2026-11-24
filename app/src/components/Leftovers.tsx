@@ -106,7 +106,7 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
   return (
     <div className="py-20">
       <div className="container flex flex-col gap-30">
-        <div className="flex flex-col gap-5">
+        <div data-tour="page-leftovers" className="flex flex-col gap-5">
           <h2 className="text-26 font-title font-bold uppercase">Τι έχεις στο ψυγείο;</h2>
           <p className="text-14 font-title text-neutral-500">
             Πρόσθεσε ό,τι έχεις και θα σου δείξουμε τι μπορείς να μαγειρέψεις.

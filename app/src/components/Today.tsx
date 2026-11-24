@@ -158,7 +158,7 @@ function Today({
     <div className="py-20">
       <div className="container flex flex-col gap-25">
         {/* ---------- Greeting ---------- */}
-        <div className="flex flex-col gap-10">
+        <div data-tour="page-today" className="flex flex-col gap-10">
           <h2 className="text-26 font-title font-bold uppercase">{greeting(now.getHours())}!</h2>
           <div className="flex flex-wrap items-center gap-10">
             <span className="text-16 font-title text-neutral-500">

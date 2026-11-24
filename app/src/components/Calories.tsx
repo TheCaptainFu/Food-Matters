@@ -263,7 +263,7 @@ function Calories({
   return (
     <div className="py-20">
       <div className="container flex flex-col gap-30">
-        <div className="flex flex-col gap-5">
+        <div data-tour="page-calories" className="flex flex-col gap-5">
           <h2 className="text-26 font-title font-bold uppercase">Ιστορικό</h2>
           <p className="text-14 font-title text-neutral-500">
             Πώς πάνε οι μέρες και οι εβδομάδες σου. Ό,τι τρως σήμερα το γράφεις στο{' '}

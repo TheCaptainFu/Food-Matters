@@ -94,7 +94,7 @@ function Recipes({
       <div className="container flex flex-col gap-25">
         {/* The tabs sit on a black rule. On phones the search drops below the
             tabs, so the rule goes under the tabs alone (not under the search). */}
-        <div className="flex flex-wrap items-end justify-between gap-x-20 gap-y-15 sm:border-b-3 sm:border-black">
+        <div data-tour="page-recipes" className="flex flex-wrap items-end justify-between gap-x-20 gap-y-15 sm:border-b-3 sm:border-black">
           <div className="flex gap-10 w-full sm:w-auto border-b-3 border-black sm:border-b-0">
           {(
             [

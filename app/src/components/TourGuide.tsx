@@ -16,7 +16,8 @@ type TourStep = {
   // Which page to show behind the card (null = stay where we are).
   tab: TabKey | null
   // What to light up: a [data-tour="…"] element, or "a|b" for the first
-  // visible of two — tabs on desktop, the ☰ menu on phones (where tabs hide).
+  // visible of two — the tab on desktop; on phones (where the tabs hide in
+  // the ☰ menu) the top of the page itself, so you see what it is.
   target?: string
   title: string
   text: string
@@ -33,7 +34,7 @@ const STEPS: TourStep[] = [
   },
   {
     tab: 'today',
-    target: 'today|menu',
+    target: 'today|page-today',
     title: 'Σήμερα',
     text: 'Η αρχική σου. Τι τρως σήμερα, πόσες θερμίδες έχεις φάει, πόσο νερό ήπιες.',
     tip: 'Όταν τρως κάτι, πάτα «✓ Το έφαγα».',
@@ -41,7 +42,7 @@ const STEPS: TourStep[] = [
   },
   {
     tab: 'calendar',
-    target: 'calendar|menu',
+    target: 'calendar|page-calendar',
     title: 'Πρόγραμμα',
     text: 'Η εβδομάδα σου, μέρα μέρα. Με τα ‹ › πας σε άλλη εβδομάδα.',
     tip: 'Πάτα «Συμπλήρωση» και τη φτιάχνουμε μαζί. Με «Επεξεργασία» αλλάζεις ό,τι θες.',
@@ -49,7 +50,7 @@ const STEPS: TourStep[] = [
   },
   {
     tab: 'recipes',
-    target: 'recipes|menu',
+    target: 'recipes|page-recipes',
     title: 'Συνταγές',
     text: 'Όλες οι ελληνικές συνταγές, με φίλτρα ανά γεύμα και είδος. Πάτα μία για υλικά και εκτέλεση.',
     tip: 'Με το «+» προσθέτεις τη δική σου.',
@@ -57,7 +58,7 @@ const STEPS: TourStep[] = [
   },
   {
     tab: 'market',
-    target: 'market|menu',
+    target: 'market|page-market',
     title: 'Σούπερ μάρκετ',
     text: 'Η λίστα αγορών βγαίνει μόνη της από το πρόγραμμα, με τη σειρά των διαδρόμων.',
     tip: 'Στο μαγαζί τσεκάρεις ό,τι μπαίνει στο καλάθι.',
@@ -65,14 +66,14 @@ const STEPS: TourStep[] = [
   },
   {
     tab: 'leftovers',
-    target: 'leftovers|menu',
+    target: 'leftovers|page-leftovers',
     title: 'Ψυγείο',
     text: 'Γράψε τι έχεις στο ψυγείο και σου λέμε τι μπορείς να μαγειρέψεις, χωρίς ψώνια.',
     color: 'bg-main-teal',
   },
   {
     tab: 'calories',
-    target: 'calories|menu',
+    target: 'calories|page-calories',
     title: 'Ιστορικό',
     text: 'Πώς πήγαν οι μέρες και οι εβδομάδες σου σε σχέση με τον στόχο. Ξέχασες να γράψεις κάτι χθες; Το διορθώνεις εδώ.',
     color: 'bg-main-orange',

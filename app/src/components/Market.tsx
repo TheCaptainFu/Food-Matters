@@ -203,7 +203,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
   return (
     <div className="py-20">
       <div className="container flex flex-col gap-25">
-        <div className="flex flex-col gap-5">
+        <div data-tour="page-market" className="flex flex-col gap-5">
           <h2 className="text-26 font-title font-bold uppercase">Λίστα αγορών</h2>
           <p className="text-14 font-title text-neutral-500">
             Ό,τι χρειάζεται το πρόγραμμά σου, ανά διάδρομο. Τσέκαρε ό,τι μπαίνει στο καλάθι.

@@ -690,7 +690,7 @@ function Calendar({
   return (
     <div className="py-20">
       <div className="container flex flex-col gap-20">
-        <div className="flex flex-col gap-5">
+        <div data-tour="page-calendar" className="flex flex-col gap-5">
           <h2 className="text-26 font-title font-bold uppercase">Πρόγραμμα</h2>
           <p className="text-14 font-title text-neutral-500">
             Πάτα Επεξεργασία για να αλλάξεις γεύματα ή Συμπλήρωση εβδομάδας για να γεμίσουν αυτόματα τα κενά.
