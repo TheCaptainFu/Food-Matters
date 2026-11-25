@@ -172,12 +172,13 @@ export function portionLabel(portion: number): string {
   return `${text} ${portion >= 2 ? 'μερίδες' : 'μερίδα'}`
 }
 
-// "How much did you eat?" — relative to the dish (or the planned meal).
+// "How much did you eat?" — portions of the dish (or the planned meal),
+// written like the portion box in Πρόγραμμα's edit tools.
 export const AMOUNTS: { value: number; label: string }[] = [
-  { value: 0.5, label: 'Μισό' },
-  { value: 1, label: 'Όλο' },
-  { value: 1.5, label: '1½' },
-  { value: 2, label: 'Διπλό' },
+  { value: 0.5, label: '×½' },
+  { value: 1, label: '×1' },
+  { value: 1.5, label: '×1½' },
+  { value: 2, label: '×2' },
 ]
 
 // The same entry with a different amount: macros scaled from the old one.

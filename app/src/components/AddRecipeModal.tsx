@@ -275,31 +275,34 @@ function AddRecipeModal({
             </div>
 
             <div className="flex flex-col gap-10">
-              <span className="text-16 font-title font-bold uppercase">Υλικά</span>
-              {/* What the amounts below are for: write a moussaka the way you
-                  cook it (for 4) and calories are still worked out per portion. */}
-              <div className="flex flex-wrap items-center gap-10">
-                <span className="text-14 font-title">Οι ποσότητες είναι για</span>
-                <span className="flex items-center border-3 border-black">
-                  <button
-                    type="button"
-                    onClick={() => setServings((n) => Math.max(1, n - 1))}
-                    aria-label="Λιγότερες μερίδες"
-                    className="w-30 h-30 font-bold cursor-pointer hover:bg-neutral-100"
-                  >
-                    −
-                  </button>
-                  <span className="min-w-30 text-center font-title font-bold">{servings}</span>
-                  <button
-                    type="button"
-                    onClick={() => setServings((n) => Math.min(20, n + 1))}
-                    aria-label="Περισσότερες μερίδες"
-                    className="w-30 h-30 font-bold cursor-pointer hover:bg-neutral-100"
-                  >
-                    +
-                  </button>
+              {/* Like the recipe view: "Υλικά" with the portions on the right.
+                  The amounts are for that many portions (write a moussaka the
+                  way you cook it, for 4); calories are still per portion. */}
+              <div className="flex flex-wrap items-center justify-between gap-10 border-b-3 border-black pb-5">
+                <span className="text-16 tab:text-18 font-title font-bold uppercase">Υλικά</span>
+                <span className="flex items-center gap-10 text-14 tab:text-16 font-title font-bold">
+                  για
+                  <span className="flex items-center border-2 border-black bg-main-teal">
+                    <button
+                      type="button"
+                      onClick={() => setServings((n) => Math.max(1, n - 1))}
+                      aria-label="Λιγότερες μερίδες"
+                      className="w-30 h-[28px] font-bold cursor-pointer hover:bg-white/50"
+                    >
+                      −
+                    </button>
+                    <span className="min-w-20 text-center">{servings}</span>
+                    <button
+                      type="button"
+                      onClick={() => setServings((n) => Math.min(20, n + 1))}
+                      aria-label="Περισσότερες μερίδες"
+                      className="w-30 h-[28px] font-bold cursor-pointer hover:bg-white/50"
+                    >
+                      +
+                    </button>
+                  </span>
+                  {servings === 1 ? 'μερίδα' : 'μερίδες'}
                 </span>
-                <span className="text-14 font-title">{servings === 1 ? 'μερίδα' : 'μερίδες'}</span>
               </div>
 
               {ingredients.map((ing, i) => {
@@ -308,12 +311,15 @@ function AddRecipeModal({
                   ing.unit === 'g'
                     ? spoonHint(ing.amount)
                     : ing.unit === 'piece' && ing.amount > 0
-                      ? `≈ ${Math.round(toGrams(ing.amount, 'piece', def))}g${def?.gramsPerPiece ? '' : ' (υπολογίζεται 100g το τεμάχιο)'}`
+                      ? `≈ ${Math.round(toGrams(ing.amount, 'piece', def))}g${def?.gramsPerPiece ? '' : ' (100g/τεμ.)'}`
                       : null
                 return (
                   <div key={i} className="flex flex-wrap gap-10">
-                    <span className="flex-1 min-w-100 bg-white border-3 border-black px-10 py-5 font-title font-bold flex items-center truncate">
-                      {ing.name}
+                    {/* One line: the spoon / grams hint sits in grey at the
+                        end of the name box instead of under the amount. */}
+                    <span className="flex-1 min-w-100 bg-white border-3 border-black px-10 py-5 font-title flex items-center justify-between gap-10">
+                      <span className="font-bold text-14 tab:text-16 truncate">{ing.name}</span>
+                      {hint && <span className="shrink-0 text-12 tab:text-14 text-neutral-500 whitespace-nowrap">{hint}</span>}
                     </span>
                     <div className="flex flex-col gap-5">
                       <div className="flex gap-10">
@@ -323,12 +329,12 @@ function AddRecipeModal({
                           placeholder="Ποσότ."
                           value={ing.amount || ''}
                           onChange={(e) => updateIngredient(i, 'amount', e.target.value)}
-                          className="border-3 border-black px-10 py-5 w-90 font-title"
+                          className="border-3 border-black px-10 py-5 w-90 font-title text-14 tab:text-16"
                         />
                         <select
                           value={ing.unit}
                           onChange={(e) => updateIngredient(i, 'unit', e.target.value)}
-                          className="bg-white border-3 border-black pl-10 pr-30 py-5 text-14 font-title"
+                          className="bg-white border-3 border-black pl-10 pr-30 py-5 text-14 tab:text-16 font-title"
                         >
                           {UNITS.map((u) => (
                             <option key={u.value} value={u.value}>
@@ -345,7 +351,6 @@ function AddRecipeModal({
                           ✕
                         </button>
                       </div>
-                      {hint && <span className="text-12 font-title text-neutral-500">{hint}</span>}
                     </div>
                   </div>
                 )
@@ -364,7 +369,7 @@ function AddRecipeModal({
 
             {!ready && (
             <label className="flex flex-col gap-10">
-              <span className="text-16 font-title font-bold uppercase">Εκτέλεση (προαιρετικά)</span>
+              <span className="text-16 tab:text-18 font-title font-bold uppercase">Εκτέλεση (προαιρετικά)</span>
               <textarea
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}

@@ -9,7 +9,8 @@ import type { TabKey } from './Subheader'
 import ActualEntryModal from './ActualEntryModal'
 import PortionBadge from './PortionBadge'
 import CrossIcon from './CrossIcon'
-import AmountPicker, { AmountBadge } from './AmountPicker'
+import { AmountCycle } from './AmountPicker'
+import EntryTitle from './EntryTitle'
 import Toast, { type ToastData } from './Toast'
 
 type TodayProps = {
@@ -125,6 +126,8 @@ function Today({
     const m = planned(ids)
     const entry: ActualEntry = {
       description: ids.map(titleWithPortion).filter(Boolean).join(', '),
+      // One dish planned: remember which, so tapping the log opens it.
+      recipeId: ids.length === 1 ? parseSlotEntry(ids[0]).id : undefined,
       calories: Math.round(m.calories),
       protein: Math.round(m.protein),
       carbs: Math.round(m.carbs),
@@ -262,7 +265,8 @@ function Today({
                       <span className={`px-5 py-[2px] text-12 font-title font-bold uppercase border-2 border-black ${SLOT_BADGE[slot.value]}`}>
                         {slot.label}
                       </span>
-                      {isNext && <span className="text-12 font-title font-bold text-main-blue">Επόμενο</span>}
+                      {/* Extra food with this meal: always top right. */}
+                      <span className="ml-auto">{addExtraButton}</span>
                     </div>
                     {entry ? (
                       <div className="flex items-center gap-10">
@@ -279,32 +283,29 @@ function Today({
                         </button>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-5 bg-main-yellow/40 border-2 border-black px-10 py-5">
-                        <div className="flex items-center justify-between gap-10">
-                          <span className="text-14 font-title font-bold min-w-0">
-                            ✓ {entry.description}
-                            <AmountBadge portion={entry.portion} />
-                          </span>
-                          <span className="flex items-center gap-10 shrink-0">
-                            <span className="text-12 font-title text-neutral-600 whitespace-nowrap">{Math.round(entry.calories)} kcal</span>
-                            <button
-                              type="button"
-                              onClick={() => setSlotEntry(slot.value, null)}
-                              className="text-12 font-title font-bold underline cursor-pointer"
-                            >
-                              Αναίρεση
-                            </button>
-                          </span>
-                        </div>
-                        {/* Ate half, or seconds? The calories follow. */}
-                        <AmountPicker
-                          value={entry.portion ?? 1}
-                          onChange={(p) => setSlotEntry(slot.value, rescaleEntry(entry, p))}
-                        />
+                      <div className="group flex items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5">
+                        {/* One line: a long name ends in "…", the amount stays. */}
+                        <span className="flex items-center min-w-0 text-14 font-title font-bold">
+                          <EntryTitle entry={entry} prefix="✓" recipes={recipes} onOpenRecipe={onOpenRecipe} />
+                          {/* Ate half, or seconds? Tap the amount; the calories follow. */}
+                          <AmountCycle
+                            portion={entry.portion}
+                            onChange={(p) => setSlotEntry(slot.value, rescaleEntry(entry, p))}
+                          />
+                        </span>
+                        <span className="flex items-center gap-10 shrink-0">
+                          <span className="text-12 font-title text-neutral-600 whitespace-nowrap">{Math.round(entry.calories)} kcal</span>
+                          <button
+                            type="button"
+                            onClick={() => setSlotEntry(slot.value, null)}
+                            className="text-12 font-title font-bold underline cursor-pointer"
+                          >
+                            Αναίρεση
+                          </button>
+                        </span>
                       </div>
                     )}
                         </div>
-                        {extras.length === 0 && addExtraButton}
                       </div>
                     ) : (
                       <div className="flex flex-wrap items-center gap-10">
@@ -350,31 +351,34 @@ function Today({
                           >
                             Δεν έφαγα
                           </button>
-                          {addExtraButton}
                         </span>
                       </div>
                     )}
                     {/* Extra food with this meal, on top of the main one */}
                     {extras.map((extra, i) => (
                       <div key={i} className="flex items-center gap-10">
-                      <div className="flex-1 min-w-0 flex items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5">
+                      <div className="group flex-1 min-w-0 flex items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5">
                         <span className="flex items-center gap-10 min-w-0">
-                          <span className="text-14 font-title font-bold">
-                            + {extra.description}
-                            <AmountBadge portion={extra.portion} />
+                          <span className="flex items-center min-w-0 text-14 font-title font-bold">
+                            <EntryTitle entry={extra} prefix="+" recipes={recipes} onOpenRecipe={onOpenRecipe} />
+                            <AmountCycle
+                              portion={extra.portion}
+                              onChange={(p) => updateExtra(slot.value, i, rescaleEntry(extra, p))}
+                            />
                           </span>
-                          <span className="text-12 font-title text-neutral-600 whitespace-nowrap">{Math.round(extra.calories)} kcal</span>
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => updateExtra(slot.value, i, null)}
-                          className="text-12 font-title font-bold underline cursor-pointer"
-                        >
-                          Αφαίρεση
-                        </button>
+                        {/* Calories at the end, like the meal above. */}
+                        <span className="flex items-center gap-10 shrink-0">
+                          <span className="text-12 font-title text-neutral-600 whitespace-nowrap">{Math.round(extra.calories)} kcal</span>
+                          <button
+                            type="button"
+                            onClick={() => updateExtra(slot.value, i, null)}
+                            className="text-12 font-title font-bold underline cursor-pointer"
+                          >
+                            Αφαίρεση
+                          </button>
+                        </span>
                       </div>
-                      {/* After a logged meal, "+ Έξτρα" sits by the last row. */}
-                      {entry && i === extras.length - 1 && addExtraButton}
                       </div>
                     ))}
                   </div>

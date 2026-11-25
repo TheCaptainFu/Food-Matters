@@ -23,6 +23,7 @@ import {
   parseSlotEntry,
   portionLabel,
   slotEntry,
+  slotExtras,
   sortWeeks,
   toISODate,
   todayISO,
@@ -34,6 +35,9 @@ import RecipePickerModal from './RecipePickerModal'
 import SuggestAlternativesModal from './SuggestAlternativesModal'
 import Toast, { type ToastData } from './Toast'
 import CrossIcon from './CrossIcon'
+import { AmountBadge } from './AmountPicker'
+import EntryTitle from './EntryTitle'
+import Chevron from './Chevron'
 import { downloadWeekTemplate, importWeekFromExcel } from '../excelImport'
 
 // Normalized distance across calories + all three macros, so "closest
@@ -785,7 +789,7 @@ function Calendar({
               aria-label="Προηγούμενη εβδομάδα"
               className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
-              ‹
+              <Chevron dir="left" />
             </button>
             <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 pl-10 sm:flex-none sm:min-w-[220px]">
               {weekHint}
@@ -797,7 +801,7 @@ function Calendar({
               aria-label="Επόμενη εβδομάδα"
               className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
-              ›
+              <Chevron dir="right" />
             </button>
             {weekOffset !== 0 && (
               <button
@@ -814,12 +818,14 @@ function Calendar({
             <button
               type="button"
               onClick={() => setIsEditing((v) => !v)}
-              className={
-                isEditing
-                  ? 'main-btn font-title font-bold px-15 py-10 bg-main-blue text-white'
-                  : 'main-btn font-title font-bold px-15 py-10'
-              }
+              className={`main-btn font-title font-bold px-15 py-10 flex items-center gap-5 ${
+                isEditing ? 'bg-main-blue text-white' : 'bg-main-teal'
+              }`}
             >
+              {/* Pencil to start editing, tick to finish. */}
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d={isEditing ? 'M5 12 L10 17 L19 7' : 'M4 20 L4.5 16 L16 4.5 L19.5 8 L8 19.5 Z M13.5 7 L17 10.5'} />
+              </svg>
               {isEditing ? 'Τέλος' : 'Επεξεργασία'}
             </button>
             <button
@@ -864,7 +870,7 @@ function Calendar({
             aria-label="Προηγούμενη μέρα"
             className={`hidden sm:flex min-[1320px]:absolute min-[1320px]:top-1/2 min-[1320px]:-translate-y-1/2 min-[1320px]:right-[calc(100%+25px)] main-btn font-title font-bold w-40 h-40 items-center justify-center transition-opacity ${canLeft ? '' : 'opacity-0 pointer-events-none'}`}
           >
-            ‹
+            <Chevron dir="left" />
           </button>
           <button
             type="button"
@@ -872,7 +878,7 @@ function Calendar({
             aria-label="Επόμενη μέρα"
             className={`hidden sm:flex sm:max-[1319px]:order-3 min-[1320px]:absolute min-[1320px]:top-1/2 min-[1320px]:-translate-y-1/2 min-[1320px]:left-[calc(100%+25px)] main-btn font-title font-bold w-40 h-40 items-center justify-center transition-opacity ${canRight ? '' : 'opacity-0 pointer-events-none'}`}
           >
-            ›
+            <Chevron dir="right" />
           </button>
         <div
           ref={daysRowRef}
@@ -885,7 +891,7 @@ function Calendar({
           className={
             isDraggingDays
               ? 'flex gap-20 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden select-none cursor-grabbing pt-5 pb-20 -mx-20 px-20 sm:max-[1319px]:mx-0 sm:max-[1319px]:pl-0 sm:max-[1319px]:pr-10'
-              : 'flex gap-20 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-x touch-pan-y snap-x snap-proximity cursor-grab pt-5 pb-20 -mx-20 px-20 scroll-px-20 sm:max-[1319px]:mx-0 sm:max-[1319px]:pl-0 sm:max-[1319px]:pr-10 sm:max-[1319px]:scroll-px-0'
+              : 'flex gap-20 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-x touch-pan-y snap-x snap-proximity active:cursor-grabbing pt-5 pb-20 -mx-20 px-20 scroll-px-20 sm:max-[1319px]:mx-0 sm:max-[1319px]:pl-0 sm:max-[1319px]:pr-10 sm:max-[1319px]:scroll-px-0'
           }
         >
           {activeWeek.days.map((day, dayIndex) => {
@@ -1035,7 +1041,7 @@ function Calendar({
                               entry && !eatenAsPlanned
                                 ? 'flex items-center justify-between gap-5 bg-white border-2 border-black px-10 py-5 opacity-50 line-through'
                                 : isEditing
-                                  ? 'flex items-center justify-between gap-5 bg-white border-2 border-black px-10 py-5 cursor-grab active:cursor-grabbing hover:bg-neutral-50'
+                                  ? 'flex items-center justify-between gap-5 bg-white border-2 border-black px-10 py-5 active:cursor-grabbing hover:bg-neutral-50'
                                   : 'flex items-center justify-between gap-5 bg-white border-2 border-black px-10 py-5'
                             }
                           >
@@ -1112,15 +1118,35 @@ function Calendar({
                             ) : (
                               <span className="font-bold text-14 leading-none shrink-0">✓</span>
                             )}
-                            <span className="text-14 font-title font-bold">{entry.description}</span>
+                            {/* One line: a long name ends in "…", the amount stays. */}
+                            <span className="flex items-center min-w-0 text-14 font-title font-bold">
+                              <EntryTitle entry={entry} prefix="" recipes={recipes} onOpenRecipe={onOpenRecipe} />
+                              <AmountBadge portion={entry.portion} />
+                            </span>
                           </span>
                           <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
                             {Math.round(entry.calories)} kcal
                           </span>
                         </div>
                       )}
+                      {/* Extras logged with this meal on Σήμερα, same as there. */}
+                      {slotExtras(day, slot.key).map((extra, i) => (
+                        <div
+                          key={`extra-${i}`}
+                          title="Έξτρα (καταγραφή στο Σήμερα, αλλαγές στο Ιστορικό)"
+                          className="flex items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5"
+                        >
+                          <span className="flex items-center min-w-0 text-14 font-title font-bold">
+                            <EntryTitle entry={extra} prefix="+" recipes={recipes} onOpenRecipe={onOpenRecipe} />
+                            <AmountBadge portion={extra.portion} />
+                          </span>
+                          <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
+                            {Math.round(extra.calories)} kcal
+                          </span>
+                        </div>
+                      ))}
 
-                      {!isEditing && day.slots[slot.key].length === 0 && !entry && (
+                      {!isEditing && day.slots[slot.key].length === 0 && !entry && slotExtras(day, slot.key).length === 0 && (
                         <span className="text-12 font-title text-neutral-400">Δεν έχει προγραμματιστεί</span>
                       )}
 
@@ -1289,15 +1315,27 @@ function WeekMenu({ isImporting, canClear, canReplan, onReplan, onDownloadTempla
     'text-left px-10 py-10 font-title font-bold text-14 hover:bg-neutral-100 cursor-pointer disabled:opacity-30 disabled:pointer-events-none'
 
   return (
-    <div className="relative">
+    <div className="relative flex shrink-0">
+      {/* Square, as tall as the buttons beside it (50px). */}
       <button
         type="button"
         aria-label="Περισσότερες επιλογές εβδομάδας"
+        title="Περισσότερα: Excel, νέο πρόγραμμα, καθαρισμός"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((v) => !v)}
-        className="main-btn font-title font-bold px-15 py-10"
+        className={`main-btn font-title font-bold p-0 w-[50px] self-stretch flex items-center justify-center ${isOpen ? 'bg-main-yellow' : ''}`}
       >
-        {isImporting ? 'Εισαγωγή…' : '⋯'}
+        {isImporting ? (
+          'Εισαγωγή…'
+        ) : (
+          // Three sliders: the week's settings and tools.
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+            <path d="M4 6 H20 M4 12 H20 M4 18 H20" />
+            <rect x="13" y="3.5" width="4" height="5" fill="white" />
+            <rect x="6" y="9.5" width="4" height="5" fill="white" />
+            <rect x="11" y="15.5" width="4" height="5" fill="white" />
+          </svg>
+        )}
       </button>
 
       {isOpen && (

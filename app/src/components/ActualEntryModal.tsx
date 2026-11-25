@@ -100,7 +100,7 @@ function ActualEntryModal({
   function pickRecipe(recipe: Recipe) {
     const m = recipeMacros(recipe, [...ingredientCatalog, ...newDefs])
     // Rounded once, after scaling, so ½ of 125 kcal isn't 62 vs 63.
-    const full = { description: recipe.title, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat }
+    const full = { recipeId: recipe.id, description: recipe.title, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat }
     onSave(rescaleEntry(full, amount))
   }
 

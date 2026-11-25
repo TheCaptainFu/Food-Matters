@@ -5,6 +5,7 @@ import { GROCERY_CATEGORIES } from '../types'
 import { addDays, makeWeek, mondayOf, parseISODate, parseSlotEntry, toISODate, todayISO, weekLabel } from '../weekUtils'
 import { loadHousehold, loadShopping, saveShopping, type WeekShopping } from '../shopping'
 import { formatShoppingAmount, toGrams } from '../quantities'
+import Chevron from './Chevron'
 import Toast, { type ToastData } from './Toast'
 
 type MarketProps = {
@@ -227,7 +228,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
               aria-label="Προηγούμενη εβδομάδα"
               className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
-              ‹
+              <Chevron dir="left" />
             </button>
             <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 pl-10 sm:flex-none sm:min-w-[220px]">
               {weekHint}
@@ -239,7 +240,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
               aria-label="Επόμενη εβδομάδα"
               className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
-              ›
+              <Chevron dir="right" />
             </button>
             {!isThisWeek && (
               <button

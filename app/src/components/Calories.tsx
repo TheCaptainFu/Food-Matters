@@ -21,6 +21,7 @@ import ActualEntryModal from './ActualEntryModal'
 import FadeScrollX from './FadeScrollX'
 import PortionBadge from './PortionBadge'
 import { AmountBadge } from './AmountPicker'
+import Chevron from './Chevron'
 import Toast, { type ToastData } from './Toast'
 
 const GLASS_ML = 250
@@ -425,7 +426,7 @@ function Calories({
               aria-label="Προηγούμενη μέρα"
               className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center"
             >
-              ‹
+              <Chevron dir="left" />
             </button>
             <h3 className="text-20 font-title font-bold uppercase flex flex-wrap items-baseline gap-x-10 min-w-0 flex-1 pl-10 sm:flex-none sm:min-w-[220px]">
               {dayTitle}
@@ -441,7 +442,7 @@ function Calories({
               aria-label="Επόμενη μέρα"
               className="main-btn font-title font-bold w-40 h-40 flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"
             >
-              ›
+              <Chevron dir="right" />
             </button>
             {dayISO !== yesterday && (
               <button

@@ -5,14 +5,14 @@
 export type EatingOutGroup = 'street' | 'bakery' | 'coffee' | 'soft' | 'drinks' | 'taverna' | 'sweets' | 'snacks'
 
 export const EATING_OUT_GROUPS: { value: EatingOutGroup; label: string }[] = [
-  { value: 'street', label: '🥙 Σουβλατζίδικο & street' },
-  { value: 'bakery', label: '🥐 Φούρνος' },
-  { value: 'coffee', label: '☕ Καφές' },
-  { value: 'taverna', label: '🍽 Ταβέρνα' },
-  { value: 'soft', label: '🥤 Αναψυκτικά & χυμοί' },
-  { value: 'sweets', label: '🍦 Γλυκά' },
-  { value: 'snacks', label: '🍫 Σνακ & περίπτερο' },
-  { value: 'drinks', label: '🍺 Ποτά' },
+  { value: 'street', label: 'Σουβλατζίδικο & street' },
+  { value: 'bakery', label: 'Φούρνος' },
+  { value: 'coffee', label: 'Καφές' },
+  { value: 'taverna', label: 'Ταβέρνα' },
+  { value: 'soft', label: 'Αναψυκτικά & χυμοί' },
+  { value: 'sweets', label: 'Γλυκά' },
+  { value: 'snacks', label: 'Σνακ & περίπτερο' },
+  { value: 'drinks', label: 'Ποτά' },
 ]
 
 export type EatingOutItem = {

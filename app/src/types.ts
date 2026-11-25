@@ -119,14 +119,14 @@ export const CATEGORIES: { value: Category; label: string; color: string; out?: 
   { value: 'breakfast', label: 'Πρωινό & Σνακ', color: 'bg-pink-200' },
   { value: 'fruit', label: 'Φρούτα', color: 'bg-rose-300' },
   { value: 'dessert', label: 'Γλυκά', color: 'bg-main-blue' },
-  { value: 'coffee', label: '☕ Καφές', color: 'bg-stone-300', out: true },
-  { value: 'street', label: '🥙 Σουβλατζίδικο', color: 'bg-orange-400', out: true },
-  { value: 'bakery', label: '🥐 Φούρνος', color: 'bg-yellow-200', out: true },
-  { value: 'taverna', label: '🍽 Ταβέρνα', color: 'bg-sky-300', out: true },
-  { value: 'soft', label: '🥤 Αναψυκτικά & χυμοί', color: 'bg-red-300', out: true },
-  { value: 'sweets', label: '🍦 Ζαχαροπλαστείο', color: 'bg-fuchsia-300', out: true },
-  { value: 'snacks', label: '🍫 Σνακ & περίπτερο', color: 'bg-violet-300', out: true },
-  { value: 'drinks', label: '🍺 Ποτά', color: 'bg-yellow-500', out: true },
+  { value: 'coffee', label: 'Καφές', color: 'bg-stone-300', out: true },
+  { value: 'street', label: 'Σουβλατζίδικο', color: 'bg-orange-400', out: true },
+  { value: 'bakery', label: 'Φούρνος', color: 'bg-yellow-200', out: true },
+  { value: 'taverna', label: 'Ταβέρνα', color: 'bg-sky-300', out: true },
+  { value: 'soft', label: 'Αναψυκτικά & χυμοί', color: 'bg-red-300', out: true },
+  { value: 'sweets', label: 'Ζαχαροπλαστείο', color: 'bg-fuchsia-300', out: true },
+  { value: 'snacks', label: 'Σνακ & περίπτερο', color: 'bg-violet-300', out: true },
+  { value: 'drinks', label: 'Ποτά', color: 'bg-yellow-500', out: true },
 ]
 
 // Ready food (coffee, souvlaki, bakery…) rather than something cooked at
@@ -199,6 +199,8 @@ export type ActualEntry = {
   // How much of it was eaten: ½, 1 (all of it), 1½, 2. The macros above
   // are already multiplied by it; it's kept so it can be changed later.
   portion?: number
+  // The food it came from, so tapping the log opens its recipe.
+  recipeId?: string
 }
 
 export type Day = {
