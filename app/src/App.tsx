@@ -39,7 +39,7 @@ const PROFILE_KEY = 'food-matters-profile'
 const CURRENT_CATALOG_VERSION = 5
 
 // Same idea, but for the seeded recipe library.
-const CURRENT_RECIPES_VERSION = 10
+const CURRENT_RECIPES_VERSION = 12
 
 const ALL_SLOT_KEYS = SLOT_KEYS.map((s) => s.value)
 

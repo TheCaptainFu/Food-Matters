@@ -102,8 +102,8 @@ const STEPS: TourStep[] = [
     color: 'bg-main-yellow',
   },
   {
-    tab: 'market',
-    target: 'leftovers|market-fridge',
+    tab: 'leftovers',
+    target: 'leftovers|nav-leftovers',
     title: 'Ψυγείο',
     text: 'Γράψε τι έχεις στο ψυγείο και σου λέμε τι μπορείς να μαγειρέψεις χωρίς ψώνια.',
     color: 'bg-main-teal',

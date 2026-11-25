@@ -54,6 +54,12 @@ const BOTTOM_TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
+    key: 'leftovers',
+    label: 'Ψυγείο',
+    // A fridge: two doors and their handles.
+    icon: <path d="M6 3 H18 V21 H6 Z M6 10 H18 M9 6 V8 M9 13 V16" />,
+  },
+  {
     key: 'calories',
     label: 'Ιστορικό',
     icon: <path d="M4 20 V4 M4 20 H20 M8 16 V12 M12 16 V8 M16 16 V10" />,
@@ -92,7 +98,7 @@ function Subheader({ activeTab, onChange, onSignIn, onHelp }: SubheaderProps) {
         aria-label="Σελίδες"
         className="tab:hidden fixed inset-x-0 bottom-0 z-40 bg-white border-t-3 border-black pb-[env(safe-area-inset-bottom)]"
       >
-        <ul className="grid grid-cols-5">
+        <ul className="grid grid-cols-6">
           {BOTTOM_TABS.map((tab) => {
             const active = activeTab === tab.key
             return (
