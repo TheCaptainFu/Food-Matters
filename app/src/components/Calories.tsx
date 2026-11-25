@@ -413,7 +413,7 @@ function Calories({
         )}
         {/* ---------- Fix a past day ---------- */}
         <section className="flex flex-col gap-15">
-          <div className="flex flex-col gap-5">
+          <div data-tour="calories-fix" className="flex flex-col gap-5">
             <h3 className="text-20 font-title font-bold uppercase">Διόρθωσε μια μέρα</h3>
             <p className="text-12 font-title text-neutral-500">Ξέχασες να γράψεις κάτι; Διάλεξε τη μέρα και πρόσθεσέ το.</p>
           </div>

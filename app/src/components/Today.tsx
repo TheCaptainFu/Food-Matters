@@ -201,7 +201,7 @@ function Today({
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-20 items-start">
           {/* ---------- Meals ---------- */}
-          <section className={`${card} p-20 flex flex-col gap-15`}>
+          <section data-tour="today-meals" className={`${card} p-20 flex flex-col gap-15`}>
             <div className="flex items-baseline justify-between gap-10">
               <h3 className="text-18 font-title font-bold uppercase">Τα σημερινά γεύματα</h3>
               <button type="button" onClick={() => onGoTo('calendar')} className="text-14 font-title font-bold underline cursor-pointer">
@@ -415,7 +415,7 @@ function Today({
             </section>
 
             {/* ---------- Water ---------- */}
-            <section className={`${card} p-20 flex items-center justify-between gap-10`}>
+            <section data-tour="today-water" className={`${card} p-20 flex items-center justify-between gap-10`}>
               <span className="flex flex-col">
                 <span className="text-14 font-title font-bold uppercase">💧 Νερό</span>
                 <span className="text-14 font-title text-neutral-500">
@@ -451,6 +451,14 @@ function Today({
               >
                 <span className="text-14 font-title font-bold uppercase">🛒 Λίστα αγορών</span>
                 <span className="text-14 font-title font-bold underline">Άνοιξε →</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onGoTo('leftovers')}
+                className="flex items-center justify-between gap-10 text-left cursor-pointer pt-10 border-t border-neutral-200"
+              >
+                <span className="text-14 font-title font-bold uppercase">🧊 Τι μαγειρεύω με ό,τι έχω;</span>
+                <span className="text-14 font-title font-bold underline">Ψυγείο →</span>
               </button>
               <div className="flex flex-col gap-5 pt-10 border-t border-neutral-200">
                 <span className="text-14 font-title font-bold uppercase">

@@ -27,7 +27,7 @@ function Toast({ toast, onClose }: ToastProps) {
   }, [toast.id, toast.autoHideMs, onClose])
 
   return createPortal(
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-40px)] max-w-[480px]">
+    <div className="fixed bottom-[calc(82px+env(safe-area-inset-bottom))] tab:bottom-20 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-40px)] max-w-[480px]">
       <div
         role="status"
         className={

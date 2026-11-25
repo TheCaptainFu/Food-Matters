@@ -146,7 +146,7 @@ function Recipes({
         {/* Two filter rows: which meal it's for, and what kind of dish. Labels
             share one width so both rows of chips start at the same line;
             chips that don't fit scroll sideways instead of wrapping. */}
-        <div className="flex flex-col gap-5">
+        <div data-tour="recipes-filters" className="flex flex-col gap-5">
           <div className="flex items-center gap-10">
             <span className="text-14 font-title font-bold uppercase text-neutral-500 w-[60px] shrink-0">Γεύμα</span>
             <ScrollRow>
@@ -264,6 +264,7 @@ function Recipes({
             type="button"
             onClick={() => setIsModalOpen(true)}
             aria-label="Νέο φαγητό"
+            data-tour="recipes-add"
             className="main-btn flex items-center justify-center p-20 min-h-100 text-4xl font-title font-bold"
           >
             +

@@ -221,7 +221,6 @@ function App() {
 
   // Mobile-only nav drawer, toggled by the burger button (hidden on
   // desktop, where the tab row is always visible).
-  const [isNavOpen, setIsNavOpen] = useState(false)
 
   // Opens automatically for a brand-new visitor (no profile yet) regardless
   // of which tab they land on, same as the old Calories-only wizard did —
@@ -241,7 +240,6 @@ function App() {
 
   function handleTabChange(tab: TabKey) {
     setActiveTab(tab)
-    setIsNavOpen(false)
     // Each tab is a different page — start it at the top, not wherever the
     // previous tab happened to be scrolled to.
     window.scrollTo(0, 0)
@@ -316,23 +314,18 @@ function App() {
   const canSignIn = !!supabase && !user
 
   return (
-    <div className="min-h-screen flex flex-col">
+    // Room at the bottom on phones for the page bar.
+    <div className="min-h-screen flex flex-col pb-[calc(62px+env(safe-area-inset-bottom))] tab:pb-0">
       <Header
-        isMenuOpen={isNavOpen}
-        onToggleMenu={() => setIsNavOpen((v) => !v)}
+        onHelp={() => setIsTourOpen(true)}
         user={user}
         onOpenProfile={() => setIsProfileOpen(true)}
       />
       <Subheader
         activeTab={activeTab}
         onChange={handleTabChange}
-        isOpen={isNavOpen}
-        onClose={() => setIsNavOpen(false)}
         onSignIn={canSignIn ? () => signInWithProvider('google') : undefined}
-        onHelp={() => {
-          setIsNavOpen(false)
-          setIsTourOpen(true)
-        }}
+        onHelp={() => setIsTourOpen(true)}
       />
       {activeTab === 'today' && (
         <Today
@@ -384,6 +377,7 @@ function App() {
           ingredientCatalog={ingredientCatalog}
           activeWeekStart={activeWeekStart}
           setActiveWeekStart={setActiveWeekStart}
+          onGoToFridge={() => handleTabChange('leftovers')}
         />
       )}
       {activeTab === 'leftovers' && (

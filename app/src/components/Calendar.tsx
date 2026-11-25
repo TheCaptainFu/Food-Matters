@@ -809,7 +809,7 @@ function Calendar({
             )}
           </div>
 
-          <div className="flex gap-10">
+          <div data-tour="calendar-actions" className="flex gap-10">
             <button
               type="button"
               onClick={() => setIsEditing((v) => !v)}

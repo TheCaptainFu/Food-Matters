@@ -14,6 +14,7 @@ type MarketProps = {
   // Shared with Meal Plan, so both pages always show the same week.
   activeWeekStart: string
   setActiveWeekStart: (startDate: string) => void
+  onGoToFridge: () => void
 }
 
 type ShoppingItem = {
@@ -94,7 +95,7 @@ function CheckBox({ checked }: { checked: boolean }) {
   )
 }
 
-function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveWeekStart }: MarketProps) {
+function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveWeekStart, onGoToFridge }: MarketProps) {
   const [shopping, setShopping] = useState<Record<string, WeekShopping>>(loadShopping)
   useEffect(() => {
     saveShopping(shopping)
@@ -206,7 +207,13 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
     <div className="py-20">
       <div className="container flex flex-col gap-25">
         <div data-tour="page-market" className="flex flex-col gap-5">
-          <h2 className="text-26 font-title font-bold uppercase">Λίστα αγορών</h2>
+          <div className="flex items-center justify-between gap-10">
+            <h2 className="text-26 font-title font-bold uppercase">Λίστα αγορών</h2>
+            {/* The fridge has no tab on phones: it's reached from here and from Today. */}
+            <button type="button" data-tour="market-fridge" onClick={onGoToFridge} className="main-btn shrink-0 font-title font-bold text-14 px-10 py-5">
+              🧊 Ψυγείο
+            </button>
+          </div>
           <p className="text-14 font-title text-neutral-500">
             Ό,τι χρειάζεται το πρόγραμμά σου, ανά διάδρομο. Τσέκαρε ό,τι μπαίνει στο καλάθι.
           </p>
@@ -249,7 +256,7 @@ function Market({ recipes, weeks, ingredientCatalog, activeWeekStart, setActiveW
 
         {/* Everything about this week's list in one box: who it's for, which
             days, progress, and the actions — instead of a row of loose buttons. */}
-        <div className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] p-15 sm:p-20 flex flex-col gap-15">
+        <div data-tour="market-controls" className="bg-white border-3 border-black shadow-[4px_4px_0_0_#000] p-15 sm:p-20 flex flex-col gap-15">
           <div className="flex flex-wrap items-center justify-between gap-10">
             {/* Recipes are per portion; the list is scaled for the household
                 (asked in "Φτιάξε την εβδομάδα"). Nothing to say when it's just you. */}

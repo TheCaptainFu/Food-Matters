@@ -16,8 +16,7 @@ type TourStep = {
   // Which page to show behind the card (null = stay where we are).
   tab: TabKey | null
   // What to light up: a [data-tour="…"] element, or "a|b" for the first
-  // visible of two — the tab on desktop; on phones (where the tabs hide in
-  // the ☰ menu) the top of the page itself, so you see what it is.
+  // visible one — the tab row on desktop, the bottom bar on phones.
   target?: string
   title: string
   text: string
@@ -29,67 +28,112 @@ const STEPS: TourStep[] = [
   {
     tab: 'today',
     title: 'Μια γρήγορη βόλτα;',
-    text: 'Σε 30 δευτερόλεπτα σου δείχνω τι κάνει κάθε σελίδα, για να μη χαθείς.',
+    text: 'Σε ένα λεπτό σου δείχνω τι κάνει κάθε σελίδα και τα βασικά της κουμπιά.',
     color: 'bg-white',
   },
   {
     tab: 'today',
-    target: 'today|page-today',
+    target: 'today|nav-today',
     title: 'Σήμερα',
-    text: 'Η αρχική σου. Τι τρως σήμερα, πόσες θερμίδες έχεις φάει, πόσο νερό ήπιες.',
-    tip: 'Όταν τρως κάτι, πάτα «✓ Το έφαγα».',
+    text: 'Η αρχική σου: τι τρως σήμερα, πόσες θερμίδες έφαγες και πόσο νερό ήπιες.',
     color: 'bg-main-yellow',
   },
   {
+    tab: 'today',
+    target: 'today-meals',
+    title: 'Τα γεύματά σου',
+    text: '«✓ Το έφαγα»: το γράφει όπως ήταν στο πρόγραμμα. «Κάτι άλλο»: διαλέγεις τι έφαγες τελικά. «Δεν έφαγα»: για γεύμα που παρέλειψες. «+ Έξτρα»: κάτι παραπάνω, π.χ. ένας καφές ή ένα γλυκό.',
+    color: 'bg-main-yellow',
+  },
+  {
+    tab: 'today',
+    target: 'today-water',
+    title: 'Νερό',
+    text: 'Κάθε «+ Ποτήρι» είναι 250ml. Ο στόχος βγαίνει από το βάρος σου και την άσκηση.',
+    color: 'bg-main-teal',
+  },
+  {
     tab: 'calendar',
-    target: 'calendar|page-calendar',
+    target: 'calendar|nav-calendar',
     title: 'Πρόγραμμα',
     text: 'Η εβδομάδα σου, μέρα μέρα. Με τα ‹ › πας σε άλλη εβδομάδα.',
-    tip: 'Πάτα «Συμπλήρωση» και τη φτιάχνουμε μαζί. Με «Επεξεργασία» αλλάζεις ό,τι θες.',
+    color: 'bg-main-teal',
+  },
+  {
+    tab: 'calendar',
+    target: 'calendar-actions',
+    title: 'Φτιάξε την εβδομάδα',
+    text: '«Συμπλήρωση»: λίγες ερωτήσεις και γεμίζει μόνη της τα κενά, με βάση τον στόχο σου. «Επεξεργασία»: προσθέτεις, αλλάζεις (⇄), μετακινείς (↗) ή βγάζεις (✕) φαγητά και αλλάζεις μερίδα (×1½). «⋯»: άδειασμα ή νέο πρόγραμμα.',
     color: 'bg-main-teal',
   },
   {
     tab: 'recipes',
-    target: 'recipes|page-recipes',
+    target: 'recipes|nav-recipes',
     title: 'Φαγητά',
-    text: 'Ελληνικές συνταγές, αλλά και καφέδες, σουβλάκια, φούρνος και σνακ. Όλα αλλάζουν. Πάτα ένα για υλικά, θερμίδες και επεξεργασία.',
-    tip: 'Με το «+» προσθέτεις τη δική σου.',
+    text: 'Ελληνικές συνταγές, αλλά και καφέδες, σουβλάκια, φούρνος και σνακ. Πάτα ένα για υλικά και θερμίδες, και με «Επεξεργασία» το αλλάζεις όπως θες.',
+    color: 'bg-main-orange',
+  },
+  {
+    tab: 'recipes',
+    target: 'recipes-filters',
+    title: 'Βρες γρήγορα',
+    text: 'Φίλτρα για γεύμα και είδος (π.χ. ☕ Καφές), και «Μόνο» για γρήγορα, οικονομικά, νηστίσιμα ή της εποχής. Η ταξινόμηση βάζει πρώτα π.χ. όσα έχουν περισσότερη πρωτεΐνη.',
+    color: 'bg-main-orange',
+  },
+  {
+    tab: 'recipes',
+    target: 'recipes-add',
+    title: 'Δικό σου φαγητό',
+    text: 'Με το «+» προσθέτεις κάτι δικό σου: σπιτικό με υλικά, ή κάτι απ’ έξω μόνο με θερμίδες.',
     color: 'bg-main-orange',
   },
   {
     tab: 'market',
-    target: 'market|page-market',
+    target: 'market|nav-market',
     title: 'Σούπερ μάρκετ',
     text: 'Η λίστα αγορών βγαίνει μόνη της από το πρόγραμμα, με τη σειρά των διαδρόμων.',
-    tip: 'Στο μαγαζί τσεκάρεις ό,τι μπαίνει στο καλάθι.',
     color: 'bg-main-yellow',
   },
   {
-    tab: 'leftovers',
-    target: 'leftovers|page-leftovers',
+    tab: 'market',
+    target: 'market-controls',
+    title: 'Στο μαγαζί',
+    text: '«Από σήμερα» ή «Όλη η εβδομάδα»: για ποιες μέρες ψωνίζεις. Τσέκαρε ό,τι μπαίνει στο καλάθι. Με «+ Έξτρα» βάζεις κάτι που δεν είναι στο πρόγραμμα (π.χ. απορρυπαντικό).',
+    color: 'bg-main-yellow',
+  },
+  {
+    tab: 'market',
+    target: 'leftovers|market-fridge',
     title: 'Ψυγείο',
-    text: 'Γράψε τι έχεις στο ψυγείο και σου λέμε τι μπορείς να μαγειρέψεις, χωρίς ψώνια.',
+    text: 'Γράψε τι έχεις στο ψυγείο και σου λέμε τι μπορείς να μαγειρέψεις χωρίς ψώνια.',
     color: 'bg-main-teal',
   },
   {
     tab: 'calories',
-    target: 'calories|page-calories',
+    target: 'calories|nav-calories',
     title: 'Ιστορικό',
-    text: 'Πώς πήγαν οι μέρες και οι εβδομάδες σου σε σχέση με τον στόχο. Ξέχασες να γράψεις κάτι χθες; Το διορθώνεις εδώ.',
+    text: 'Πώς πήγαν οι μέρες και οι εβδομάδες σου σε σχέση με τον στόχο: μέσος όρος, σερί και πόσες μέρες κατέγραψες.',
+    color: 'bg-main-orange',
+  },
+  {
+    tab: 'calories',
+    target: 'calories-fix',
+    title: 'Ξέχασες κάτι;',
+    text: 'Στο «Διόρθωσε μια μέρα» διαλέγεις μια περασμένη μέρα και προσθέτεις ή αλλάζεις ό,τι έφαγες.',
     color: 'bg-main-orange',
   },
   {
     tab: null,
     target: 'profile',
     title: 'Το προφίλ σου',
-    text: 'Εδώ αλλάζεις στόχο, βάρος, νηστείες και ό,τι δεν τρως.',
+    text: 'Εδώ αλλάζεις στόχο, βάρος, νηστείες και ό,τι δεν τρως, και συνδέεσαι για να μη χάνεις τα δεδομένα σου.',
     color: 'bg-white',
   },
   {
     tab: 'today',
-    target: 'help|menu',
+    target: 'help|help-mobile',
     title: 'Αυτό ήταν!',
-    text: 'Την ξενάγηση την ξαναβρίσκεις όποτε θες στο «Βοήθεια» του μενού.',
+    text: 'Την ξενάγηση την ξαναβρίσκεις όποτε θες στο «Βοήθεια» (το ? πάνω δεξιά στο κινητό).',
     tip: 'Πάμε να φτιάξουμε την πρώτη σου εβδομάδα;',
     color: 'bg-main-blue',
   },
@@ -110,12 +154,16 @@ function TourGuide({ onNavigate, onPlanWeek, onClose }: TourGuideProps) {
     const measure = () => {
       frame = requestAnimationFrame(() => {
         // "a|b": the first one that's visible (desktop tab vs phone menu).
-        const r = (step.target ?? '')
+        const el = (step.target ?? '')
           .split('|')
           .filter(Boolean)
-          .map((t) => document.querySelector<HTMLElement>(`[data-tour="${t}"]`)?.getBoundingClientRect())
-          .find((b) => b && b.width > 0 && b.height > 0)
-        setRect(r && r.width > 0 && r.height > 0 ? { top: r.top, left: r.left, width: r.width, height: r.height } : null)
+          .map((t) => document.querySelector<HTMLElement>(`[data-tour="${t}"]`))
+          .find((e) => {
+            const b = e?.getBoundingClientRect()
+            return !!b && b.width > 0 && b.height > 0
+          })
+        const r = el?.getBoundingClientRect()
+        setRect(r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null)
       })
     }
     measure()
@@ -127,6 +175,24 @@ function TourGuide({ onNavigate, onPlanWeek, onClose }: TourGuideProps) {
       window.removeEventListener('scroll', measure, true)
     }
   }, [step.target, index])
+
+  // Bring a button further down the page into view (the bottom bar and the
+  // header are fixed, so they never need it).
+  useLayoutEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const el = (step.target ?? '')
+        .split('|')
+        .filter(Boolean)
+        .map((t) => document.querySelector<HTMLElement>(`[data-tour="${t}"]`))
+        .find((e) => !!e && e.getBoundingClientRect().width > 0)
+      const r = el?.getBoundingClientRect()
+      if (el && r && (r.top < 80 || r.bottom > window.innerHeight * 0.55)) {
+        // Just under the sticky header, leaving the lower half for the card.
+        window.scrollTo({ top: window.scrollY + r.top - 90, behavior: 'smooth' })
+      }
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [index, step.target])
 
   function go(to: number) {
     const target = STEPS[to]
@@ -155,8 +221,13 @@ function TourGuide({ onNavigate, onPlanWeek, onClose }: TourGuideProps) {
         <div className="fixed inset-0 bg-black/55" />
       )}
 
-      {/* The card, always at the bottom so it never covers the lit-up tab */}
-      <div className="fixed inset-x-0 bottom-0 p-15 sm:p-20 flex justify-center">
+      {/* The card sits at the bottom — or at the top when what's lit up is
+          down there (the phone's bottom bar), so it never covers it. */}
+      <div
+        className={`fixed inset-x-0 p-15 sm:p-20 flex justify-center ${
+          rect && rect.top > window.innerHeight * 0.6 ? 'top-0' : 'bottom-0'
+        }`}
+      >
         <div
           key={index}
           className={`onb-rise w-full max-w-[460px] border-3 border-black shadow-[6px_6px_0_0_#000] p-20 flex flex-col gap-15 ${step.color} ${textColor}`}

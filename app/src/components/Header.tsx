@@ -2,8 +2,8 @@ import type { User } from '@supabase/supabase-js'
 import Logo from './Logo'
 
 type HeaderProps = {
-  isMenuOpen: boolean
-  onToggleMenu: () => void
+  // Restarts the guided tour (phones; desktop has it in the tab row).
+  onHelp: () => void
   user: User | null
   onOpenProfile: () => void
 }
@@ -20,13 +20,26 @@ function ProfileIcon({ user }: { user: User | null }) {
   )
 }
 
-function Header({ isMenuOpen, onToggleMenu, user, onOpenProfile }: HeaderProps) {
+function Header({ onHelp, user, onOpenProfile }: HeaderProps) {
   return (
     <header className="sticky tab:static top-0 z-40 bg-white py-15 tab:py-20 border-b-3">
       <div className="container flex items-center gap-20">
         <h1 className="flex-1">
           <Logo className="text-32 text-left tab:text-52 tab:text-center" />
         </h1>
+
+
+        {/* Phones: pages are in the bottom bar, so only help sits up here. */}
+        <button
+          type="button"
+          aria-label="Βοήθεια"
+          title="Βοήθεια"
+          data-tour="help-mobile"
+          onClick={onHelp}
+          className="appearance-none main-btn tab:hidden flex items-center justify-center w-40 h-40 p-0 shrink-0 font-title font-bold text-20"
+        >
+          ?
+        </button>
 
         <button
           type="button"
@@ -36,19 +49,6 @@ function Header({ isMenuOpen, onToggleMenu, user, onOpenProfile }: HeaderProps) 
           className="appearance-none main-btn flex items-center justify-center w-40 h-40 p-0 shrink-0 overflow-hidden"
         >
           <ProfileIcon user={user} />
-        </button>
-
-        <button
-          type="button"
-          aria-label="Άνοιγμα μενού"
-          data-tour="menu"
-          aria-expanded={isMenuOpen}
-          onClick={onToggleMenu}
-          className="appearance-none main-btn tab:hidden flex flex-col justify-center gap-5 w-40 h-40 p-5 shrink-0"
-        >
-          <span className="block h-[3px] bg-black" />
-          <span className="block h-[3px] bg-black" />
-          <span className="block h-[3px] bg-black" />
         </button>
       </div>
     </header>
