@@ -3,11 +3,13 @@ import type { ActualEntry, Day, IngredientDef, Recipe, SlotKey, Week } from '../
 import { SLOT_KEYS } from '../types'
 import { calculateMacroTargets, calculateWaterTargetMl, recipeMacros, scaleMacros } from '../nutrition'
 import type { Macros, Profile } from '../nutrition'
-import { addDays, allExtras, parseSlotEntry, portionLabel, findDay, skippedEntry, slotExtras, formatDayDate, todayISO, toISODate, updateDayInWeeks, weekdayName } from '../weekUtils'
+import { addDays, allExtras, parseSlotEntry, portionLabel, findDay, skippedEntry, slotExtras, formatDayDate, rescaleEntry, todayISO, toISODate, updateDayInWeeks, weekdayName } from '../weekUtils'
 import { dayInfo } from '../greekCalendar'
 import type { TabKey } from './Subheader'
 import ActualEntryModal from './ActualEntryModal'
 import PortionBadge from './PortionBadge'
+import CrossIcon from './CrossIcon'
+import AmountPicker, { AmountBadge } from './AmountPicker'
 import Toast, { type ToastData } from './Toast'
 
 type TodayProps = {
@@ -183,7 +185,7 @@ function Today({
             )}
             {showFast && (
               <span className="px-5 py-[2px] text-12 font-title font-bold bg-white border-2 border-black">
-                ✝ Νηστεία{info.fishAllowed ? ' · επιτρέπεται ψάρι' : ''}
+                <CrossIcon size={11} className="mr-[3px]" />Νηστεία{info.fishAllowed ? ' · επιτρέπεται ψάρι' : ''}
                 {info.reason && !info.feast ? ` · ${info.reason}` : ''}
               </span>
             )}
@@ -277,18 +279,28 @@ function Today({
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5">
-                        <span className="text-14 font-title font-bold min-w-0">✓ {entry.description}</span>
-                        <span className="flex items-center gap-10 shrink-0">
-                          <span className="text-12 font-title text-neutral-600 whitespace-nowrap">{Math.round(entry.calories)} kcal</span>
-                          <button
-                            type="button"
-                            onClick={() => setSlotEntry(slot.value, null)}
-                            className="text-12 font-title font-bold underline cursor-pointer"
-                          >
-                            Αναίρεση
-                          </button>
-                        </span>
+                      <div className="flex flex-col gap-5 bg-main-yellow/40 border-2 border-black px-10 py-5">
+                        <div className="flex items-center justify-between gap-10">
+                          <span className="text-14 font-title font-bold min-w-0">
+                            ✓ {entry.description}
+                            <AmountBadge portion={entry.portion} />
+                          </span>
+                          <span className="flex items-center gap-10 shrink-0">
+                            <span className="text-12 font-title text-neutral-600 whitespace-nowrap">{Math.round(entry.calories)} kcal</span>
+                            <button
+                              type="button"
+                              onClick={() => setSlotEntry(slot.value, null)}
+                              className="text-12 font-title font-bold underline cursor-pointer"
+                            >
+                              Αναίρεση
+                            </button>
+                          </span>
+                        </div>
+                        {/* Ate half, or seconds? The calories follow. */}
+                        <AmountPicker
+                          value={entry.portion ?? 1}
+                          onChange={(p) => setSlotEntry(slot.value, rescaleEntry(entry, p))}
+                        />
                       </div>
                     )}
                         </div>
@@ -347,7 +359,10 @@ function Today({
                       <div key={i} className="flex items-center gap-10">
                       <div className="flex-1 min-w-0 flex items-center justify-between gap-10 bg-main-yellow/40 border-2 border-black px-10 py-5">
                         <span className="flex items-center gap-10 min-w-0">
-                          <span className="text-14 font-title font-bold">+ {extra.description}</span>
+                          <span className="text-14 font-title font-bold">
+                            + {extra.description}
+                            <AmountBadge portion={extra.portion} />
+                          </span>
                           <span className="text-12 font-title text-neutral-600 whitespace-nowrap">{Math.round(extra.calories)} kcal</span>
                         </span>
                         <button
@@ -468,7 +483,12 @@ function Today({
                   <span className="text-12 font-title">
                     {tomorrowInfo.feast ? `🎉 ${tomorrowInfo.feast}` : ''}
                     {tomorrowInfo.feast && profile?.observesFasting && tomorrowInfo.fasting ? ' · ' : ''}
-                    {profile?.observesFasting && tomorrowInfo.fasting ? `✝ Νηστεία${tomorrowInfo.fishAllowed ? ' (ψάρι)' : ''}` : ''}
+                    {profile?.observesFasting && tomorrowInfo.fasting && (
+                      <>
+                        <CrossIcon size={11} className="mr-[3px]" />
+                        {`Νηστεία${tomorrowInfo.fishAllowed ? ' (ψάρι)' : ''}`}
+                      </>
+                    )}
                   </span>
                 )}
                 {tomorrowDay && SLOT_KEYS.some((s) => tomorrowDay.slots[s.value].length > 0) ? (

@@ -20,6 +20,7 @@ import {
 import ActualEntryModal from './ActualEntryModal'
 import FadeScrollX from './FadeScrollX'
 import PortionBadge from './PortionBadge'
+import { AmountBadge } from './AmountPicker'
 import Toast, { type ToastData } from './Toast'
 
 const GLASS_ML = 250
@@ -520,7 +521,10 @@ function Calories({
                             ) : (
                               <span className="font-bold text-14 leading-none shrink-0">✓</span>
                             )}
-                            <span className="text-14 font-title font-bold">{entry.description}</span>
+                            <span className="text-14 font-title font-bold">
+                              {entry.description}
+                              <AmountBadge portion={entry.portion} />
+                            </span>
                             <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
                               {Math.round(entry.calories)} kcal
                             </span>
@@ -599,7 +603,10 @@ function Calories({
                             ) : (
                               <span className="font-bold text-14 leading-none shrink-0">+</span>
                             )}
-                            <span className="text-14 font-title font-bold">{extra.description}</span>
+                            <span className="text-14 font-title font-bold">
+                              {extra.description}
+                              <AmountBadge portion={extra.portion} />
+                            </span>
                             <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
                               {Math.round(extra.calories)} kcal
                             </span>

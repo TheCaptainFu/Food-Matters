@@ -301,8 +301,13 @@ function App() {
     setRecipes((prev) => [...prev, recipe])
   }
 
+  // The edit form doesn't know about ♥, so an edit keeps it.
   function handleUpdateRecipe(recipe: Recipe) {
-    setRecipes((prev) => prev.map((r) => (r.id === recipe.id ? recipe : r)))
+    setRecipes((prev) => prev.map((r) => (r.id === recipe.id ? { ...recipe, favorite: r.favorite } : r)))
+  }
+
+  function handleToggleFavorite(id: string) {
+    setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, favorite: !r.favorite } : r)))
   }
 
   function handleDeleteRecipe(id: string) {
@@ -351,6 +356,7 @@ function App() {
           onDeleteIngredientDef={handleDeleteIngredientDef}
           onAddRecipe={handleAddRecipe}
           onOpenRecipe={setOpenRecipeId}
+          onToggleFavorite={handleToggleFavorite}
         />
       )}
       {activeTab === 'calendar' && (
@@ -443,6 +449,7 @@ function App() {
           onClose={() => setOpenRecipeId(null)}
           onEdit={() => setEditingRecipe(openRecipe)}
           onDelete={() => setConfirmDeleteId(openRecipe.id)}
+          onToggleFavorite={() => handleToggleFavorite(openRecipe.id)}
         />
       )}
 

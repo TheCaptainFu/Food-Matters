@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { IngredientDef, Recipe } from '../types'
 import { recipeMacros } from '../nutrition'
 import { matchesSearch } from '../text'
+import FoodRow from './FoodRow'
 
 type SuggestAlternativesModalProps = {
   current: Recipe
@@ -41,7 +42,7 @@ function SuggestAlternativesModal({
   const query = search.trim().toLowerCase()
   const browseList = allRecipes
     .filter((r) => r.id !== current.id && matchesSearch(r.title, query))
-    .sort((a, b) => a.title.localeCompare(b.title))
+    .sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite) || a.title.localeCompare(b.title, 'el'))
 
   return createPortal(
     <div
@@ -53,7 +54,7 @@ function SuggestAlternativesModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[420px] max-h-[90vh] overflow-y-auto"
+        className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[420px] tab:max-w-[600px] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between gap-10">
           <h2 className="text-20 font-title font-bold uppercase">{isBrowsing ? 'Όλα τα φαγητά' : 'Αλλαγή φαγητού'}</h2>
@@ -79,31 +80,18 @@ function SuggestAlternativesModal({
               className="border-3 border-black px-10 py-5 font-title"
               autoFocus
             />
-            <div className="border-3 border-black max-h-[260px] overflow-y-auto">
-              {browseList.length > 0 ? (
-                browseList.map((r) => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => onSelect(r.id)}
-                    className="w-full flex flex-col gap-5 text-left px-10 py-10 hover:bg-main-yellow border-b-2 border-black last:border-b-0 cursor-pointer"
-                  >
-                    <span className="text-14 font-title font-bold">{r.title}</span>
-                    <MacroLine recipe={r} ingredientCatalog={ingredientCatalog} />
-                  </button>
-                ))
-              ) : (
-                <p className="px-10 py-10 text-14 font-title text-neutral-500">Δεν βρέθηκε τίποτα για «{search.trim()}».</p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={onCreateNew}
-              className="self-start text-14 font-title font-bold underline cursor-pointer"
-            >
-              Δεν το βρίσκεις; + Νέο φαγητό
-            </button>
-            <div className="flex justify-between gap-10">
+            <div className="border-3 border-black overflow-hidden">
+            <div className="max-h-[260px] tab:max-h-[420px] overflow-y-auto [scrollbar-width:thin]">
+                {browseList.length > 0 ? (
+                  browseList.map((r) => (
+                    <FoodRow key={r.id} recipe={r} ingredientCatalog={ingredientCatalog} onClick={() => onSelect(r.id)} />
+                  ))
+                ) : (
+                  <p className="px-10 py-10 text-14 font-title text-neutral-500">Δεν βρέθηκε τίποτα για «{search.trim()}».</p>
+                )}
+              </div>
+          </div>
+            <div className="flex flex-wrap items-center gap-10">
               <button
                 type="button"
                 onClick={() => {
@@ -113,6 +101,13 @@ function SuggestAlternativesModal({
                 className="main-btn font-title font-bold px-15 py-10"
               >
                 ← Πίσω
+              </button>
+              <button
+                type="button"
+                onClick={onCreateNew}
+                className="main-btn font-title font-bold px-15 py-10 bg-main-yellow mr-auto"
+              >
+                + Νέο φαγητό
               </button>
               <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
                 Άκυρο
@@ -136,40 +131,33 @@ function SuggestAlternativesModal({
                   <p className="text-14 font-title text-neutral-500">Δεν υπάρχουν εναλλακτικές για αυτό το γεύμα.</p>
                 )}
                 {alternatives.map((alt) => (
-                  <button
+                  <FoodRow
                     key={alt.id}
-                    type="button"
+                    recipe={alt}
+                    ingredientCatalog={ingredientCatalog}
+                    framed
                     onClick={() => onSelect(alt.id)}
-                    className="main-btn text-left px-10 py-10 flex flex-col gap-5 hover:bg-main-yellow"
-                  >
-                    <span className="text-14 font-title font-bold">{alt.title}</span>
-                    <MacroLine recipe={alt} ingredientCatalog={ingredientCatalog} />
-                  </button>
+                  />
                 ))}
               </div>
             </div>
 
-            <div className="flex flex-col gap-5">
-              <span className="text-12 font-title font-bold uppercase text-neutral-500">Δεν σου κάνει;</span>
-              <div className="grid grid-cols-2 gap-10">
-                <button
-                  type="button"
-                  onClick={() => setIsBrowsing(true)}
-                  className="border-2 border-dashed border-neutral-400 hover:border-black px-10 py-10 text-14 font-title font-bold cursor-pointer"
-                >
-                  🔍 Όλα τα φαγητά
-                </button>
-                <button
-                  type="button"
-                  onClick={onCreateNew}
-                  className="border-2 border-dashed border-neutral-400 hover:border-black px-10 py-10 text-14 font-title font-bold cursor-pointer"
-                >
-                  + Νέα συνταγή
-                </button>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
+            {/* None appeal: browse everything or add a new one — bottom left, like the other dialogs. */}
+            <div className="flex flex-wrap items-center gap-10">
+              <button
+                type="button"
+                onClick={() => setIsBrowsing(true)}
+                className="main-btn font-title font-bold px-15 py-10"
+              >
+                🔍 Όλα τα φαγητά
+              </button>
+              <button
+                type="button"
+                onClick={onCreateNew}
+                className="main-btn font-title font-bold px-15 py-10 bg-main-yellow mr-auto"
+              >
+                + Νέο φαγητό
+              </button>
               <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
                 Άκυρο
               </button>

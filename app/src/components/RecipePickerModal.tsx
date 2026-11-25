@@ -1,19 +1,23 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { Recipe } from '../types'
+import type { IngredientDef, Recipe } from '../types'
+import FoodRow from './FoodRow'
 import { matchesSearch } from '../text'
 
 type RecipePickerModalProps = {
   recipes: Recipe[]
+  ingredientCatalog: IngredientDef[]
   onSave: (recipeIds: string[]) => void
   onClose: () => void
 }
 
-function RecipePickerModal({ recipes, onSave, onClose }: RecipePickerModalProps) {
+function RecipePickerModal({ recipes, ingredientCatalog, onSave, onClose }: RecipePickerModalProps) {
   const [search, setSearch] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
-  const filtered = recipes.filter((r) => matchesSearch(r.title, search))
+  const filtered = recipes
+    .filter((r) => matchesSearch(r.title, search))
+    .sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite))
 
   function toggle(id: string) {
     setSelectedIds((prev) => {
@@ -39,7 +43,7 @@ function RecipePickerModal({ recipes, onSave, onClose }: RecipePickerModalProps)
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-md"
+        className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-md tab:max-w-[600px]"
       >
         <h2 className="text-20 font-title font-bold uppercase">Επιλογή φαγητών</h2>
 
@@ -52,36 +56,21 @@ function RecipePickerModal({ recipes, onSave, onClose }: RecipePickerModalProps)
           autoFocus
         />
 
-        <div className="border-3 border-black max-h-[300px] overflow-y-auto">
-          {filtered.length === 0 && (
-            <p className="p-15 text-14 font-title text-neutral-500 text-center">Δεν βρέθηκε τίποτα.</p>
-          )}
-          {filtered.map((recipe, index) => {
-            const isChecked = selectedIds.has(recipe.id)
-            return (
-              <button
+        <div className="border-3 border-black overflow-hidden">
+          <div className="max-h-[50vh] tab:max-h-[60vh] overflow-y-auto [scrollbar-width:thin]">
+            {filtered.length === 0 && (
+              <p className="p-15 text-14 font-title text-neutral-500 text-center">Δεν βρέθηκε τίποτα.</p>
+            )}
+            {filtered.map((recipe) => (
+              <FoodRow
                 key={recipe.id}
-                type="button"
+                recipe={recipe}
+                ingredientCatalog={ingredientCatalog}
+                selected={selectedIds.has(recipe.id)}
                 onClick={() => toggle(recipe.id)}
-                className={
-                  index < filtered.length - 1
-                    ? `flex items-center gap-10 w-full text-left px-15 py-10 text-14 font-title font-bold border-b-2 border-black ${isChecked ? 'bg-main-yellow' : 'hover:bg-neutral-100'}`
-                    : `flex items-center gap-10 w-full text-left px-15 py-10 text-14 font-title font-bold ${isChecked ? 'bg-main-yellow' : 'hover:bg-neutral-100'}`
-                }
-              >
-                <span
-                  className={
-                    isChecked
-                      ? 'shrink-0 w-20 h-20 border-2 border-black bg-main-blue flex items-center justify-center text-white text-14 font-bold'
-                      : 'shrink-0 w-20 h-20 border-2 border-black bg-white'
-                  }
-                >
-                  {isChecked ? '✓' : ''}
-                </span>
-                {recipe.title}
-              </button>
-            )
-          })}
+              />
+            ))}
+          </div>
         </div>
 
         <div className="flex gap-10 justify-end">

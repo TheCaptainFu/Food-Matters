@@ -33,6 +33,7 @@ import AddRecipeModal from './AddRecipeModal'
 import RecipePickerModal from './RecipePickerModal'
 import SuggestAlternativesModal from './SuggestAlternativesModal'
 import Toast, { type ToastData } from './Toast'
+import CrossIcon from './CrossIcon'
 import { downloadWeekTemplate, importWeekFromExcel } from '../excelImport'
 
 // Normalized distance across calories + all three macros, so "closest
@@ -942,7 +943,7 @@ function Calendar({
                         title={calendarInfo.reason}
                         className="px-5 py-[2px] text-12 font-title font-bold bg-white border-2 border-black"
                       >
-                        ✝ Νηστεία{calendarInfo.fishAllowed ? ' · επιτρέπεται ψάρι' : ''}
+                        <CrossIcon size={11} className="mr-[3px]" />Νηστεία{calendarInfo.fishAllowed ? ' · επιτρέπεται ψάρι' : ''}
                         {calendarInfo.reason && !calendarInfo.feast ? ` · ${calendarInfo.reason}` : ''}
                       </span>
                     )}
@@ -1008,6 +1009,7 @@ function Calendar({
                           <SlotPicker
                             compact
                             recipes={recipesForSlot(slot.key, date)}
+                            ingredientCatalog={ingredientCatalog}
                             onAdd={(recipeIds) => addRecipesToSlot(dayIndex, slot.key, recipeIds)}
                           />
                         )}
@@ -1048,13 +1050,14 @@ function Calendar({
                               {!isEditing && <PortionBadge portion={portion} />}
                             </span>
                             {isEditing && (
-                            <div className="flex items-center gap-10 shrink-0">
+                            <div className="flex items-center gap-5 shrink-0">
+                              {/* Four small, matching square tools: portion, move, swap, remove. */}
                               <button
                                 type="button"
                                 onClick={() => cyclePortion(dayIndex, slot.key, recipeIndex)}
                                 aria-label="Αλλαγή μερίδας"
                                 title="Αλλαγή μερίδας (1, 1½, 2)"
-                                className={`px-5 border-2 border-black text-12 font-title font-bold leading-tight cursor-pointer ${portion > 1 ? 'bg-main-orange' : 'bg-white'}`}
+                                className={`${TOOL_BTN} w-auto min-w-[26px] px-[3px] text-12 font-title font-bold ${portion > 1 ? 'bg-main-orange' : 'bg-white'}`}
                               >
                                 ×{portion === 1 ? '1' : portion === 1.5 ? '1½' : String(portion)}
                               </button>
@@ -1063,27 +1066,27 @@ function Calendar({
                                 onClick={() => setMoveTarget({ dayIndex, slotKey: slot.key, recipeIndex })}
                                 aria-label="Μετακίνηση σε άλλη μέρα ή γεύμα"
                                 title="Μετακίνηση σε άλλη μέρα ή γεύμα"
-                                className="text-black hover:text-main-blue font-bold text-14 leading-none cursor-pointer"
+                                className={`${TOOL_BTN} bg-white hover:bg-main-teal`}
                               >
-                                ↗
+                                <ToolIcon d="M7 17 L17 7 M9 7 H17 V15" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setSuggestTarget({ dayIndex, slotKey: slot.key, recipeIndex })}
                                 aria-label="Αλλαγή με παρόμοια συνταγή"
-                                title="Αλλαγή με παρόμοια συνταγή"
-                                className="text-black hover:text-main-blue font-bold text-14 leading-none cursor-pointer"
+                                title="Αλλαγή με παρόμοιο φαγητό"
+                                className={`${TOOL_BTN} bg-white hover:bg-main-yellow`}
                               >
-                                ⇄
+                                <ToolIcon d="M5 9 H18 M14 5 L18 9 L14 13 M19 15 H6 M10 11 L6 15 L10 19" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => removeRecipeFromSlot(dayIndex, slot.key, recipeIndex)}
                                 aria-label="Αφαίρεση"
                                 title="Αφαίρεση"
-                                className="text-black hover:text-main-red font-bold text-14 leading-none cursor-pointer"
+                                className={`${TOOL_BTN} bg-white hover:bg-main-red hover:text-white`}
                               >
-                                ✕
+                                <ToolIcon d="M7 7 L17 17 M17 7 L7 17" />
                               </button>
                             </div>
                             )}
@@ -1124,6 +1127,7 @@ function Calendar({
                       {isEditing && day.slots[slot.key].length === 0 && (
                         <SlotPicker
                           recipes={recipesForSlot(slot.key, date)}
+                          ingredientCatalog={ingredientCatalog}
                           onAdd={(recipeIds) => addRecipesToSlot(dayIndex, slot.key, recipeIds)}
                         />
                       )}
@@ -1441,13 +1445,14 @@ function MoveRecipeModal({ recipeTitle, days, from, onMove, onClose }: MoveRecip
 
 type SlotPickerProps = {
   recipes: Recipe[]
+  ingredientCatalog: IngredientDef[]
   onAdd: (recipeIds: string[]) => void
   // Just a small "+" — for a meal that already has a recipe, where a full
   // "+ Add recipe" button on every slot would be noise.
   compact?: boolean
 }
 
-function SlotPicker({ recipes, onAdd, compact = false }: SlotPickerProps) {
+function SlotPicker({ recipes, ingredientCatalog, onAdd, compact = false }: SlotPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
@@ -1469,6 +1474,7 @@ function SlotPicker({ recipes, onAdd, compact = false }: SlotPickerProps) {
       {isOpen && (
         <RecipePickerModal
           recipes={recipes}
+          ingredientCatalog={ingredientCatalog}
           onSave={(recipeIds) => {
             onAdd(recipeIds)
             setIsOpen(false)
@@ -1477,6 +1483,19 @@ function SlotPicker({ recipes, onAdd, compact = false }: SlotPickerProps) {
         />
       )}
     </>
+  )
+}
+
+// The little edit tools next to a planned food: same size, same frame,
+// line icons drawn here so they look the same on every phone (no emoji).
+const TOOL_BTN =
+  'w-[26px] h-[26px] flex items-center justify-center border-2 border-black text-black leading-none cursor-pointer transition-colors'
+
+function ToolIcon({ d }: { d: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} />
+    </svg>
   )
 }
 

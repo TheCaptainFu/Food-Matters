@@ -5,6 +5,8 @@ import { CATEGORIES, DIFFICULTIES, SLOT_KEYS } from '../types'
 import { recipeMacros, spoonHint } from '../nutrition'
 import { recipeInfo, formatEuro, formatMinutes } from '../recipeTraits'
 import { findDef, formatQuantity } from '../quantities'
+import CrossIcon from './CrossIcon'
+import HeartIcon from './HeartIcon'
 import { loadHousehold } from '../shopping'
 
 type RecipeDetailModalProps = {
@@ -13,9 +15,10 @@ type RecipeDetailModalProps = {
   onClose: () => void
   onEdit: () => void
   onDelete: () => void
+  onToggleFavorite: () => void
 }
 
-function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelete }: RecipeDetailModalProps) {
+function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelete, onToggleFavorite }: RecipeDetailModalProps) {
   const category = CATEGORIES.find((c) => c.value === recipe.category)
   const macros = recipeMacros(recipe, ingredientCatalog)
   const info = recipeInfo(recipe, ingredientCatalog)
@@ -37,7 +40,19 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
         onClick={(e) => e.stopPropagation()}
         className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-20 w-full max-w-md max-h-[85vh] overflow-y-auto"
       >
-        <h2 className="text-20 font-title font-bold uppercase">{recipe.title}</h2>
+        <div className="flex items-start justify-between gap-10">
+          <h2 className="text-20 font-title font-bold uppercase">{recipe.title}</h2>
+          <button
+            type="button"
+            onClick={onToggleFavorite}
+            aria-pressed={!!recipe.favorite}
+            aria-label={recipe.favorite ? 'Αφαίρεση από τα αγαπημένα' : 'Προσθήκη στα αγαπημένα'}
+            title={recipe.favorite ? 'Αφαίρεση από τα αγαπημένα' : 'Στα αγαπημένα'}
+            className="main-btn shrink-0 w-[38px] h-[38px] p-0 flex items-center justify-center bg-white"
+          >
+            <HeartIcon on={!!recipe.favorite} size={20} />
+          </button>
+        </div>
 
         <div className="flex flex-wrap gap-10">
           {category && (
@@ -48,8 +63,8 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
             </span>
           )}
           {info.fasting && (
-            <span className="main-btn inline-block self-start px-10 py-5 text-14 font-title font-bold uppercase bg-white">
-              ✝ Νηστίσιμο
+            <span className="main-btn inline-flex items-center gap-5 self-start px-10 py-5 text-14 font-title font-bold uppercase bg-white">
+              <CrossIcon size={13} /> Νηστίσιμο
             </span>
           )}
         </div>

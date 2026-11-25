@@ -119,7 +119,7 @@ export const CATEGORIES: { value: Category; label: string; color: string; out?: 
   { value: 'breakfast', label: 'Πρωινό & Σνακ', color: 'bg-pink-200' },
   { value: 'fruit', label: 'Φρούτα', color: 'bg-rose-300' },
   { value: 'dessert', label: 'Γλυκά', color: 'bg-main-blue' },
-  { value: 'coffee', label: '☕ Καφές', color: 'bg-amber-700', out: true },
+  { value: 'coffee', label: '☕ Καφές', color: 'bg-stone-300', out: true },
   { value: 'street', label: '🥙 Σουβλατζίδικο', color: 'bg-orange-400', out: true },
   { value: 'bakery', label: '🥐 Φούρνος', color: 'bg-yellow-200', out: true },
   { value: 'taverna', label: '🍽 Ταβέρνα', color: 'bg-sky-300', out: true },
@@ -173,6 +173,8 @@ export type Recipe = {
   // Per-portion values typed in directly, for food without ingredients
   // (a φρέντο, a σουβλάκι). Used only while the ingredient list is empty.
   fixedMacros?: { calories: number; protein: number; carbs: number; fat: number }
+  // Marked ♥ by the user: listed first on Φαγητά and in the pickers.
+  favorite?: boolean
   // How to actually make it — optional so older/legacy recipes without one
   // just don't show a "how to make it" section instead of breaking.
   instructions?: string
@@ -194,6 +196,9 @@ export type ActualEntry = {
   // "Δεν έφαγα": the meal was skipped on purpose. Zero calories, but it
   // still counts as logged, so the day doesn't look forgotten.
   skipped?: boolean
+  // How much of it was eaten: ½, 1 (all of it), 1½, 2. The macros above
+  // are already multiplied by it; it's kept so it can be changed later.
+  portion?: number
 }
 
 export type Day = {

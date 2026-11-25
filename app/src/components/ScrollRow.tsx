@@ -4,8 +4,18 @@ import { useScrollFade } from '../useScrollFade'
 
 // A single row of chips that scrolls sideways when it doesn't fit, instead
 // of wrapping onto a second line. No visible scrollbar: touch swipes it,
-// a mouse can drag it or use the wheel.
-function ScrollRow({ children, className = '' }: { children: ReactNode; className?: string }) {
+// a mouse can drag it or use the wheel. Big rows that sit in the page's
+// flow (the food carousels) turn the wheel off, so scrolling down the page
+// isn't hijacked whenever the pointer passes over one.
+function ScrollRow({
+  children,
+  className = '',
+  wheel = true,
+}: {
+  children: ReactNode
+  className?: string
+  wheel?: boolean
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
   const { style } = useScrollFade(ref)
@@ -17,7 +27,7 @@ function ScrollRow({ children, className = '' }: { children: ReactNode; classNam
       className={`flex gap-10 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden py-5 pr-5 min-w-0 ${className}`}
       onWheel={(e) => {
         const el = ref.current
-        if (!el || el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
+        if (!wheel || !el || el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
         el.scrollLeft += e.deltaY
       }}
       onPointerDown={(e) => {

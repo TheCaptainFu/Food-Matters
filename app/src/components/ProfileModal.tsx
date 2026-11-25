@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { User } from '@supabase/supabase-js'
 import type { IngredientDef } from '../types'
@@ -16,6 +16,7 @@ import type { Profile } from '../nutrition'
 import { DIET_TYPES } from '../dietaryRestrictions'
 import { signInWithProvider, signOut } from '../useAuth'
 import { supabase } from '../supabaseClient'
+import CrossIcon from './CrossIcon'
 import { matchesSearch } from '../text'
 
 type ProfileModalProps = {
@@ -80,7 +81,7 @@ function ToggleCard({
 }: {
   checked: boolean
   onChange: (checked: boolean) => void
-  title: string
+  title: ReactNode
   description: string
 }) {
   return (
@@ -444,7 +445,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
             <ToggleCard
               checked={observesFasting}
               onChange={setObservesFasting}
-              title="✝ Τηρώ τις νηστείες"
+              title={<><CrossIcon size={14} className="mr-5" />Τηρώ τις νηστείες</>}
               description="Σαρακοστή, Δεκαπενταύγουστος, Τετάρτη και Παρασκευή… Το πρόγραμμα βάζει μόνο νηστίσιμα εκείνες τις μέρες (και ψάρι όπου επιτρέπεται)."
             />
 

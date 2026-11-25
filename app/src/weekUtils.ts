@@ -171,3 +171,24 @@ export function portionLabel(portion: number): string {
   const text = portion - whole === 0.5 ? (whole > 0 ? `${whole}½` : '½') : String(portion)
   return `${text} ${portion >= 2 ? 'μερίδες' : 'μερίδα'}`
 }
+
+// "How much did you eat?" — relative to the dish (or the planned meal).
+export const AMOUNTS: { value: number; label: string }[] = [
+  { value: 0.5, label: 'Μισό' },
+  { value: 1, label: 'Όλο' },
+  { value: 1.5, label: '1½' },
+  { value: 2, label: 'Διπλό' },
+]
+
+// The same entry with a different amount: macros scaled from the old one.
+export function rescaleEntry(entry: ActualEntry, portion: number): ActualEntry {
+  const factor = portion / (entry.portion ?? 1)
+  return {
+    ...entry,
+    calories: Math.round(entry.calories * factor),
+    protein: Math.round(entry.protein * factor),
+    carbs: Math.round(entry.carbs * factor),
+    fat: Math.round(entry.fat * factor),
+    portion,
+  }
+}
