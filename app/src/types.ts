@@ -153,6 +153,14 @@ export const SLOT_KEYS: { value: SlotKey; label: string }[] = [
   { value: 'dinner', label: 'Βραδινό' },
 ]
 
+export type RecipePieces = {
+  one: string // "μπιφτέκι"
+  many: string // "μπιφτέκια"
+  count: number // pieces in one portion of the recipe
+  main: string[] // ingredient names that make the pieces; the rest is the side
+  side?: string // what the rest is called ("πατάτες"); none = no side
+}
+
 export type Recipe = {
   id: string
   title: string
@@ -175,6 +183,9 @@ export type Recipe = {
   fixedMacros?: { calories: number; protein: number; carbs: number; fat: number }
   // Marked ♥ by the user: listed first on Φαγητά and in the pickers.
   favorite?: boolean
+  // Food whose main part comes in pieces (μπιφτέκια, φιλέτα, κοτομπουκιές):
+  // logging asks "how many?" for it and "how much?" for the side apart.
+  pieces?: RecipePieces
   // How to actually make it — optional so older/legacy recipes without one
   // just don't show a "how to make it" section instead of breaking.
   instructions?: string
@@ -201,6 +212,12 @@ export type ActualEntry = {
   portion?: number
   // The food it came from, so tapping the log opens its recipe.
   recipeId?: string
+  // For food in pieces: how many were eaten and how much of the side (1 =
+  // as in the recipe). The macros above already follow them.
+  pieces?: number
+  side?: number
+  // Shown next to the name, e.g. "4 μπιφτέκια · πατάτες ×½".
+  amountText?: string
 }
 
 export type Day = {

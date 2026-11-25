@@ -196,7 +196,7 @@ function Calendar({
   // excluded ingredients (allergies/dislikes) — what Auto-fill, Suggest
   // other and the manual picker are allowed to offer.
   const compatibleRecipes = profile
-    ? filterCompatibleRecipes(recipes, profile.diet, profile.excludedIngredients)
+    ? filterCompatibleRecipes(recipes, profile.diet, profile.excludedIngredients, profile.conditions)
     : recipes
 
   // Further narrows to recipes tagged for that meal — so breakfast never
@@ -1121,7 +1121,7 @@ function Calendar({
                             {/* One line: a long name ends in "…", the amount stays. */}
                             <span className="flex items-center min-w-0 text-14 font-title font-bold">
                               <EntryTitle entry={entry} prefix="" recipes={recipes} onOpenRecipe={onOpenRecipe} />
-                              <AmountBadge portion={entry.portion} />
+                              <AmountBadge portion={entry.portion} text={entry.amountText} />
                             </span>
                           </span>
                           <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
@@ -1138,7 +1138,7 @@ function Calendar({
                         >
                           <span className="flex items-center min-w-0 text-14 font-title font-bold">
                             <EntryTitle entry={extra} prefix="+" recipes={recipes} onOpenRecipe={onOpenRecipe} />
-                            <AmountBadge portion={extra.portion} />
+                            <AmountBadge portion={extra.portion} text={extra.amountText} />
                           </span>
                           <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
                             {Math.round(extra.calories)} kcal

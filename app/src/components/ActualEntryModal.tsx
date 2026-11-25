@@ -8,6 +8,7 @@ import { plainText } from '../text'
 import FoodRow from './FoodRow'
 import AmountPicker from './AmountPicker'
 import { rescaleEntry } from '../weekUtils'
+import { hasPieces, piecesEntry } from '../pieces'
 
 
 type ActualEntryModalProps = {
@@ -98,6 +99,11 @@ function ActualEntryModal({
     )
 
   function pickRecipe(recipe: Recipe) {
+    // Food in pieces: "2 μπιφτέκια" (× the amount), changeable afterwards.
+    if (hasPieces(recipe)) {
+      onSave(piecesEntry(recipe, [...ingredientCatalog, ...newDefs], recipe.pieces.count * amount, amount))
+      return
+    }
     const m = recipeMacros(recipe, [...ingredientCatalog, ...newDefs])
     // Rounded once, after scaling, so ½ of 125 kcal isn't 62 vs 63.
     const full = { recipeId: recipe.id, description: recipe.title, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat }

@@ -74,7 +74,7 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
   // Same diet/exclusion rules as the Meal Plan's suggestions.
   // Only things you cook — ready food has nothing to use up.
   const candidates = (
-    profile ? filterCompatibleRecipes(recipes, profile.diet, profile.excludedIngredients) : recipes
+    profile ? filterCompatibleRecipes(recipes, profile.diet, profile.excludedIngredients, profile.conditions) : recipes
   ).filter((r) => !isOutsideFood(r.category))
 
   const withMissing = candidates.map((recipe) => ({

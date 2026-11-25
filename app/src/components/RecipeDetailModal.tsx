@@ -5,6 +5,7 @@ import { recipeMacros, spoonHint } from '../nutrition'
 import { recipeInfo, formatEuro, formatMinutes } from '../recipeTraits'
 import { findDef, formatQuantity } from '../quantities'
 import CrossIcon from './CrossIcon'
+import { conditionConflicts, type HealthCondition } from '../healthConditions'
 import HeartIcon from './HeartIcon'
 
 // Same colours as each meal's badge on Σήμερα and Πρόγραμμα.
@@ -22,9 +23,11 @@ type RecipeDetailModalProps = {
   onEdit: () => void
   onDelete: () => void
   onToggleFavorite: () => void
+  // Your health conditions: a food that doesn't suit them gets a warning.
+  conditions?: HealthCondition[]
 }
 
-function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelete, onToggleFavorite }: RecipeDetailModalProps) {
+function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelete, onToggleFavorite, conditions = [] }: RecipeDetailModalProps) {
   const category = CATEGORIES.find((c) => c.value === recipe.category)
   const macros = recipeMacros(recipe, ingredientCatalog)
   const info = recipeInfo(recipe, ingredientCatalog)
@@ -34,6 +37,7 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
   // Ready food (a φρέντο, a σουβλάκι) has no ingredients to scale or cook:
   // just what it is and its calories.
   const ready = recipe.ingredients.length === 0
+  const conflicts = conditionConflicts(recipe, conditions)
 
   return createPortal(
     <div
@@ -96,6 +100,27 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
         </div>
 
 
+        {/* Doesn't suit one of your health conditions: say which, and why. */}
+        {conflicts.length > 0 && (
+          <div role="note" className="flex gap-10 border-2 border-black bg-main-red/15 px-10 py-10 font-title">
+            <span
+              aria-hidden="true"
+              className="shrink-0 w-[22px] h-[22px] flex items-center justify-center bg-main-red text-white font-bold text-14 border-2 border-black"
+            >
+              !
+            </span>
+            <span className="flex flex-col gap-[2px] text-14 tab:text-16">
+              <span className="font-bold">Δεν σου ταιριάζει</span>
+              {conflicts.map((c) => (
+                <span key={c.condition}>
+                  {c.label}
+                  {c.items.length > 0 && <span className="text-neutral-600"> · {c.items.join(', ')}</span>}
+                </span>
+              ))}
+            </span>
+          </div>
+        )}
+
         {/* At a glance: one box split in four (time, effort, cost, how long
             it keeps), then the meals it suits as their coloured badges. */}
         {!ready && (
@@ -126,6 +151,13 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
             <h3 className="text-16 tab:text-18 font-title font-bold uppercase">Υλικά</h3>
             <span className="px-10 py-[2px] border-2 border-black bg-main-teal text-14 font-title font-bold">
               για {servings} {servings === 1 ? 'μερίδα' : 'μερίδες'}
+              {/* Food in pieces: what a portion is, in pieces. */}
+              {recipe.pieces && (
+                <span className="font-normal">
+                  {' '}
+                  · {recipe.pieces.count * servings} {recipe.pieces.count * servings === 1 ? recipe.pieces.one : recipe.pieces.many}
+                </span>
+              )}
             </span>
           </div>
         )}

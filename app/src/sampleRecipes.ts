@@ -1,4 +1,4 @@
-import type { Category, Difficulty, Ingredient, Recipe, SlotKey, Unit } from './types'
+import type { Category, Difficulty, Ingredient, Recipe, RecipePieces, SlotKey, Unit } from './types'
 import { DEFAULT_INGREDIENT_CATALOG } from './ingredientCatalog'
 import { toNaturalUnit } from './quantities'
 import { EATING_OUT, type EatingOutGroup } from './eatingOut'
@@ -27,6 +27,7 @@ function recipe(
     mealTypes,
     servings: 1,
     ...(meta ? { minutes: meta[0], difficulty: DIFF[meta[1]], keepsDays: meta[2] } : {}),
+    ...(PIECES[id] ? { pieces: PIECES[id] } : {}),
     ingredients,
     instructions,
   }
@@ -89,6 +90,36 @@ const META: Record<number, Meta> = {
   285: [25, 'm', 1],
   286: [60, 'e', 2], 287: [30, 'e', 2],
   288: [35, 'm', 2], 289: [45, 'm', 2], 290: [45, 'm', 2],
+}
+
+// Food whose main part is counted in pieces: what a piece is called, how
+// many are in one portion, which ingredients make them, and what the rest
+// of the plate is. Logging then asks "how many μπιφτέκια?" on its own.
+const FLOUR = 'Αλεύρι για όλες τις χρήσεις'
+const CRUMBS = 'Τριμμένη φρυγανιά'
+const NUGGETS = ['Στήθος κοτόπουλο', FLOUR, 'Αυγά', CRUMBS]
+const PIECES: Record<number, RecipePieces> = {
+  22: { one: 'μπιφτέκι', many: 'μπιφτέκια', count: 2, main: ['Κιμάς μοσχαρίσιος', 'Κρεμμύδι ξερό', CRUMBS, 'Αυγά', 'Ρίγανη'], side: 'πατάτες' },
+  23: { one: 'σουτζουκάκι', many: 'σουτζουκάκια', count: 4, main: ['Κιμάς μικτός', 'Σκόρδο', 'Κύμινο', CRUMBS, 'Αυγά'], side: 'ρύζι' },
+  24: { one: 'κεφτεδάκι', many: 'κεφτεδάκια', count: 6, main: ['Κιμάς μικτός', 'Κρεμμύδι ξερό', 'Δυόσμος', CRUMBS, 'Αυγά', FLOUR, 'Ηλιέλαιο', 'Αλάτι'] },
+  27: { one: 'καλαμάκι', many: 'καλαμάκια', count: 2, main: ['Χοιρινό λαιμός'], side: 'πίτα' },
+  28: { one: 'μπριζόλα', many: 'μπριζόλες', count: 1, main: ['Χοιρινή μπριζόλα'], side: 'σαλάτα' },
+  30: { one: 'παϊδάκι', many: 'παϊδάκια', count: 4, main: ['Αρνίσια παϊδάκια'], side: 'σαλάτα' },
+  43: { one: 'φιλέτο', many: 'φιλέτα', count: 1, main: ['Στήθος κοτόπουλο'], side: 'ρύζι' },
+  97: { one: 'αυγό', many: 'αυγά', count: 2, main: ['Αυγά'], side: 'ψωμί & ντομάτα' },
+  202: { one: 'μπουτάκι', many: 'μπουτάκια', count: 2, main: ['Μπούτι κοτόπουλο'], side: 'λαχανικά' },
+  204: { one: 'καλαμάκι', many: 'καλαμάκια', count: 2, main: ['Στήθος κοτόπουλο'], side: 'πίτα' },
+  208: { one: 'φτερούγα', many: 'φτερούγες', count: 4, main: ['Φτερούγες κοτόπουλο', 'Μέλι', 'Μουστάρδα'], side: 'πατάτες' },
+  213: { one: 'μενταγιόν', many: 'μενταγιόν', count: 3, main: ['Χοιρινό φιλέτο', 'Μουστάρδα', 'Κρέμα γάλακτος'], side: 'πουρέ' },
+  214: { one: 'γιουβαρλάκι', many: 'γιουβαρλάκια', count: 5, main: ['Κιμάς μοσχαρίσιος', 'Ρύζι καρολίνα', 'Κρεμμύδι ξερό', 'Αυγά', 'Λεμόνι', 'Άνηθος', 'Μαϊντανός', 'Ελαιόλαδο', 'Αλάτι'] },
+  231: { one: 'ρεβιθοκεφτές', many: 'ρεβιθοκεφτέδες', count: 4, main: ['Ρεβίθια', 'Κρεμμύδι ξερό', 'Μαϊντανός', 'Δυόσμος', FLOUR, 'Κύμινο', 'Ηλιέλαιο'], side: 'γιαούρτι' },
+  271: { one: 'αυγό', many: 'αυγά', count: 2, main: ['Αυγά'], side: 'πατάτες' },
+  285: { one: 'σνίτσελ', many: 'σνίτσελ', count: 1, main: ['Χοιρινό φιλέτο', FLOUR, 'Αυγά', CRUMBS, 'Ηλιέλαιο'], side: 'σαλάτα' },
+  286: { one: 'μενταγιόν', many: 'μενταγιόν', count: 3, main: ['Χοιρινό φιλέτο', 'Μουστάρδα', 'Σκόρδο', 'Δεντρολίβανο'], side: 'πατάτες' },
+  287: { one: 'μενταγιόν', many: 'μενταγιόν', count: 3, main: ['Χοιρινό φιλέτο', 'Σκόρδο'], side: 'ρύζι' },
+  288: { one: 'κοτομπουκιά', many: 'κοτομπουκιές', count: 8, main: NUGGETS, side: 'ρύζι' },
+  289: { one: 'κοτομπουκιά', many: 'κοτομπουκιές', count: 8, main: NUGGETS, side: 'πατάτες' },
+  290: { one: 'κοτομπουκιά', many: 'κοτομπουκιές', count: 8, main: NUGGETS, side: 'γλυκοπατάτες' },
 }
 
 const MAIN: SlotKey[] = ['lunch', 'dinner']

@@ -6,6 +6,7 @@ import { DIET_TYPES, type DietType } from '../dietaryRestrictions'
 import type { IngredientDef } from '../types'
 import type { ActivityLevel, Goal, Pace, Profile, Sex } from '../nutrition'
 import BrutalIcon, { type BrutalIconName } from './BrutalIcon'
+import { HEALTH_CONDITIONS, type HealthCondition } from '../healthConditions'
 import { plainText } from '../text'
 
 type OnboardingProps = {
@@ -141,6 +142,7 @@ function Onboarding({ ingredientCatalog, onFinish, onSkip }: OnboardingProps) {
   const [takesCreatine, setTakesCreatine] = useState(false)
   const [diet, setDiet] = useState<DietType>('none')
   const [excluded, setExcluded] = useState<string[]>([])
+  const [conditions, setConditions] = useState<HealthCondition[]>([])
   const [excludeSearch, setExcludeSearch] = useState('')
   const excludeSuggestions =
     excludeSearch.trim().length === 0
@@ -167,7 +169,7 @@ function Onboarding({ ingredientCatalog, onFinish, onSkip }: OnboardingProps) {
   const back = () => setIndex((i) => Math.max(0, i - 1))
 
   function finish() {
-    onFinish(normalizeProfile({ ...vitals, observesFasting, takesProtein, takesCreatine, diet, excludedIngredients: excluded }))
+    onFinish(normalizeProfile({ ...vitals, observesFasting, takesProtein, takesCreatine, diet, excludedIngredients: excluded, conditions }))
   }
 
   const bigChoice = (selected: boolean) =>
@@ -443,6 +445,32 @@ function Onboarding({ ingredientCatalog, onFinish, onSkip }: OnboardingProps) {
                     </span>
                   </button>
                 ))}
+              </div>
+              {/* Health: small on/off boxes, so this step doesn't grow long. */}
+              <div className="flex flex-col gap-10">
+                <div className="flex flex-col gap-5">
+                  <span className="text-16 font-title font-bold uppercase">Υγεία</span>
+                  <span className="text-14 font-title text-neutral-500">Ό,τι ισχύει για σένα. Προαιρετικό.</span>
+                </div>
+                <div className="flex flex-wrap gap-10">
+                  {HEALTH_CONDITIONS.map((c) => {
+                    const on = conditions.includes(c.value)
+                    return (
+                      <button
+                        key={c.value}
+                        type="button"
+                        role="checkbox"
+                        aria-checked={on}
+                        title={c.hint}
+                        onClick={() => setConditions((prev) => (on ? prev.filter((x) => x !== c.value) : [...prev, c.value]))}
+                        className={`main-btn px-10 py-5 font-title font-bold text-14 ${on ? 'bg-black text-white' : 'bg-white'}`}
+                      >
+                        {on ? '✓ ' : ''}
+                        {c.label}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
               <div className="flex flex-col gap-10">
                 <div className="flex flex-col gap-5">

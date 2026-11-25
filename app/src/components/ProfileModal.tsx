@@ -14,6 +14,7 @@ import {
 } from '../nutrition'
 import type { Profile } from '../nutrition'
 import { DIET_TYPES } from '../dietaryRestrictions'
+import { HEALTH_CONDITIONS, type HealthCondition } from '../healthConditions'
 import { signInWithProvider, signOut } from '../useAuth'
 import { supabase } from '../supabaseClient'
 import CrossIcon from './CrossIcon'
@@ -130,6 +131,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
   const [diet, setDiet] = useState<Profile['diet']>(profile?.diet ?? 'none')
   const [observesFasting, setObservesFasting] = useState(profile?.observesFasting ?? false)
   const [excludedIngredients, setExcludedIngredients] = useState<string[]>(profile?.excludedIngredients ?? [])
+  const [conditions, setConditions] = useState<HealthCondition[]>(profile?.conditions ?? [])
   const [excludeSearch, setExcludeSearch] = useState('')
 
   const excludeSuggestions =
@@ -210,6 +212,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
       diet,
       observesFasting,
       excludedIngredients,
+      conditions,
     })
     onClose()
   }
@@ -505,6 +508,31 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
               ) : (
                 <span className="text-14 font-title text-neutral-400">Δεν έχεις εξαιρέσει τίποτα.</span>
               )}
+            </div>
+          </section>
+
+          {/* Health: conditions that change what suits you. Each one leaves
+              out of the suggestions the food that doesn't suit it. */}
+          <section className="flex flex-col gap-20 border-t-2 border-neutral-200 pt-40">
+            <div className="flex flex-col gap-5">
+              <span className={sectionTitleClass}>Υγεία</span>
+              <span className="text-14 font-title text-neutral-500">
+                Τσέκαρε ό,τι ισχύει για σένα. Οι προτάσεις θα αφήνουν έξω ό,τι δεν σου κάνει, και μέσα στη συνταγή θα
+                βλέπεις προειδοποίηση. Δεν αντικαθιστά τον γιατρό ή τον διαιτολόγο σου.
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
+              {HEALTH_CONDITIONS.map((c) => (
+                <ToggleCard
+                  key={c.value}
+                  checked={conditions.includes(c.value)}
+                  onChange={(on) =>
+                    setConditions((prev) => (on ? [...prev, c.value] : prev.filter((x) => x !== c.value)))
+                  }
+                  title={c.label}
+                  description={c.hint}
+                />
+              ))}
             </div>
           </section>
 

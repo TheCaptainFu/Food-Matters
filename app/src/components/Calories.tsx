@@ -524,7 +524,7 @@ function Calories({
                             )}
                             <span className="text-14 font-title font-bold">
                               {entry.description}
-                              <AmountBadge portion={entry.portion} />
+                              <AmountBadge portion={entry.portion} text={entry.amountText} />
                             </span>
                             <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
                               {Math.round(entry.calories)} kcal
@@ -606,7 +606,7 @@ function Calories({
                             )}
                             <span className="text-14 font-title font-bold">
                               {extra.description}
-                              <AmountBadge portion={extra.portion} />
+                              <AmountBadge portion={extra.portion} text={extra.amountText} />
                             </span>
                             <span className="text-12 font-title text-neutral-600 whitespace-nowrap">
                               {Math.round(extra.calories)} kcal

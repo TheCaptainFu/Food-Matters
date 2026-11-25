@@ -1,4 +1,5 @@
 import type { Recipe } from './types'
+import { suitsConditions, type HealthCondition } from './healthConditions'
 
 export type DietType = 'none' | 'vegetarian' | 'vegan'
 
@@ -138,7 +139,16 @@ export function isIngredientVegan(name: string): boolean {
 // A recipe is compatible if none of its ingredients are excluded (allergy /
 // dislike) and, depending on diet, none are meat/fish (vegetarian) or any
 // animal product (vegan).
-export function isRecipeCompatible(recipe: Recipe, diet: DietType, excludedIngredients: string[]): boolean {
+//
+// Health conditions (χοληστερίνη, ζάχαρο…) leave out food that doesn't suit
+// them, too.
+export function isRecipeCompatible(
+  recipe: Recipe,
+  diet: DietType,
+  excludedIngredients: string[],
+  conditions: HealthCondition[] = [],
+): boolean {
+  if (!suitsConditions(recipe, conditions)) return false
   const excludedLower = new Set(excludedIngredients.map((n) => n.toLowerCase()))
   return recipe.ingredients.every((ing) => {
     if (excludedLower.has(ing.name.toLowerCase())) return false
@@ -148,6 +158,11 @@ export function isRecipeCompatible(recipe: Recipe, diet: DietType, excludedIngre
   })
 }
 
-export function filterCompatibleRecipes(recipes: Recipe[], diet: DietType, excludedIngredients: string[]): Recipe[] {
-  return recipes.filter((r) => isRecipeCompatible(r, diet, excludedIngredients))
+export function filterCompatibleRecipes(
+  recipes: Recipe[],
+  diet: DietType,
+  excludedIngredients: string[],
+  conditions: HealthCondition[] = [],
+): Recipe[] {
+  return recipes.filter((r) => isRecipeCompatible(r, diet, excludedIngredients, conditions))
 }

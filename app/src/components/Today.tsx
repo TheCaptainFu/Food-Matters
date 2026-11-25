@@ -9,7 +9,8 @@ import type { TabKey } from './Subheader'
 import ActualEntryModal from './ActualEntryModal'
 import PortionBadge from './PortionBadge'
 import CrossIcon from './CrossIcon'
-import { AmountCycle } from './AmountPicker'
+import { AmountCycle, PiecesControl } from './AmountPicker'
+import { entryRecipe, hasPieces, piecesEntry } from '../pieces'
 import EntryTitle from './EntryTitle'
 import Toast, { type ToastData } from './Toast'
 
@@ -120,11 +121,35 @@ function Today({
     })
   }
 
+  // How much of a logged food: "2 μπιφτέκια" (−/+ for pieces and side) for
+  // food in pieces, otherwise the ×½ / ×1½ / ×2 box.
+  function amountControl(entry: ActualEntry, save: (entry: ActualEntry) => void) {
+    const recipe = entryRecipe(entry, recipes)
+    if (hasPieces(recipe)) {
+      // Logged before pieces existed: start from its portion.
+      const portion = entry.portion ?? 1
+      return (
+        <PiecesControl
+          recipe={recipe}
+          pieces={entry.pieces ?? recipe.pieces.count * portion}
+          side={entry.side ?? portion}
+          onChange={(pieces, side) => save(piecesEntry(recipe, ingredientCatalog, pieces, side, entry))}
+        />
+      )
+    }
+    return <AmountCycle portion={entry.portion} onChange={(p) => save(rescaleEntry(entry, p))} />
+  }
+
   function ateIt(slot: SlotKey) {
     if (!day) return
     const ids = day.slots[slot]
     const m = planned(ids)
-    const entry: ActualEntry = {
+    const only = ids.length === 1 ? parseSlotEntry(ids[0]) : null
+    const onlyRecipe = only ? recipeById(only.id) : undefined
+    // Food in pieces: log it as "2 μπιφτέκια", so the count can be changed.
+    const entry: ActualEntry = hasPieces(onlyRecipe) && only
+      ? piecesEntry(onlyRecipe, ingredientCatalog, onlyRecipe.pieces.count * only.portion, only.portion, { fromPlan: true })
+      : {
       description: ids.map(titleWithPortion).filter(Boolean).join(', '),
       // One dish planned: remember which, so tapping the log opens it.
       recipeId: ids.length === 1 ? parseSlotEntry(ids[0]).id : undefined,
@@ -288,10 +313,7 @@ function Today({
                         <span className="flex items-center min-w-0 text-14 font-title font-bold">
                           <EntryTitle entry={entry} prefix="✓" recipes={recipes} onOpenRecipe={onOpenRecipe} />
                           {/* Ate half, or seconds? Tap the amount; the calories follow. */}
-                          <AmountCycle
-                            portion={entry.portion}
-                            onChange={(p) => setSlotEntry(slot.value, rescaleEntry(entry, p))}
-                          />
+                          {amountControl(entry, (e) => setSlotEntry(slot.value, e))}
                         </span>
                         <span className="flex items-center gap-10 shrink-0">
                           <span className="text-12 font-title text-neutral-600 whitespace-nowrap">{Math.round(entry.calories)} kcal</span>
@@ -361,10 +383,7 @@ function Today({
                         <span className="flex items-center gap-10 min-w-0">
                           <span className="flex items-center min-w-0 text-14 font-title font-bold">
                             <EntryTitle entry={extra} prefix="+" recipes={recipes} onOpenRecipe={onOpenRecipe} />
-                            <AmountCycle
-                              portion={extra.portion}
-                              onChange={(p) => updateExtra(slot.value, i, rescaleEntry(extra, p))}
-                            />
+                            {amountControl(extra, (e) => updateExtra(slot.value, i, e))}
                           </span>
                         </span>
                         {/* Calories at the end, like the meal above. */}

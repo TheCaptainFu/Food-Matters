@@ -1,5 +1,6 @@
 import type { Ingredient, IngredientDef, Recipe } from './types'
 import { findDef, toGrams } from './quantities'
+import type { HealthCondition } from './healthConditions'
 import type { DietType } from './dietaryRestrictions'
 
 // Nearest half-unit, formatted with a fraction glyph instead of "1.5" so it
@@ -146,6 +147,8 @@ export type Profile = {
   // Fridays…) the plan only suggests fasting recipes.
   observesFasting: boolean
   excludedIngredients: string[]
+  // Χοληστερίνη, ζάχαρο, πίεση… — the plan leaves out food that doesn't suit them.
+  conditions: HealthCondition[]
 }
 
 export function normalizeProfile(stored: Partial<Profile>): Profile {
@@ -168,6 +171,7 @@ export function normalizeProfile(stored: Partial<Profile>): Profile {
     diet: (stored.diet as string) === 'fasting' ? 'none' : (stored.diet ?? 'none'),
     observesFasting: (stored.diet as string) === 'fasting' || (stored.observesFasting ?? false),
     excludedIngredients: stored.excludedIngredients ?? [],
+    conditions: stored.conditions ?? [],
   }
 }
 

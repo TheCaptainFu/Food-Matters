@@ -118,10 +118,13 @@ function mergeSavedRecipes(version: number): Recipe[] {
         difficulty: sample.difficulty,
         keepsDays: sample.keepsDays,
         fixedMacros: sample.fixedMacros,
+        pieces: sample.pieces,
       }
     }
     return {
       ...r,
+      // "How many μπιφτέκια?" keeps working on a seed you edited.
+      pieces: r.pieces ?? sample?.pieces,
       mealTypes: r.mealTypes && r.mealTypes.length > 0 ? r.mealTypes : (sample?.mealTypes ?? ALL_SLOT_KEYS),
       instructions: r.instructions ?? sample?.instructions,
     }
@@ -301,9 +304,11 @@ function App() {
     setRecipes((prev) => [...prev, recipe])
   }
 
-  // The edit form doesn't know about ♥, so an edit keeps it.
+  // The edit form doesn't know about ♥ or pieces, so an edit keeps them.
   function handleUpdateRecipe(recipe: Recipe) {
-    setRecipes((prev) => prev.map((r) => (r.id === recipe.id ? { ...recipe, favorite: r.favorite } : r)))
+    setRecipes((prev) =>
+      prev.map((r) => (r.id === recipe.id ? { ...recipe, favorite: r.favorite, pieces: r.pieces } : r)),
+    )
   }
 
   function handleToggleFavorite(id: string) {
@@ -450,6 +455,7 @@ function App() {
           onEdit={() => setEditingRecipe(openRecipe)}
           onDelete={() => setConfirmDeleteId(openRecipe.id)}
           onToggleFavorite={() => handleToggleFavorite(openRecipe.id)}
+          conditions={profile?.conditions}
         />
       )}
 
