@@ -1,15 +1,18 @@
 import { useCallback, useState } from 'react'
 import type { ActualEntry, Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
 import { SLOT_KEYS } from '../types'
-import { calculateMacroTargets, calculateWaterTargetMl, recipeMacros } from '../nutrition'
+import { calculateMacroTargets, calculateWaterTargetMl, recipeMacros, scaleMacros } from '../nutrition'
 import type { Macros, Profile } from '../nutrition'
-import { addDays, allExtras, findDay, skippedEntry, slotExtras, formatDayDate, todayISO, toISODate, updateDayInWeeks, weekdayName } from '../weekUtils'
+import { addDays, allExtras, parseSlotEntry, portionLabel, findDay, skippedEntry, slotExtras, formatDayDate, todayISO, toISODate, updateDayInWeeks, weekdayName } from '../weekUtils'
 import { dayInfo } from '../greekCalendar'
 import type { TabKey } from './Subheader'
 import ActualEntryModal from './ActualEntryModal'
+import PortionBadge from './PortionBadge'
 import Toast, { type ToastData } from './Toast'
 
 type TodayProps = {
+  onAddRecipe: (recipe: Recipe) => void
+  onAddIngredientDef: (def: IngredientDef) => void
   recipes: Recipe[]
   weeks: Week[]
   setWeeks: React.Dispatch<React.SetStateAction<Week[]>>
@@ -45,6 +48,8 @@ function greeting(hour: number): string {
 // what's on the plate next, water, and what's left to buy — with each
 // part linking to the page that has the details.
 function Today({
+  onAddRecipe,
+  onAddIngredientDef,
   recipes,
   weeks,
   setWeeks,
@@ -75,12 +80,19 @@ function Today({
   const targets = profile ? calculateMacroTargets(profile) : null
   const waterTarget = profile ? Math.ceil(calculateWaterTargetMl(profile) / GLASS_ML) : 8
 
-  const recipeById = (id: string) => recipes.find((r) => r.id === id)
+  // Slot entries may carry a portion ("42@1.5"); look up by the bare id.
+  const recipeById = (entry: string) => recipes.find((r) => r.id === parseSlotEntry(entry).id)
   const planned = (ids: string[]) =>
     ids.reduce((sum, id) => {
       const r = recipeById(id)
-      return r ? add(sum, recipeMacros(r, ingredientCatalog)) : sum
+      return r ? add(sum, scaleMacros(recipeMacros(r, ingredientCatalog), parseSlotEntry(id).portion)) : sum
     }, ZERO)
+  const titleWithPortion = (entry: string) => {
+    const r = recipeById(entry)
+    if (!r) return null
+    const label = portionLabel(parseSlotEntry(entry).portion)
+    return label ? `${r.title} (${label})` : r.title
+  }
 
   const eaten = day
     ? SLOT_KEYS.reduce((sum, s) => {
@@ -110,7 +122,7 @@ function Today({
     const ids = day.slots[slot]
     const m = planned(ids)
     const entry: ActualEntry = {
-      description: ids.map((id) => recipeById(id)?.title).filter(Boolean).join(', '),
+      description: ids.map(titleWithPortion).filter(Boolean).join(', '),
       calories: Math.round(m.calories),
       protein: Math.round(m.protein),
       carbs: Math.round(m.carbs),
@@ -221,7 +233,9 @@ function Today({
               SLOT_KEYS.map((slot) => {
                 const entry = day?.actual[slot.value]
                 const ids = day?.slots[slot.value] ?? []
-                const titles = ids.map(recipeById).filter((r): r is Recipe => !!r)
+                const titles = ids
+                  .map((id) => ({ recipe: recipeById(id), portion: parseSlotEntry(id).portion }))
+                  .filter((x): x is { recipe: Recipe; portion: number } => !!x.recipe)
                 const isNext = slot.value === nextSlot
                 const extras = day ? slotExtras(day, slot.value) : []
                 const addExtraButton = (
@@ -284,15 +298,17 @@ function Today({
                       <div className="flex flex-wrap items-center gap-10">
                         {titles.length > 0 ? (
                           <span className="flex-1 min-w-[180px] flex flex-wrap gap-x-10">
-                            {titles.map((r) => (
-                              <button
-                                key={r.id}
-                                type="button"
-                                onClick={() => onOpenRecipe(r.id)}
-                                className="text-16 font-title font-bold text-left hover:underline cursor-pointer"
-                              >
-                                {r.title}
-                              </button>
+                            {titles.map(({ recipe: r, portion }) => (
+                              <span key={r.id} className="inline-flex flex-wrap items-center gap-5">
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenRecipe(r.id)}
+                                  className="text-16 font-title font-bold text-left hover:underline cursor-pointer"
+                                >
+                                  {r.title}
+                                </button>
+                                <PortionBadge portion={portion} />
+                              </span>
                             ))}
                           </span>
                         ) : (
@@ -450,7 +466,7 @@ function Today({
                 {tomorrowDay && SLOT_KEYS.some((s) => tomorrowDay.slots[s.value].length > 0) ? (
                   <ul className="flex flex-col gap-10 pt-5">
                     {SLOT_KEYS.map((s) => {
-                      const names = tomorrowDay.slots[s.value].map((id) => recipeById(id)?.title).filter(Boolean)
+                      const names = tomorrowDay.slots[s.value].map(titleWithPortion).filter(Boolean)
                       return names.length > 0 ? (
                         <li key={s.value} className="flex flex-col gap-[2px]">
                           <span className="text-12 font-title font-bold uppercase text-neutral-500">{s.label}</span>
@@ -470,6 +486,8 @@ function Today({
 
       {logging && (
         <ActualEntryModal
+          onAddRecipe={onAddRecipe}
+          onAddIngredientDef={onAddIngredientDef}
           slotLabel={SLOT_KEYS.find((s) => s.value === logging)?.label ?? ''}
           recipes={recipes}
           ingredientCatalog={ingredientCatalog}
@@ -485,6 +503,8 @@ function Today({
 
       {loggingExtra && (
         <ActualEntryModal
+          onAddRecipe={onAddRecipe}
+          onAddIngredientDef={onAddIngredientDef}
           slotLabel={`έξτρα στο ${SLOT_KEYS.find((s) => s.value === loggingExtra.slot)?.label.toLowerCase() ?? ''}`}
           recipes={recipes}
           ingredientCatalog={ingredientCatalog}

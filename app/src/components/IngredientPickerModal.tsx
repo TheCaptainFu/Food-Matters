@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { GroceryCategory, IngredientDef } from '../types'
 import { GROCERY_CATEGORIES } from '../types'
+import { matchesSearch } from '../text'
 
 type IngredientPickerModalProps = {
   catalog: IngredientDef[]
@@ -29,7 +30,7 @@ function IngredientPickerModal({
   const [formFat, setFormFat] = useState('')
   const [formCategory, setFormCategory] = useState<GroceryCategory>('other')
 
-  const filtered = catalog.filter((c) => c.name.toLowerCase().includes(search.trim().toLowerCase()))
+  const filtered = catalog.filter((c) => matchesSearch(c.name, search))
 
   function openAddNew() {
     setFormName(search.trim())

@@ -1,6 +1,7 @@
 import type { Category, Difficulty, Ingredient, Recipe, SlotKey, Unit } from './types'
 import { DEFAULT_INGREDIENT_CATALOG } from './ingredientCatalog'
 import { toNaturalUnit } from './quantities'
+import { EATING_OUT, type EatingOutGroup } from './eatingOut'
 
 // Greek home cooking, one serving each. Every ingredient name matches an
 // entry in ingredientCatalog.ts exactly, so calories add up.
@@ -85,13 +86,14 @@ const META: Record<number, Meta> = {
   270: [25, 'e', 1], 271: [25, 'e', 1], 272: [25, 'e', 1],
   // πρωινό
   280: [10, 'e', 1], 281: [5, 'e', 2], 282: [3, 'e', 1], 283: [10, 'e', 1], 284: [15, 'e', 1],
+  285: [25, 'm', 1],
 }
 
 const MAIN: SlotKey[] = ['lunch', 'dinner']
 const MORNING: SlotKey[] = ['breakfast', 'afternoon']
 const AFTERNOON: SlotKey[] = ['afternoon']
 
-export const SAMPLE_RECIPES: Recipe[] = [
+const HOME_RECIPES: Recipe[] = [
   // ---------- Λαδερά ----------
   recipe(1, 'Φασολάκια λαδερά', 'ladera', MAIN, [
     ['Φασολάκια', 300], ['Πατάτες', 120], ['Ντομάτα τριμμένη (πασάτα)', 120], ['Κρεμμύδι ξερό', 50],
@@ -674,4 +676,34 @@ export const SAMPLE_RECIPES: Recipe[] = [
   recipe(284, 'Τηγανίτες βρώμης με μπανάνα', 'breakfast', MORNING, [
     ['Βρώμη', 50], ['Μπανάνα', 100], ['Αυγά', 100], ['Κανέλα', 0.5], ['Μέλι', 5],
   ], 'Λιώσε την μπανάνα, ανακάτεψε με αυγά, βρώμη και κανέλα. Ψήσε μικρές τηγανίτες σε αντικολλητικό τηγάνι και σέρβιρε με μέλι.'),
+  recipe(285, 'Σνίτσελ χοιρινό με σαλάτα', 'meat', MAIN, [
+    ['Χοιρινό φιλέτο', 150], ['Αλεύρι για όλες τις χρήσεις', 15], ['Αυγά', 60], ['Τριμμένη φρυγανιά', 30],
+    ['Ηλιέλαιο', 15], ['Μαρούλι', 80], ['Ντομάτα', 100], ['Αγγούρι', 80], ['Ελαιόλαδο', 10], ['Λεμόνι', 30], ['Αλάτι', 1],
+  ], 'Χτύπα το φιλέτο με τον κόπανο μέχρι να γίνει λεπτό, αλάτισε, πέρασέ το από αλεύρι, χτυπημένο αυγό και φρυγανιά. Τηγάνισε σε καυτό λάδι 3 λεπτά από κάθε πλευρά και άφησέ το σε χαρτί κουζίνας. Κόψε μαρούλι, ντομάτα και αγγούρι, ρίξε ελαιόλαδο, λεμόνι και αλάτι. Σέρβιρε το σνίτσελ με τη σαλάτα και λεμόνι.'),
 ]
+
+// Food bought ready (coffee, souvlaki, bakery…) lives in the same library
+// as the recipes, so it can be found, edited and deleted the same way. No
+// ingredients — its calories are typed in.
+const OUT_MEALS: Record<EatingOutGroup, SlotKey[]> = {
+  coffee: ['breakfast', 'afternoon'],
+  bakery: ['breakfast', 'afternoon'],
+  street: ['lunch', 'dinner'],
+  taverna: ['lunch', 'dinner'],
+  soft: ['breakfast', 'lunch', 'afternoon', 'dinner'],
+  sweets: ['afternoon', 'dinner'],
+  snacks: ['afternoon'],
+  drinks: ['dinner'],
+}
+
+const OUTSIDE_FOOD: Recipe[] = EATING_OUT.map((item) => ({
+  id: `out-${item.name}`,
+  title: item.name,
+  category: item.group as Category,
+  mealTypes: OUT_MEALS[item.group],
+  servings: 1,
+  ingredients: [],
+  fixedMacros: { calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat },
+}))
+
+export const SAMPLE_RECIPES: Recipe[] = [...HOME_RECIPES, ...OUTSIDE_FOOD]

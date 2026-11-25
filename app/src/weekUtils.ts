@@ -149,3 +149,25 @@ export function updateDayInWeeks(weeks: Week[], iso: string, change: (day: Day) 
 export function skippedEntry(): ActualEntry {
   return { description: 'Δεν έφαγα', calories: 0, protein: 0, carbs: 0, fat: 0, skipped: true }
 }
+
+// A planned meal in a slot is a recipe id, optionally with how many
+// portions: "42" (one) or "42@1.5". Kept in the id string so moving,
+// copying or undoing a meal carries its portion along for free.
+export function parseSlotEntry(entry: string): { id: string; portion: number } {
+  const at = entry.lastIndexOf('@')
+  if (at < 0) return { id: entry, portion: 1 }
+  const portion = Number(entry.slice(at + 1))
+  return { id: entry.slice(0, at), portion: portion > 0 ? portion : 1 }
+}
+
+export function slotEntry(id: string, portion = 1): string {
+  return portion === 1 ? id : `${id}@${portion}`
+}
+
+// "1½ μερίδα", "2 μερίδες" — empty for a normal single portion.
+export function portionLabel(portion: number): string {
+  if (portion === 1) return ''
+  const whole = Math.floor(portion)
+  const text = portion - whole === 0.5 ? (whole > 0 ? `${whole}½` : '½') : String(portion)
+  return `${text} ${portion >= 2 ? 'μερίδες' : 'μερίδα'}`
+}

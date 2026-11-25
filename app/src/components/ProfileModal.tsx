@@ -16,6 +16,7 @@ import type { Profile } from '../nutrition'
 import { DIET_TYPES } from '../dietaryRestrictions'
 import { signInWithProvider, signOut } from '../useAuth'
 import { supabase } from '../supabaseClient'
+import { matchesSearch } from '../text'
 
 type ProfileModalProps = {
   profile: Profile | null
@@ -136,7 +137,7 @@ function ProfileModal({ profile, ingredientCatalog, user, onSaveProfile, onClose
       : ingredientCatalog
           .filter(
             (c) =>
-              c.name.toLowerCase().includes(excludeSearch.trim().toLowerCase()) &&
+              matchesSearch(c.name, excludeSearch) &&
               !excludedIngredients.some((e) => e.toLowerCase() === c.name.toLowerCase()),
           )
           .slice(0, 6)

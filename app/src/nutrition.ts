@@ -42,8 +42,14 @@ export function estimateMacros(ingredient: Ingredient, catalog: IngredientDef[])
   }
 }
 
+export function scaleMacros(m: Macros, factor: number): Macros {
+  if (factor === 1) return m
+  return { calories: m.calories * factor, protein: m.protein * factor, carbs: m.carbs * factor, fat: m.fat * factor }
+}
+
 // Per portion: the ingredients are for recipe.servings portions.
 export function recipeMacros(recipe: Recipe, catalog: IngredientDef[]): Macros {
+  if (recipe.ingredients.length === 0 && recipe.fixedMacros) return recipe.fixedMacros
   const servings = recipe.servings && recipe.servings > 0 ? recipe.servings : 1
   const total = recipe.ingredients.reduce(
     (total, ing) => {
@@ -157,8 +163,10 @@ export function normalizeProfile(stored: Partial<Profile>): Profile {
     customProtein: stored.customProtein,
     customCarbs: stored.customCarbs,
     customFat: stored.customFat,
-    diet: stored.diet ?? 'none',
-    observesFasting: stored.observesFasting ?? false,
+    // "Νηστεία" used to be a diet too, next to the fasting-days toggle —
+    // two switches for one thing. It's now only the toggle.
+    diet: (stored.diet as string) === 'fasting' ? 'none' : (stored.diet ?? 'none'),
+    observesFasting: (stored.diet as string) === 'fasting' || (stored.observesFasting ?? false),
     excludedIngredients: stored.excludedIngredients ?? [],
   }
 }

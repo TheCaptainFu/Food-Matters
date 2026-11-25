@@ -99,6 +99,14 @@ const DEFAULT_MINUTES: Record<Category, number> = {
   breakfast: 5,
   fruit: 5,
   dessert: 40,
+  coffee: 0,
+  street: 0,
+  bakery: 0,
+  taverna: 0,
+  soft: 0,
+  sweets: 0,
+  snacks: 0,
+  drinks: 0,
 }
 
 export function estimateMinutes(recipe: Recipe): number {

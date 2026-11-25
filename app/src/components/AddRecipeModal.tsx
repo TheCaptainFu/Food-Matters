@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { Recipe, Ingredient, Unit, Category, IngredientDef, SlotKey, Difficulty } from '../types'
-import { UNITS, CATEGORIES, SLOT_KEYS, DIFFICULTIES } from '../types'
+import { UNITS, CATEGORIES, SLOT_KEYS, DIFFICULTIES, isOutsideFood } from '../types'
 import { spoonHint } from '../nutrition'
 import { findDef, toGrams } from '../quantities'
 import IngredientPickerModal from './IngredientPickerModal'
@@ -17,6 +17,9 @@ const MEAL_CHIP_ON: Record<SlotKey, string> = {
 
 type AddRecipeModalProps = {
   initialRecipe?: Recipe
+  // A new recipe's name, already typed elsewhere (e.g. in a search box).
+  initialTitle?: string
+  initialCategory?: Category
   ingredientCatalog: IngredientDef[]
   onAddIngredientDef: (def: IngredientDef) => void
   onClose: () => void
@@ -28,14 +31,16 @@ type AddRecipeModalProps = {
 
 function AddRecipeModal({
   initialRecipe,
+  initialTitle,
+  initialCategory,
   ingredientCatalog,
   onAddIngredientDef,
   onClose,
   onBack,
   onSave,
 }: AddRecipeModalProps) {
-  const [title, setTitle] = useState(initialRecipe?.title ?? '')
-  const [category, setCategory] = useState<Category>(initialRecipe?.category ?? CATEGORIES[0].value)
+  const [title, setTitle] = useState(initialRecipe?.title ?? initialTitle ?? '')
+  const [category, setCategory] = useState<Category>(initialRecipe?.category ?? initialCategory ?? CATEGORIES[0].value)
   const [mealTypes, setMealTypes] = useState<SlotKey[]>(initialRecipe?.mealTypes ?? [])
   const [instructions, setInstructions] = useState(initialRecipe?.instructions ?? '')
   const [ingredients, setIngredients] = useState<Ingredient[]>(initialRecipe?.ingredients ?? [])
@@ -44,6 +49,13 @@ function AddRecipeModal({
   const [minutes, setMinutes] = useState(initialRecipe?.minutes ? String(initialRecipe.minutes) : '')
   const [difficulty, setDifficulty] = useState<Difficulty | ''>(initialRecipe?.difficulty ?? '')
   const [isPickerOpen, setIsPickerOpen] = useState(false)
+  // Ready food (coffee, souvlaki…): calories typed in instead of ingredients.
+  const ready = isOutsideFood(category)
+  const fixed = initialRecipe?.fixedMacros
+  const [kcal, setKcal] = useState(fixed ? String(fixed.calories) : '')
+  const [protein, setProtein] = useState(fixed ? String(fixed.protein) : '')
+  const [carbs, setCarbs] = useState(fixed ? String(fixed.carbs) : '')
+  const [fat, setFat] = useState(fixed ? String(fixed.fat) : '')
 
   function toggleMealType(slot: SlotKey) {
     setMealTypes((prev) => (prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot]))
@@ -74,7 +86,27 @@ function AddRecipeModal({
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const cleanIngredients = ingredients.filter((ing) => ing.name.trim() !== '')
-    if (!title.trim() || cleanIngredients.length === 0 || mealTypes.length === 0) return
+    if (!title.trim() || mealTypes.length === 0) return
+    if (ready) {
+      if (kcal.trim() === '') return
+      onSave({
+        id: initialRecipe?.id ?? crypto.randomUUID(),
+        title: title.trim(),
+        category,
+        mealTypes,
+        servings: 1,
+        ingredients: [],
+        fixedMacros: {
+          calories: Number(kcal) || 0,
+          protein: Number(protein) || 0,
+          carbs: Number(carbs) || 0,
+          fat: Number(fat) || 0,
+        },
+        instructions: instructions.trim() || undefined,
+      })
+      return
+    }
+    if (cleanIngredients.length === 0) return
 
     onSave({
       id: initialRecipe?.id ?? crypto.randomUUID(),
@@ -102,7 +134,7 @@ function AddRecipeModal({
             className="border-3 border-black bg-white shadow-[4px_4px_0_0_#000] p-20 sm:p-30 flex flex-col gap-25 w-full max-w-[680px] max-h-[90vh] overflow-y-auto"
           >
             <h2 className="text-20 font-title font-bold uppercase">
-              {initialRecipe ? 'Επεξεργασία συνταγής' : 'Νέα συνταγή'}
+              {initialRecipe ? 'Επεξεργασία φαγητού' : 'Νέο φαγητό'}
             </h2>
 
             {/* Name and type side by side on wider screens */}
@@ -127,11 +159,20 @@ function AddRecipeModal({
                   onChange={(e) => setCategory(e.target.value as Category)}
                   className="bg-white border-3 border-black pl-15 pr-30 py-10 font-title"
                 >
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
+                  <optgroup label="Σπιτικό">
+                    {CATEGORIES.filter((c) => !c.out).map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Απ’ έξω (χωρίς υλικά)">
+                    {CATEGORIES.filter((c) => c.out).map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </label>
             </div>
@@ -174,6 +215,36 @@ function AddRecipeModal({
               </p>
             </div>
 
+            {ready ? (
+              <div className="flex flex-col gap-10">
+                <span className="text-16 font-title font-bold uppercase">Θερμίδες (μία μερίδα)</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-10">
+                  {(
+                    [
+                      ['Θερμίδες (kcal)', kcal, setKcal],
+                      ['Πρωτεΐνη (g)', protein, setProtein],
+                      ['Υδατάνθρ. (g)', carbs, setCarbs],
+                      ['Λιπαρά (g)', fat, setFat],
+                    ] as const
+                  ).map(([label, value, set]) => (
+                    <label key={label} className="flex flex-col gap-5">
+                      <span className="text-12 font-title font-bold">{label}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        inputMode="decimal"
+                        value={value}
+                        onChange={(e) => set(e.target.value)}
+                        required={label.startsWith('Θερμίδες')}
+                        className="border-3 border-black px-10 py-5 font-title w-full"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <p className="text-14 font-title text-neutral-500">Φαγητό που το παίρνεις έτοιμο, οπότε δεν χρειάζεται υλικά.</p>
+              </div>
+            ) : (
+            <>
             <div className="grid grid-cols-2 gap-15">
               <label className="flex flex-col gap-10">
                 <span className="text-16 font-title font-bold uppercase">Χρόνος (λεπτά)</span>
@@ -288,7 +359,10 @@ function AddRecipeModal({
                 + Υλικό
               </button>
             </div>
+            </>
+            )}
 
+            {!ready && (
             <label className="flex flex-col gap-10">
               <span className="text-16 font-title font-bold uppercase">Εκτέλεση (προαιρετικά)</span>
               <textarea
@@ -299,6 +373,7 @@ function AddRecipeModal({
                 className="border-3 border-black px-15 py-10 font-title resize-y"
               />
             </label>
+            )}
 
             <div className="flex gap-10 justify-end">
               {onBack && (

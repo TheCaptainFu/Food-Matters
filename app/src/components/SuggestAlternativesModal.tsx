@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { IngredientDef, Recipe } from '../types'
 import { recipeMacros } from '../nutrition'
+import { matchesSearch } from '../text'
 
 type SuggestAlternativesModalProps = {
   current: Recipe
@@ -39,7 +40,7 @@ function SuggestAlternativesModal({
   const [search, setSearch] = useState('')
   const query = search.trim().toLowerCase()
   const browseList = allRecipes
-    .filter((r) => r.id !== current.id && r.title.toLowerCase().includes(query))
+    .filter((r) => r.id !== current.id && matchesSearch(r.title, query))
     .sort((a, b) => a.title.localeCompare(b.title))
 
   return createPortal(
@@ -55,7 +56,7 @@ function SuggestAlternativesModal({
         className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[420px] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between gap-10">
-          <h2 className="text-20 font-title font-bold uppercase">{isBrowsing ? 'Όλες οι συνταγές' : 'Αλλαγή συνταγής'}</h2>
+          <h2 className="text-20 font-title font-bold uppercase">{isBrowsing ? 'Όλα τα φαγητά' : 'Αλλαγή φαγητού'}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -72,7 +73,7 @@ function SuggestAlternativesModal({
           <>
             <input
               type="search"
-              placeholder="Αναζήτηση στις συνταγές σου…"
+              placeholder="Αναζήτηση φαγητών…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="border-3 border-black px-10 py-5 font-title"
@@ -92,7 +93,7 @@ function SuggestAlternativesModal({
                   </button>
                 ))
               ) : (
-                <p className="px-10 py-10 text-14 font-title text-neutral-500">Καμία συνταγή για «{search.trim()}».</p>
+                <p className="px-10 py-10 text-14 font-title text-neutral-500">Δεν βρέθηκε τίποτα για «{search.trim()}».</p>
               )}
             </div>
             <button
@@ -100,7 +101,7 @@ function SuggestAlternativesModal({
               onClick={onCreateNew}
               className="self-start text-14 font-title font-bold underline cursor-pointer"
             >
-              Δεν το βρίσκεις; + Νέα συνταγή
+              Δεν το βρίσκεις; + Νέο φαγητό
             </button>
             <div className="flex justify-between gap-10">
               <button
@@ -156,7 +157,7 @@ function SuggestAlternativesModal({
                   onClick={() => setIsBrowsing(true)}
                   className="border-2 border-dashed border-neutral-400 hover:border-black px-10 py-10 text-14 font-title font-bold cursor-pointer"
                 >
-                  🔍 Όλες οι συνταγές
+                  🔍 Όλα τα φαγητά
                 </button>
                 <button
                   type="button"

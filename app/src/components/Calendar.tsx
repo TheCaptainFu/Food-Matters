@@ -8,11 +8,26 @@ import { findDef } from '../quantities'
 import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
-import { SLOT_KEYS } from '../types'
+import { SLOT_KEYS, isOutsideFood } from '../types'
 import type { Macros, Profile } from '../nutrition'
-import { calculateMacroTargets, recipeMacros } from '../nutrition'
+import { calculateMacroTargets, recipeMacros, scaleMacros } from '../nutrition'
 import { isRecipeFasting, isRecipeFastingWithFish, filterCompatibleRecipes } from '../dietaryRestrictions'
-import { addDays, allExtras, dayDate, formatDayDate, makeWeek, mondayOf, parseISODate, sortWeeks, toISODate, todayISO } from '../weekUtils'
+import {
+  addDays,
+  allExtras,
+  dayDate,
+  formatDayDate,
+  makeWeek,
+  mondayOf,
+  parseISODate,
+  parseSlotEntry,
+  portionLabel,
+  slotEntry,
+  sortWeeks,
+  toISODate,
+  todayISO,
+} from '../weekUtils'
+import PortionBadge from './PortionBadge'
 import ConfirmModal from './ConfirmModal'
 import AddRecipeModal from './AddRecipeModal'
 import RecipePickerModal from './RecipePickerModal'
@@ -67,6 +82,9 @@ type PendingConfirm = {
 }
 
 type SuggestTarget = { dayIndex: number; slotKey: SlotKey; recipeIndex: number }
+
+// What auto-fill puts in a slot: a recipe and how many portions of it.
+type PlannedPick = { recipe: Recipe; portion: number }
 
 function Calendar({
   recipes,
@@ -273,7 +291,7 @@ function Calendar({
         showToast(
           skipped.length > 0
             ? {
-                message: `Έγινε εισαγωγή: ${imported.label}. Αυτές οι συνταγές δεν βρέθηκαν στις Συνταγές σου και παραλείφθηκαν:\n${skipped.join(', ')}`,
+                message: `Έγινε εισαγωγή: ${imported.label}. Αυτές οι συνταγές δεν βρέθηκαν στα Φαγητά σου και παραλείφθηκαν:\n${skipped.join(', ')}`,
               }
             : { message: `Έγινε εισαγωγή: ${imported.label}.`, autoHideMs: 4000 },
         )
@@ -360,7 +378,7 @@ function Calendar({
       }))
 
     updateSlot((ids) => ids.filter((_, idx) => idx !== recipeIndex))
-    const title = recipes.find((r) => r.id === recipeId)?.title ?? 'Συνταγή'
+    const title = recipes.find((r) => r.id === parseSlotEntry(recipeId).id)?.title ?? 'Συνταγή'
     showToast({
       message: `Αφαιρέθηκε: ${title}.`,
       autoHideMs: 5000,
@@ -376,9 +394,34 @@ function Calendar({
       ...day,
       slots: {
         ...day.slots,
-        [slotKey]: day.slots[slotKey].map((id, idx) => (idx === recipeIndex ? newRecipeId : id)),
+        // The new dish keeps the portion the old one had.
+        [slotKey]: day.slots[slotKey].map((id, idx) =>
+          idx === recipeIndex ? slotEntry(newRecipeId, parseSlotEntry(id).portion) : id,
+        ),
       },
     }))
+  }
+
+  // Tapping the portion while editing cycles 1 → 1½ → 2 → 1.
+  function cyclePortion(dayIndex: number, slotKey: SlotKey, recipeIndex: number) {
+    updateDay(dayIndex, (day) => ({
+      ...day,
+      slots: {
+        ...day.slots,
+        [slotKey]: day.slots[slotKey].map((entry, idx) => {
+          if (idx !== recipeIndex) return entry
+          const { id, portion } = parseSlotEntry(entry)
+          return slotEntry(id, portion >= 2 ? 1 : portion + 0.5)
+        }),
+      },
+    }))
+  }
+
+  // Macros of one planned entry ("42" or "42@1.5"), or null if the recipe is gone.
+  function entryMacros(entry: string): Macros | null {
+    const { id, portion } = parseSlotEntry(entry)
+    const r = recipes.find((rec) => rec.id === id)
+    return r ? scaleMacros(recipeMacros(r, ingredientCatalog), portion) : null
   }
 
   // Top 3 recipes in the same category (and still fit for that meal) whose
@@ -395,7 +438,9 @@ function Calendar({
       )
     const isSupplement = (r: Recipe) =>
       r.ingredients.some((ing) => findDef(ing.name, ingredientCatalog)?.category === 'protein')
-    const others = recipesForSlot(slotKey, date).filter((r) => r.id !== current.id && !isSupplement(r))
+    const others = recipesForSlot(slotKey, date).filter(
+      (r) => r.id !== current.id && !isSupplement(r) && isOutsideFood(r.category) === isOutsideFood(current.category),
+    )
     // Same kind of dish first; if there aren't 3 of those for this meal,
     // top up with the closest of the rest, so there's always a choice.
     const sameKind = byCloseness(others.filter((r) => r.category === current.category))
@@ -410,9 +455,8 @@ function Calendar({
     return SLOTS.reduce<Macros>(
       (sum, slot) => {
         slots[slot.key].forEach((id) => {
-          const r = recipes.find((rec) => rec.id === id)
-          if (!r) return
-          const m = recipeMacros(r, ingredientCatalog)
+          const m = entryMacros(id)
+          if (!m) return
           sum.calories += m.calories
           sum.protein += m.protein
           sum.carbs += m.carbs
@@ -440,9 +484,8 @@ function Calendar({
           return sum
         }
         day.slots[slot.key].forEach((id) => {
-          const r = recipes.find((rec) => rec.id === id)
-          if (!r) return
-          const m = recipeMacros(r, ingredientCatalog)
+          const m = entryMacros(id)
+          if (!m) return
           sum.calories += m.calories
           sum.protein += m.protein
           sum.carbs += m.carbs
@@ -476,7 +519,7 @@ function Calendar({
     usageCounts: Map<string, number>,
     date: Date,
     prefs: PlanPrefs = loadPlanPrefs(),
-  ): Partial<Record<SlotKey, Recipe>> {
+  ): Partial<Record<SlotKey, PlannedPick>> {
     const weekday = date.getDay()
     const isWeekday = weekday >= 1 && weekday <= 5
     if (dailyMacroTargets === null || compatibleRecipes.length === 0) return {}
@@ -504,7 +547,8 @@ function Calendar({
         prefsPenalty(r, ingredientCatalog, prefs, isWeekday)
       // Supplements (shake, protein bar) aren't meals — the plan suggests a
       // shake separately — so auto-fill leaves them out unless nothing else fits.
-      const pool = recipesForSlot(slot.key, date)
+      // Only home cooking: a φρέντο or a souvlaki is logged, not planned.
+      const pool = recipesForSlot(slot.key, date).filter((r) => !isOutsideFood(r.category))
       const meals = pool.filter(
         (r) => !r.ingredients.some((ing) => findDef(ing.name, ingredientCatalog)?.category === 'protein'),
       )
@@ -512,26 +556,55 @@ function Calendar({
       shortlists.set(slot.key, ranked.slice(0, Math.min(CANDIDATES_PER_SLOT, ranked.length)))
     })
 
-    let best: Partial<Record<SlotKey, Recipe>> | null = null
+    // Recipes are one normal portion. When the day's target is big (a
+    // tall man who trains), normal portions can't reach it — so lunch and
+    // dinner may be planned as 1½ or 2 portions, and say so on the plan.
+    const SCALABLE: SlotKey[] = ['lunch', 'dinner']
+    const PORTIONS = [1, 1.5, 2]
+    const BIG_PORTION_PENALTY = 0.1 // per extra half: only when it clearly helps
+    const scalable = emptySlots.filter((slot) => SCALABLE.includes(slot.key)).map((slot) => slot.key)
+    const portionCombos: Partial<Record<SlotKey, number>>[] = scalable.reduce<Partial<Record<SlotKey, number>>[]>(
+      (combos, key) => combos.flatMap((c) => PORTIONS.map((p) => ({ ...c, [key]: p }))),
+      [{}],
+    )
+    const macrosOf = new Map<string, Macros>()
+    const macros = (r: Recipe) => {
+      let m = macrosOf.get(r.id)
+      if (!m) {
+        m = recipeMacros(r, ingredientCatalog)
+        macrosOf.set(r.id, m)
+      }
+      return m
+    }
+
+    let best: Partial<Record<SlotKey, PlannedPick>> | null = null
     let bestScore = Infinity
 
     for (let trial = 0; trial < TRIALS; trial++) {
-      const combo: Partial<Record<SlotKey, Recipe>> = {}
-      const comboMacros: Macros = { ...lockedMacros }
+      const picks: Partial<Record<SlotKey, Recipe>> = {}
       emptySlots.forEach((slot) => {
         const shortlist = shortlists.get(slot.key)!
-        const pick = shortlist[Math.floor(Math.random() * shortlist.length)]
-        combo[slot.key] = pick
-        const m = recipeMacros(pick, ingredientCatalog)
-        comboMacros.calories += m.calories
-        comboMacros.protein += m.protein
-        comboMacros.carbs += m.carbs
-        comboMacros.fat += m.fat
+        picks[slot.key] = shortlist[Math.floor(Math.random() * shortlist.length)]
       })
-      const score = planScore(comboMacros, dailyMacroTargets)
-      if (score < bestScore) {
-        bestScore = score
-        best = combo
+      for (const portions of portionCombos) {
+        const total: Macros = { ...lockedMacros }
+        let extra = 0
+        emptySlots.forEach((slot) => {
+          const portion = portions[slot.key] ?? 1
+          extra += (portion - 1) * 2
+          const m = macros(picks[slot.key]!)
+          total.calories += m.calories * portion
+          total.protein += m.protein * portion
+          total.carbs += m.carbs * portion
+          total.fat += m.fat * portion
+        })
+        const score = planScore(total, dailyMacroTargets) + extra * BIG_PORTION_PENALTY
+        if (score < bestScore) {
+          bestScore = score
+          best = Object.fromEntries(
+            emptySlots.map((slot) => [slot.key, { recipe: picks[slot.key]!, portion: portions[slot.key] ?? 1 }]),
+          )
+        }
       }
     }
 
@@ -547,10 +620,10 @@ function Calendar({
     const picks = pickFillsForDay(day.slots, usageCounts, dayDate(activeWeek, dayIndex))
 
     SLOTS.forEach((slot) => {
-      const recipe = picks[slot.key]
-      if (!recipe) return
-      usageCounts.set(recipe.id, (usageCounts.get(recipe.id) ?? 0) + 1)
-      addRecipesToSlot(dayIndex, slot.key, [recipe.id])
+      const pick = picks[slot.key]
+      if (!pick) return
+      usageCounts.set(pick.recipe.id, (usageCounts.get(pick.recipe.id) ?? 0) + 1)
+      addRecipesToSlot(dayIndex, slot.key, [slotEntry(pick.recipe.id, pick.portion)])
     })
   }
 
@@ -581,17 +654,20 @@ function Calendar({
     const usageCounts = new Map<string, number>()
     activeWeek.days.forEach((day) =>
       SLOTS.forEach((slot) =>
-        day.slots[slot.key].forEach((id) => usageCounts.set(id, (usageCounts.get(id) ?? 0) + 1)),
+        day.slots[slot.key].forEach((entry) => {
+          const { id } = parseSlotEntry(entry)
+          usageCounts.set(id, (usageCounts.get(id) ?? 0) + 1)
+        }),
       ),
     )
     const filledDays = activeWeek.days.map((day, i) => {
       const picks = pickFillsForDay(day.slots, usageCounts, dayDate(activeWeek, i), prefs)
       const slots = { ...day.slots }
       SLOTS.forEach((slot) => {
-        const recipe = picks[slot.key]
-        if (!recipe) return
-        usageCounts.set(recipe.id, (usageCounts.get(recipe.id) ?? 0) + 1)
-        slots[slot.key] = [recipe.id]
+        const pick = picks[slot.key]
+        if (!pick) return
+        usageCounts.set(pick.recipe.id, (usageCounts.get(pick.recipe.id) ?? 0) + 1)
+        slots[slot.key] = [slotEntry(pick.recipe.id, pick.portion)]
       })
       return { ...day, slots }
     })
@@ -624,9 +700,10 @@ function Calendar({
         SLOTS.reduce(
           (s, slot) =>
             s +
-            day.slots[slot.key].reduce((t, id) => {
+            day.slots[slot.key].reduce((t, entry) => {
+              const { id, portion } = parseSlotEntry(entry)
               const r = recipes.find((x) => x.id === id)
-              return r ? t + costPerServing(r, ingredientCatalog) : t
+              return r ? t + costPerServing(r, ingredientCatalog) * portion : t
             }, 0),
           0,
         ),
@@ -654,10 +731,10 @@ function Calendar({
           const picks = pickFillsForDay(emptySlots, usageCounts, dayDate(activeWeek, i), loadPlanPrefs())
           const slots: Day['slots'] = { breakfast: [], lunch: [], afternoon: [], dinner: [] }
           SLOTS.forEach((slot) => {
-            const recipe = picks[slot.key]
-            if (!recipe) return
-            usageCounts.set(recipe.id, (usageCounts.get(recipe.id) ?? 0) + 1)
-            slots[slot.key] = [recipe.id]
+            const pick = picks[slot.key]
+            if (!pick) return
+            usageCounts.set(pick.recipe.id, (usageCounts.get(pick.recipe.id) ?? 0) + 1)
+            slots[slot.key] = [slotEntry(pick.recipe.id, pick.portion)]
           })
           return slots
         })
@@ -673,7 +750,7 @@ function Calendar({
     ? activeWeek.days[suggestTarget.dayIndex]?.slots[suggestTarget.slotKey][suggestTarget.recipeIndex]
     : null
   const suggestCurrentRecipe = suggestCurrentRecipeId
-    ? (recipes.find((r) => r.id === suggestCurrentRecipeId) ?? null)
+    ? (recipes.find((r) => r.id === parseSlotEntry(suggestCurrentRecipeId).id) ?? null)
     : null
 
   const today = todayISO()
@@ -889,7 +966,12 @@ function Calendar({
                   // Eaten exactly as planned — flagged by "✓ Ate this", or (for
                   // entries logged before that flag existed) same name as the plan.
                   const plannedTitles = day.slots[slot.key]
-                    .map((id) => recipes.find((r) => r.id === id)?.title)
+                    .map((entry) => {
+                      const { id, portion } = parseSlotEntry(entry)
+                      const title = recipes.find((r) => r.id === id)?.title
+                      const label = portionLabel(portion)
+                      return title && label ? `${title} (${label})` : title
+                    })
                     .filter(Boolean)
                     .join(', ')
                   const eatenAsPlanned =
@@ -933,7 +1015,8 @@ function Calendar({
 
                       {/* Eaten exactly as planned: the log row below says it all —
                           don't also list the same recipe struck through. */}
-                      {!(eatenAsPlanned && !isEditing) && day.slots[slot.key].map((recipeId, recipeIndex) => {
+                      {!(eatenAsPlanned && !isEditing) && day.slots[slot.key].map((slotItem, recipeIndex) => {
+                        const { id: recipeId, portion } = parseSlotEntry(slotItem)
                         const recipe = recipes.find((r) => r.id === recipeId)
                         if (!recipe) return null
                         return (
@@ -954,15 +1037,27 @@ function Calendar({
                                   : 'flex items-center justify-between gap-5 bg-white border-2 border-black px-10 py-5'
                             }
                           >
-                            <button
-                              type="button"
-                              onClick={() => onOpenRecipe(recipe.id)}
-                              className="text-14 text-black font-title font-bold text-left hover:underline cursor-pointer"
-                            >
-                              {recipe.title}
-                            </button>
+                            <span className="flex flex-wrap items-center gap-5 min-w-0">
+                              <button
+                                type="button"
+                                onClick={() => onOpenRecipe(recipe.id)}
+                                className="text-14 text-black font-title font-bold text-left hover:underline cursor-pointer"
+                              >
+                                {recipe.title}
+                              </button>
+                              {!isEditing && <PortionBadge portion={portion} />}
+                            </span>
                             {isEditing && (
                             <div className="flex items-center gap-10 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => cyclePortion(dayIndex, slot.key, recipeIndex)}
+                                aria-label="Αλλαγή μερίδας"
+                                title="Αλλαγή μερίδας (1, 1½, 2)"
+                                className={`px-5 border-2 border-black text-12 font-title font-bold leading-tight cursor-pointer ${portion > 1 ? 'bg-main-orange' : 'bg-white'}`}
+                              >
+                                ×{portion === 1 ? '1' : portion === 1.5 ? '1½' : String(portion)}
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => setMoveTarget({ dayIndex, slotKey: slot.key, recipeIndex })}
@@ -1087,8 +1182,11 @@ function Calendar({
       {moveTarget && (
         <MoveRecipeModal
           recipeTitle={
-            recipes.find((r) => r.id === activeWeek.days[moveTarget.dayIndex]?.slots[moveTarget.slotKey][moveTarget.recipeIndex])
-              ?.title ?? 'Συνταγή'
+            recipes.find(
+              (r) =>
+                r.id ===
+                parseSlotEntry(activeWeek.days[moveTarget.dayIndex]?.slots[moveTarget.slotKey][moveTarget.recipeIndex] ?? '').id,
+            )?.title ?? 'Συνταγή'
           }
           days={activeWeek.days.map((day, i) => ({ label: day.label, date: formatDayDate(dayDate(activeWeek, i)) }))}
           from={moveTarget}

@@ -93,11 +93,20 @@ export type Category =
   | 'breakfast'
   | 'fruit'
   | 'dessert'
+  // Food bought ready, not cooked at home — logged, not planned.
+  | 'coffee'
+  | 'street'
+  | 'bakery'
+  | 'taverna'
+  | 'soft'
+  | 'sweets'
+  | 'snacks'
+  | 'drinks'
 
 // The way Greek home cooking is usually grouped. color classes are literal
 // Tailwind class strings (kept whole, not interpolated) so the CSS build
 // can detect them.
-export const CATEGORIES: { value: Category; label: string; color: string }[] = [
+export const CATEGORIES: { value: Category; label: string; color: string; out?: true }[] = [
   { value: 'ladera', label: 'Λαδερά', color: 'bg-lime-300' },
   { value: 'legumes', label: 'Όσπρια', color: 'bg-amber-300' },
   { value: 'meat', label: 'Κρέας', color: 'bg-main-red' },
@@ -110,7 +119,22 @@ export const CATEGORIES: { value: Category; label: string; color: string }[] = [
   { value: 'breakfast', label: 'Πρωινό & Σνακ', color: 'bg-pink-200' },
   { value: 'fruit', label: 'Φρούτα', color: 'bg-rose-300' },
   { value: 'dessert', label: 'Γλυκά', color: 'bg-main-blue' },
+  { value: 'coffee', label: '☕ Καφές', color: 'bg-amber-700', out: true },
+  { value: 'street', label: '🥙 Σουβλατζίδικο', color: 'bg-orange-400', out: true },
+  { value: 'bakery', label: '🥐 Φούρνος', color: 'bg-yellow-200', out: true },
+  { value: 'taverna', label: '🍽 Ταβέρνα', color: 'bg-sky-300', out: true },
+  { value: 'soft', label: '🥤 Αναψυκτικά & χυμοί', color: 'bg-red-300', out: true },
+  { value: 'sweets', label: '🍦 Ζαχαροπλαστείο', color: 'bg-fuchsia-300', out: true },
+  { value: 'snacks', label: '🍫 Σνακ & περίπτερο', color: 'bg-violet-300', out: true },
+  { value: 'drinks', label: '🍺 Ποτά', color: 'bg-yellow-500', out: true },
 ]
+
+// Ready food (coffee, souvlaki, bakery…) rather than something cooked at
+// home: it has calories but usually no ingredients, and the plan's
+// auto-fill and the shopping list leave it out.
+export function isOutsideFood(category: Category): boolean {
+  return CATEGORIES.some((c) => c.value === category && c.out)
+}
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
@@ -146,6 +170,9 @@ export type Recipe = {
   // How many days it keeps in the fridge (estimated when missing).
   keepsDays?: number
   ingredients: Ingredient[]
+  // Per-portion values typed in directly, for food without ingredients
+  // (a φρέντο, a σουβλάκι). Used only while the ingredient list is empty.
+  fixedMacros?: { calories: number; protein: number; carbs: number; fat: number }
   // How to actually make it — optional so older/legacy recipes without one
   // just don't show a "how to make it" section instead of breaking.
   instructions?: string

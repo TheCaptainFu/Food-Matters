@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { GroceryCategory, IngredientDef, Recipe, Week } from '../types'
 import { GROCERY_CATEGORIES } from '../types'
-import { addDays, makeWeek, mondayOf, parseISODate, toISODate, todayISO, weekLabel } from '../weekUtils'
+import { addDays, makeWeek, mondayOf, parseISODate, parseSlotEntry, toISODate, todayISO, weekLabel } from '../weekUtils'
 import { loadHousehold, loadShopping, saveShopping, type WeekShopping } from '../shopping'
 import { formatShoppingAmount, toGrams } from '../quantities'
 import Toast, { type ToastData } from './Toast'
@@ -44,11 +44,13 @@ function computeShoppingList(
 
   week.days.slice(fromDayIndex).forEach((day) => {
     Object.values(day.slots).forEach((recipeIds) => {
-      recipeIds.forEach((recipeId) => {
-        const recipe = recipes.find((r) => r.id === recipeId)
+      recipeIds.forEach((entry) => {
+        const { id, portion } = parseSlotEntry(entry)
+        const recipe = recipes.find((r) => r.id === id)
         if (!recipe) return
 
-        const factor = people / (recipe.servings && recipe.servings > 0 ? recipe.servings : 1)
+        // Your portion may be bigger (1½, 2); everyone else eats one.
+        const factor = (portion + people - 1) / (recipe.servings && recipe.servings > 0 ? recipe.servings : 1)
         recipe.ingredients.forEach((ing) => {
           const key = ing.name.trim().toLowerCase()
           const def = catalogByName.get(key)

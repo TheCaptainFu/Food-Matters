@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Recipe } from '../types'
+import { matchesSearch } from '../text'
 
 type RecipePickerModalProps = {
   recipes: Recipe[]
@@ -12,7 +13,7 @@ function RecipePickerModal({ recipes, onSave, onClose }: RecipePickerModalProps)
   const [search, setSearch] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
-  const filtered = recipes.filter((r) => r.title.toLowerCase().includes(search.trim().toLowerCase()))
+  const filtered = recipes.filter((r) => matchesSearch(r.title, search))
 
   function toggle(id: string) {
     setSelectedIds((prev) => {
@@ -40,7 +41,7 @@ function RecipePickerModal({ recipes, onSave, onClose }: RecipePickerModalProps)
         onClick={(e) => e.stopPropagation()}
         className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-md"
       >
-        <h2 className="text-20 font-title font-bold uppercase">Επιλογή συνταγών</h2>
+        <h2 className="text-20 font-title font-bold uppercase">Επιλογή φαγητών</h2>
 
         <input
           type="text"

@@ -4,7 +4,8 @@ import { recipeInfo, formatMinutes, formatEuro, COST_LABEL, type Season } from '
 import ScrollRow from './ScrollRow'
 import IngredientsManager from './IngredientsManager'
 import type { Recipe, IngredientDef, SlotKey } from '../types'
-import { CATEGORIES, SLOT_KEYS } from '../types'
+import { CATEGORIES, SLOT_KEYS, isOutsideFood } from '../types'
+import { matchesSearch as textMatches } from '../text'
 
 // Same colours as each meal's badge on the Calendar. Literal class strings
 // (not interpolated) so the Tailwind build picks them up.
@@ -65,14 +66,19 @@ function Recipes({
       const info = infoById.get(recipe.id)!
       const matchesMeal = mealFilter === 'all' || (recipe.mealTypes ?? []).includes(mealFilter)
       const matchesCategory = categoryFilter === 'all' || recipe.category === categoryFilter
-      const matchesSearch = recipe.title.toLowerCase().includes(search.trim().toLowerCase())
+      const matchesSearch = textMatches(recipe.title, search)
       const matchesFasting = !fastingOnly || info.fasting
-      const matchesQuick = !quickOnly || info.minutes <= 30
-      const matchesCheap = !cheapOnly || info.costTier === 'cheap'
+      // Quick and cheap are about cooking — ready food isn't counted.
+      const cooked = recipe.ingredients.length > 0
+      const matchesQuick = !quickOnly || (cooked && info.minutes <= 30)
+      const matchesCheap = !cheapOnly || (cooked && info.costTier === 'cheap')
       const matchesSeason = !seasonalOnly || info.season === null || info.season === currentSeason
       return matchesMeal && matchesCategory && matchesSearch && matchesFasting && matchesQuick && matchesCheap && matchesSeason
     })
     .sort((a, b) => {
+      // Home cooking first, then coffee, souvlaki, bakery…
+      const out = Number(isOutsideFood(a.category)) - Number(isOutsideFood(b.category))
+      if (out !== 0) return out
       const x = infoById.get(a.id)!
       const y = infoById.get(b.id)!
       switch (sort) {
@@ -98,7 +104,7 @@ function Recipes({
           <div className="flex gap-10 w-full sm:w-auto border-b-3 border-black sm:border-b-0">
           {(
             [
-              { key: 'recipes', label: 'Συνταγές' },
+              { key: 'recipes', label: 'Φαγητά' },
               { key: 'ingredients', label: 'Υλικά' },
             ] as const
           ).map((tab) => (
@@ -119,7 +125,7 @@ function Recipes({
           {view === 'recipes' && (
             <input
               type="search"
-              placeholder="Αναζήτηση συνταγών…"
+              placeholder="Αναζήτηση φαγητών…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="border-3 border-black px-15 py-5 sm:mb-10 font-title w-full sm:w-[260px]"
@@ -257,7 +263,7 @@ function Recipes({
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            aria-label="Νέα συνταγή"
+            aria-label="Νέο φαγητό"
             className="main-btn flex items-center justify-center p-20 min-h-100 text-4xl font-title font-bold"
           >
             +
@@ -282,8 +288,13 @@ function Recipes({
                   <span className="flex-1 font-title font-bold uppercase leading-tight">{recipe.title}</span>
                   {/* At a glance: time, price, calories per portion */}
                   <span className="flex flex-wrap gap-x-10 gap-y-[2px] text-12 font-title text-neutral-600 pt-5 border-t border-neutral-200">
-                    <span>⏱ {formatMinutes(info.minutes)}</span>
-                    <span title={`~${formatEuro(info.cost)} τη μερίδα`}>{COST_LABEL[info.costTier]}</span>
+                    {/* Ready food has no cooking time or ingredient cost. */}
+                    {recipe.ingredients.length > 0 && (
+                      <>
+                        <span>⏱ {formatMinutes(info.minutes)}</span>
+                        <span title={`~${formatEuro(info.cost)} τη μερίδα`}>{COST_LABEL[info.costTier]}</span>
+                      </>
+                    )}
                     <span>{Math.round(info.macros.calories)} kcal</span>
                   </span>
                 </span>

@@ -6,6 +6,7 @@ import { DIET_TYPES, type DietType } from '../dietaryRestrictions'
 import type { IngredientDef } from '../types'
 import type { ActivityLevel, Goal, Pace, Profile, Sex } from '../nutrition'
 import BrutalIcon, { type BrutalIconName } from './BrutalIcon'
+import { plainText } from '../text'
 
 type OnboardingProps = {
   ingredientCatalog: IngredientDef[]
@@ -122,12 +123,7 @@ function useCountUp(target: number, run: boolean): number {
   return value
 }
 
-// Accent- and case-insensitive, so "κοτοπουλο" finds "Κοτόπουλο".
-const plain = (text: string) =>
-  text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
+const plain = plainText
 
 function Onboarding({ ingredientCatalog, onFinish, onSkip }: OnboardingProps) {
   const [index, setIndex] = useState(0)
@@ -404,7 +400,7 @@ function Onboarding({ ingredientCatalog, onFinish, onSkip }: OnboardingProps) {
               </div>
               <div className="flex flex-col gap-10">
                 <span className="text-16 font-title font-bold uppercase">Διατροφή</span>
-                <div className="grid grid-cols-2 gap-10">
+                <div className="grid grid-cols-3 gap-10">
                   {DIET_TYPES.map((d) => (
                     <button
                       key={d.value}

@@ -4,6 +4,7 @@ import type { GroceryCategory, IngredientDef, Recipe } from '../types'
 import { GROCERY_CATEGORIES } from '../types'
 import ConfirmModal from './ConfirmModal'
 import FadeScrollX from './FadeScrollX'
+import { matchesSearch } from '../text'
 
 type IngredientsManagerProps = {
   catalog: IngredientDef[]
@@ -32,7 +33,7 @@ function IngredientsManager({ catalog, recipes, onAdd, onEdit, onDelete }: Ingre
 
   const query = search.trim().toLowerCase()
   const visible = catalog.filter(
-    (c) => (categoryFilter === 'all' || c.category === categoryFilter) && c.name.toLowerCase().includes(query),
+    (c) => (categoryFilter === 'all' || c.category === categoryFilter) && matchesSearch(c.name, query),
   )
   const usedCategories = GROCERY_CATEGORIES.filter((g) => catalog.some((c) => c.category === g.value))
 

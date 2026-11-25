@@ -39,7 +39,7 @@ const PROFILE_KEY = 'food-matters-profile'
 const CURRENT_CATALOG_VERSION = 5
 
 // Same idea, but for the seeded recipe library.
-const CURRENT_RECIPES_VERSION = 5
+const CURRENT_RECIPES_VERSION = 10
 
 const ALL_SLOT_KEYS = SLOT_KEYS.map((s) => s.value)
 
@@ -48,9 +48,34 @@ function ingredientsMatch(a: Ingredient[], b: Ingredient[]): boolean {
   return a.every((ing, i) => ing.name === b[i].name && ing.amount === b[i].amount && ing.unit === b[i].unit)
 }
 
+// Seed recipes we renamed: a copy saved under the old name is dropped, so
+// the current one doesn't show up next to it.
+const RETIRED_SEED_TITLES = new Set(['σνίτσελ χοιρινό με πατάτες φούρνου'])
+
+// The version is recorded when the merge below actually ran — not on every
+// save — so a hot reload during development (state kept, merge skipped)
+// can't mark new seeds as already added.
+// Read once per page load, so React calling the initializer twice (strict
+// mode) sees the same saved version both times.
+const SAVED_RECIPES_VERSION = loadFromStorage(RECIPES_VERSION_KEY, 0)
+const SAVED_CATALOG_VERSION = loadFromStorage(INGREDIENT_CATALOG_VERSION_KEY, 0)
+
 function initRecipes(): Recipe[] {
-  const stored = loadFromStorage<Recipe[] | null>(RECIPES_KEY, null)
-  if (!stored) return SAMPLE_RECIPES
+  saveToStorage(RECIPES_VERSION_KEY, CURRENT_RECIPES_VERSION)
+  return mergeSavedRecipes(SAVED_RECIPES_VERSION)
+}
+
+function mergeSavedRecipes(version: number): Recipe[] {
+  const saved = loadFromStorage<Recipe[] | null>(RECIPES_KEY, null)
+  if (!saved) return SAMPLE_RECIPES
+  // One entry per id: a recipe saved twice (or an old copy of a renamed
+  // seed sharing its id) would otherwise be listed again and again.
+  const seenIds = new Set<string>()
+  const stored = saved.filter((r) => {
+    if (RETIRED_SEED_TITLES.has(r.title.toLowerCase()) || seenIds.has(r.id)) return false
+    seenIds.add(r.id)
+    return true
+  })
 
   const sampleByTitle = new Map(SAMPLE_RECIPES.map((r) => [r.title.toLowerCase(), r]))
 
@@ -72,8 +97,10 @@ function initRecipes(): Recipe[] {
     const sample = sampleByTitle.get(r.title.toLowerCase())
     // Seeds saved while they were written all in grams count as unmodified
     // too, so they pick up pieces ("2 αυγά") like fresh ones.
+    // (Ready food has no ingredients: its typed-in calories decide.)
     const isUnmodifiedSeed =
       !!sample &&
+      JSON.stringify(r.fixedMacros ?? null) === JSON.stringify(sample.fixedMacros ?? null) &&
       (ingredientsMatch(r.ingredients, sample.ingredients) ||
         ingredientsMatch(
           r.ingredients.map((ing) => toNaturalUnit(ing, DEFAULT_INGREDIENT_CATALOG)),
@@ -90,6 +117,7 @@ function initRecipes(): Recipe[] {
         minutes: sample.minutes,
         difficulty: sample.difficulty,
         keepsDays: sample.keepsDays,
+        fixedMacros: sample.fixedMacros,
       }
     }
     return {
@@ -99,15 +127,19 @@ function initRecipes(): Recipe[] {
     }
   })
 
-  const version = loadFromStorage(RECIPES_VERSION_KEY, 0)
   if (version >= CURRENT_RECIPES_VERSION) return normalized
 
   const existingTitles = new Set(normalized.map((r) => r.title.toLowerCase()))
-  const missing = SAMPLE_RECIPES.filter((r) => !existingTitles.has(r.title.toLowerCase()))
+  const missing = SAMPLE_RECIPES.filter((r) => !existingTitles.has(r.title.toLowerCase()) && !seenIds.has(r.id))
   return [...normalized, ...missing]
 }
 
 function initIngredientCatalog(): IngredientDef[] {
+  saveToStorage(INGREDIENT_CATALOG_VERSION_KEY, CURRENT_CATALOG_VERSION)
+  return mergeSavedCatalog(SAVED_CATALOG_VERSION)
+}
+
+function mergeSavedCatalog(version: number): IngredientDef[] {
   const stored = loadFromStorage<IngredientDef[] | null>(INGREDIENT_CATALOG_KEY, null)
   if (!stored) return DEFAULT_INGREDIENT_CATALOG
 
@@ -129,7 +161,6 @@ function initIngredientCatalog(): IngredientDef[] {
     }
   })
 
-  const version = loadFromStorage(INGREDIENT_CATALOG_VERSION_KEY, 0)
   if (version >= CURRENT_CATALOG_VERSION) return normalized
 
   const existingNames = new Set(normalized.map((c) => c.name.toLowerCase()))
@@ -247,7 +278,6 @@ function App() {
 
   useEffect(() => {
     saveToStorage(RECIPES_KEY, recipes)
-    saveToStorage(RECIPES_VERSION_KEY, CURRENT_RECIPES_VERSION)
   }, [recipes])
 
   useEffect(() => {
@@ -256,7 +286,6 @@ function App() {
 
   useEffect(() => {
     saveToStorage(INGREDIENT_CATALOG_KEY, ingredientCatalog)
-    saveToStorage(INGREDIENT_CATALOG_VERSION_KEY, CURRENT_CATALOG_VERSION)
   }, [ingredientCatalog])
 
   useEffect(() => {
@@ -307,6 +336,8 @@ function App() {
       />
       {activeTab === 'today' && (
         <Today
+          onAddRecipe={handleAddRecipe}
+          onAddIngredientDef={handleAddIngredientDef}
           recipes={recipes}
           weeks={weeks}
           setWeeks={setWeeks}
@@ -365,6 +396,8 @@ function App() {
       )}
       {activeTab === 'calories' && (
         <Calories
+          onAddRecipe={handleAddRecipe}
+          onAddIngredientDef={handleAddIngredientDef}
           recipes={recipes}
           weeks={weeks}
           setWeeks={setWeeks}

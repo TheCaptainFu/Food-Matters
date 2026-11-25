@@ -16,7 +16,7 @@ type SubheaderProps = {
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'today', label: 'Σήμερα' },
   { key: 'calendar', label: 'Πρόγραμμα' },
-  { key: 'recipes', label: 'Συνταγές' },
+  { key: 'recipes', label: 'Φαγητά' },
   { key: 'market', label: 'Σούπερ μάρκετ' },
   { key: 'leftovers', label: 'Ψυγείο' },
   { key: 'calories', label: 'Ιστορικό' },

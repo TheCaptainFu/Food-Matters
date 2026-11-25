@@ -1,17 +1,12 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { ActualEntry, IngredientDef, Recipe } from '../types'
+import type { ActualEntry, Category, IngredientDef, Recipe } from '../types'
+import { CATEGORIES, isOutsideFood } from '../types'
 import { recipeMacros } from '../nutrition'
-import { EATING_OUT, EATING_OUT_GROUPS, type EatingOutGroup, type EatingOutItem } from '../eatingOut'
 import ScrollRow from './ScrollRow'
+import AddRecipeModal from './AddRecipeModal'
+import { plainText } from '../text'
 
-// Lowercase without Greek accents, so "φρεντο" finds "Φρέντο".
-function plainText(text: string) {
-  return text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-}
 
 type ActualEntryModalProps = {
   slotLabel: string
@@ -21,6 +16,10 @@ type ActualEntryModalProps = {
   onSave: (entry: ActualEntry) => void
   onDelete: () => void
   onClose: () => void
+  // With these, "something that isn't in my recipes" opens the new-recipe
+  // form (with ingredients): the recipe is saved and logged in one go.
+  onAddRecipe?: (recipe: Recipe) => void
+  onAddIngredientDef?: (def: IngredientDef) => void
 }
 
 // Keeps photos small enough for localStorage — a phone photo straight out of
@@ -59,16 +58,22 @@ function ActualEntryModal({
   onSave,
   onDelete,
   onClose,
+  onAddRecipe,
+  onAddIngredientDef,
 }: ActualEntryModalProps) {
   // Two clear steps instead of one field doing double duty: first search
   // your recipes (one tap logs it), or switch to a free-form entry for
   // anything that isn't a saved recipe. Editing an existing entry opens
   // straight on the form.
-  const [step, setStep] = useState<'pick' | 'custom'>(initial ? 'custom' : 'pick')
+  const [step, setStep] = useState<'pick' | 'custom' | 'newRecipe'>(initial ? 'custom' : 'pick')
+  // Ingredients created while writing the new recipe — the catalog prop
+  // only catches up on the next render, but the macros are needed now.
+  const [newDefs, setNewDefs] = useState<IngredientDef[]>([])
   const [search, setSearch] = useState('')
   // Your own recipes, or the "eaten out" list (souvlaki, bakery, coffee…).
-  const [source, setSource] = useState<'recipes' | 'out'>('recipes')
-  const [outGroup, setOutGroup] = useState<EatingOutGroup>('street')
+  // One list for everything — your recipes and the usual things eaten out
+  // (souvlaki, bakery, coffee…) — with chips to narrow it down.
+  const [filter, setFilter] = useState<'all' | 'home' | Category>('all')
 
   const [description, setDescription] = useState(initial?.description ?? '')
   const [calories, setCalories] = useState(initial?.calories ? String(initial.calories) : '')
@@ -78,13 +83,21 @@ function ActualEntryModal({
   const [photo, setPhoto] = useState<string | undefined>(initial?.photo)
   const [isUploading, setIsUploading] = useState(false)
 
-  const query = search.trim().toLowerCase()
-  const matchingRecipes = recipes
-    .filter((r) => plainText(r.title).includes(plainText(query)))
-    .sort((a, b) => a.title.localeCompare(b.title))
+  const query = plainText(search.trim())
+
+  // Everything in Φαγητά: home cooking first, then coffee, souvlaki, bakery…
+  const choices = recipes
+    .filter((r) => (filter === 'all' ? true : filter === 'home' ? !isOutsideFood(r.category) : r.category === filter))
+    .filter((r) => plainText(r.title).includes(query))
+    .map((r) => ({ recipe: r, calories: Math.round(recipeMacros(r, ingredientCatalog).calories) }))
+    .sort(
+      (x, y) =>
+        Number(isOutsideFood(x.recipe.category)) - Number(isOutsideFood(y.recipe.category)) ||
+        x.recipe.title.localeCompare(y.recipe.title, 'el'),
+    )
 
   function pickRecipe(recipe: Recipe) {
-    const m = recipeMacros(recipe, ingredientCatalog)
+    const m = recipeMacros(recipe, [...ingredientCatalog, ...newDefs])
     onSave({
       description: recipe.title,
       calories: Math.round(m.calories),
@@ -94,15 +107,12 @@ function ActualEntryModal({
     })
   }
 
-  const outMatches = query
-    ? EATING_OUT.filter((item) => plainText(item.name).includes(plainText(query)))
-    : EATING_OUT.filter((item) => item.group === outGroup)
-
-  function pickOut(item: EatingOutItem) {
-    onSave({ description: item.name, calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat })
-  }
 
   function goToCustom() {
+    if (onAddRecipe && onAddIngredientDef) {
+      setStep('newRecipe')
+      return
+    }
     if (!description.trim() && search.trim()) setDescription(search.trim())
     setStep('custom')
   }
@@ -133,6 +143,26 @@ function ActualEntryModal({
 
   const inputClass = 'border-3 border-black px-10 py-5 font-title'
 
+  if (step === 'newRecipe' && onAddRecipe && onAddIngredientDef) {
+    return (
+      <AddRecipeModal
+        initialTitle={search.trim()}
+        initialCategory={filter !== 'all' && filter !== 'home' ? filter : undefined}
+        ingredientCatalog={[...ingredientCatalog, ...newDefs.filter((d) => !ingredientCatalog.some((c) => c.name === d.name))]}
+        onAddIngredientDef={(def) => {
+          setNewDefs((prev) => [...prev, def])
+          onAddIngredientDef(def)
+        }}
+        onBack={() => setStep('pick')}
+        onClose={onClose}
+        onSave={(recipe) => {
+          onAddRecipe(recipe)
+          pickRecipe(recipe)
+        }}
+      />
+    )
+  }
+
   return createPortal(
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-20"
@@ -140,118 +170,80 @@ function ActualEntryModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[420px] max-h-[85vh] overflow-y-auto"
+        className={`main-btn bg-white p-20 sm:p-30 flex flex-col gap-15 w-full max-w-[420px] overflow-x-hidden ${
+          step === 'pick' ? 'h-[85vh] max-h-[680px]' : 'max-h-[85vh] overflow-y-auto'
+        }`}
       >
-        <h2 className="text-20 font-title font-bold uppercase">Τι έφαγες — {slotLabel};</h2>
+        <div className="flex items-start justify-between gap-10">
+          <h2 className="text-20 font-title font-bold uppercase leading-tight">Τι έφαγες — {slotLabel};</h2>
+          <button type="button" onClick={onClose} aria-label="Κλείσιμο" className="text-20 font-bold leading-none cursor-pointer pt-[2px]">
+            ✕
+          </button>
+        </div>
 
         {step === 'pick' ? (
           <>
-            <div className="flex border-3 border-black font-title font-bold text-14">
-              <button
-                type="button"
-                onClick={() => setSource('recipes')}
-                className={source === 'recipes' ? 'flex-1 py-5 bg-black text-white cursor-pointer' : 'flex-1 py-5 cursor-pointer hover:bg-neutral-100'}
-              >
-                📖 Οι συνταγές μου
-              </button>
-              <button
-                type="button"
-                onClick={() => setSource('out')}
-                className={source === 'out' ? 'flex-1 py-5 bg-black text-white cursor-pointer' : 'flex-1 py-5 cursor-pointer hover:bg-neutral-100'}
-              >
-                🥙 Φαγητό έξω
-              </button>
-            </div>
-
             <input
               type="search"
-              placeholder={source === 'recipes' ? 'Αναζήτηση στις συνταγές σου…' : 'π.χ. σουβλάκι, φρέντο, τυρόπιτα…'}
+              placeholder="π.χ. φασολάδα, σουβλάκι, φρέντο…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={inputClass}
+              className={`${inputClass} shrink-0`}
               autoFocus
             />
 
-            {source === 'out' && !query && (
-              <ScrollRow className="-my-5">
-                {EATING_OUT_GROUPS.map((g) => (
-                  <button
-                    key={g.value}
-                    type="button"
-                    onClick={() => setOutGroup(g.value)}
-                    className={
-                      g.value === outGroup
-                        ? 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-12 px-10 py-5 bg-black text-white'
-                        : 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-12 px-10 py-5'
-                    }
-                  >
-                    {g.label}
-                  </button>
-                ))}
-              </ScrollRow>
-            )}
+            {/* Chips run to the dialog's edges and fade there, so it's clear they scroll. */}
+            <ScrollRow className="-my-5 -mx-20 px-20 sm:-mx-30 sm:px-30 shrink-0">
+              {(
+                [
+                  { value: 'all', label: 'Όλα' },
+                  { value: 'home', label: '🍳 Σπιτικά' },
+                  ...CATEGORIES.filter((c) => c.out),
+                ] as { value: typeof filter; label: string }[]
+              ).map((g) => (
+                <button
+                  key={g.value}
+                  type="button"
+                  onClick={() => setFilter(g.value)}
+                  className={
+                    g.value === filter
+                      ? 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-12 px-10 py-5 bg-black text-white'
+                      : 'main-btn shrink-0 whitespace-nowrap font-title font-bold text-12 px-10 py-5'
+                  }
+                >
+                  {g.label}
+                </button>
+              ))}
+            </ScrollRow>
 
-            {source === 'out' ? (
-              <div className="border-3 border-black max-h-[280px] overflow-y-auto">
-                {outMatches.length > 0 ? (
-                  outMatches.map((item) => (
-                    <button
-                      key={item.name}
-                      type="button"
-                      onClick={() => pickOut(item)}
-                      className="w-full flex items-baseline justify-between gap-10 text-left px-15 py-10 text-14 font-title font-bold hover:bg-main-yellow border-b-2 border-black last:border-b-0 cursor-pointer"
-                    >
-                      <span>{item.name}</span>
-                      <span className="text-12 font-normal text-neutral-500 whitespace-nowrap">{item.calories} kcal</span>
-                    </button>
-                  ))
-                ) : (
-                  <p className="px-15 py-10 text-14 font-title text-neutral-500">
-                    Δεν βρέθηκε «{search.trim()}». Πρόσθεσέ το με το κουμπί από κάτω.
-                  </p>
-                )}
-              </div>
-            ) : (
-            <div className="border-3 border-black max-h-[280px] overflow-y-auto">
-              {matchingRecipes.length > 0 ? (
-                matchingRecipes.map((r, i) => (
+            <div className="flex-1 min-h-0 border-3 border-black overflow-y-auto [scrollbar-width:thin]">
+              {choices.length > 0 ? (
+                choices.map((c) => (
                   <button
-                    key={r.id}
+                    key={c.recipe.id}
                     type="button"
-                    onClick={() => pickRecipe(r)}
-                    className={
-                      i < matchingRecipes.length - 1
-                        ? 'w-full flex items-baseline justify-between gap-10 text-left px-15 py-10 text-14 font-title font-bold hover:bg-main-yellow border-b-2 border-black cursor-pointer'
-                        : 'w-full flex items-baseline justify-between gap-10 text-left px-15 py-10 text-14 font-title font-bold hover:bg-main-yellow cursor-pointer'
-                    }
+                    onClick={() => pickRecipe(c.recipe)}
+                    className="w-full flex items-baseline justify-between gap-10 text-left px-15 py-10 text-14 font-title font-bold hover:bg-main-yellow border-b-2 border-black last:border-b-0 cursor-pointer"
                   >
-                    <span>{r.title}</span>
-                    <span className="text-12 font-normal text-neutral-500 whitespace-nowrap">
-                      {Math.round(recipeMacros(r, ingredientCatalog).calories)} kcal
-                    </span>
+                    <span>{c.recipe.title}</span>
+                    <span className="text-12 font-normal text-neutral-500 whitespace-nowrap">{c.calories} kcal</span>
                   </button>
                 ))
               ) : (
                 <p className="px-15 py-10 text-14 font-title text-neutral-500">
-                  Καμία συνταγή δεν ταιριάζει με «{search.trim()}».
+                  Δεν βρέθηκε «{search.trim()}». Πρόσθεσέ το με το κουμπί από κάτω.
                 </p>
               )}
             </div>
-            )}
 
             <button
               type="button"
               onClick={goToCustom}
-              className="border-2 border-dashed border-neutral-400 hover:border-black px-15 py-10 text-14 font-title font-bold text-left cursor-pointer"
+              className="shrink-0 border-2 border-dashed border-neutral-400 hover:border-black px-15 py-10 text-14 font-title font-bold text-left cursor-pointer"
             >
-              + Κάτι που δεν είναι στις συνταγές μου{search.trim() ? `: «${search.trim()}»` : ''}
+              + Δεν το βρίσκω, νέο φαγητό{search.trim() ? `: «${search.trim()}»` : ''}
             </button>
 
-            <div className="flex gap-10 justify-end flex-wrap">
-              <button type="button" onClick={onClose} className="main-btn font-title font-bold px-15 py-10">
-                Άκυρο
-              </button>
-            </div>
           </>
         ) : (
           <>

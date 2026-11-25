@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Recipe, IngredientDef, GroceryCategory } from '../types'
-import { CATEGORIES, GROCERY_CATEGORIES } from '../types'
+import { CATEGORIES, GROCERY_CATEGORIES, isOutsideFood } from '../types'
 import type { Profile } from '../nutrition'
 import { recipeMacros } from '../nutrition'
 import { filterCompatibleRecipes } from '../dietaryRestrictions'
@@ -8,6 +8,7 @@ import { loadFromStorage, saveToStorage } from '../storage'
 import { addExtrasToWeek } from '../shopping'
 import { mondayOf, toISODate } from '../weekUtils'
 import Toast, { type ToastData } from './Toast'
+import { plainText } from '../text'
 
 type LeftoversProps = {
   recipes: Recipe[]
@@ -54,12 +55,12 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
     else add(name)
   }
 
-  const query = search.trim().toLowerCase()
+  const query = plainText(search.trim())
   const suggestions = query
     ? ingredientCatalog
-        .filter((c) => c.name.toLowerCase().includes(query) && !haveSet.has(c.name.toLowerCase()))
+        .filter((c) => plainText(c.name).includes(query) && !haveSet.has(c.name.toLowerCase()))
         // Names that start with what you typed come first ("egg" → Eggs before Boiled egg).
-        .sort((a, b) => Number(!a.name.toLowerCase().startsWith(query)) - Number(!b.name.toLowerCase().startsWith(query)))
+        .sort((a, b) => Number(!plainText(a.name).startsWith(query)) - Number(!plainText(b.name).startsWith(query)))
         .slice(0, 8)
     : []
 
@@ -71,9 +72,10 @@ function Leftovers({ recipes, ingredientCatalog, profile, onOpenRecipe }: Leftov
   }
 
   // Same diet/exclusion rules as the Meal Plan's suggestions.
-  const candidates = profile
-    ? filterCompatibleRecipes(recipes, profile.diet, profile.excludedIngredients)
-    : recipes
+  // Only things you cook — ready food has nothing to use up.
+  const candidates = (
+    profile ? filterCompatibleRecipes(recipes, profile.diet, profile.excludedIngredients) : recipes
+  ).filter((r) => !isOutsideFood(r.category))
 
   const withMissing = candidates.map((recipe) => ({
     recipe,

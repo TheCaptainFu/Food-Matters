@@ -24,6 +24,9 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
   // the household size set on the shopping list.
   const [servings, setServings] = useState(loadHousehold)
   const scale = servings / baseServings
+  // Ready food (a φρέντο, a σουβλάκι) has no ingredients to scale or cook:
+  // just what it is and its calories.
+  const ready = recipe.ingredients.length === 0
 
   return createPortal(
     <div
@@ -51,6 +54,7 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
           )}
         </div>
 
+        {!ready && (
         <div className="flex flex-wrap items-center gap-10">
           <span className="text-14 font-title font-bold uppercase">Μερίδες</span>
           <span className="flex items-center border-3 border-black">
@@ -73,11 +77,12 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
             </button>
           </span>
         </div>
+        )}
 
         {/* At a glance: time, effort, cost, how long it keeps, season, meals */}
         <div className="grid grid-cols-2 gap-10 font-title">
           {(
-            [
+            (ready ? [] : [
               ['⏱ Χρόνος', formatMinutes(info.minutes)],
               ['📊 Δυσκολία', DIFFICULTIES.find((d) => d.value === info.difficulty)?.label ?? ''],
               [
@@ -90,6 +95,7 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
               ...(info.season
                 ? ([['🗓 Εποχή', info.season === 'summer' ? 'Καλοκαιρινό' : 'Χειμωνιάτικο']] as const)
                 : []),
+            ]).concat([
               [
                 '🍽 Γεύματα',
                 (recipe.mealTypes ?? [])
@@ -97,7 +103,7 @@ function RecipeDetailModal({ recipe, ingredientCatalog, onClose, onEdit, onDelet
                   .filter(Boolean)
                   .join(', '),
               ],
-            ] as const
+            ]) as (readonly [string, string])[]
           ).map(([label, value]) => (
             <div key={label} className="border-2 border-black px-10 py-5 flex flex-col">
               <span className="text-12 text-neutral-500">{label}</span>

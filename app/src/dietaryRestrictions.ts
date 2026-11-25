@@ -1,12 +1,11 @@
 import type { Recipe } from './types'
 
-export type DietType = 'none' | 'vegetarian' | 'vegan' | 'fasting'
+export type DietType = 'none' | 'vegetarian' | 'vegan'
 
 export const DIET_TYPES: { value: DietType; label: string }[] = [
   { value: 'none', label: 'Χωρίς περιορισμό' },
   { value: 'vegetarian', label: 'Χορτοφαγική' },
   { value: 'vegan', label: 'Vegan' },
-  { value: 'fasting', label: 'Νηστεία' },
 ]
 
 // Keyword-based, not a per-ingredient database — works on ingredient NAMES
@@ -117,6 +116,8 @@ export function isIngredientFasting(name: string): boolean {
 }
 
 export function isRecipeFasting(recipe: Recipe): boolean {
+  // Ready food with no ingredients listed: can't tell, so not counted as fasting.
+  if (recipe.ingredients.length === 0) return false
   return recipe.ingredients.every((ing) => isIngredientFasting(ing.name))
 }
 
@@ -125,6 +126,7 @@ export function isRecipeFasting(recipe: Recipe): boolean {
 const FISH_KEYWORDS = ['ψαρι', 'τσιπουρα', 'λαβρακι', 'σολομ', 'μπακαλιαρ', 'γαυρ', 'σαρδελ', 'σκουμπρ', 'γλωσσα', 'τονος']
 
 export function isRecipeFastingWithFish(recipe: Recipe): boolean {
+  if (recipe.ingredients.length === 0) return false
   return recipe.ingredients.every((ing) => isIngredientFasting(ing.name) || containsKeyword(ing.name, FISH_KEYWORDS))
 }
 
@@ -142,7 +144,6 @@ export function isRecipeCompatible(recipe: Recipe, diet: DietType, excludedIngre
     if (excludedLower.has(ing.name.toLowerCase())) return false
     if (diet === 'vegetarian' && !isIngredientVegetarian(ing.name)) return false
     if (diet === 'vegan' && !isIngredientVegan(ing.name)) return false
-    if (diet === 'fasting' && !isIngredientFasting(ing.name)) return false
     return true
   })
 }

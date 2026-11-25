@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useState } from 'react'
 import type { ActualEntry, Day, IngredientDef, Recipe, SlotKey, Week } from '../types'
-import { calculateMacroTargets, calculateWaterTargetMl, recipeMacros } from '../nutrition'
+import { calculateMacroTargets, calculateWaterTargetMl, recipeMacros, scaleMacros } from '../nutrition'
 import type { Macros, Profile } from '../nutrition'
 import {
   addDays,
@@ -9,6 +9,8 @@ import {
   findDay,
   formatDayDate,
   parseISODate,
+  parseSlotEntry,
+  portionLabel,
   skippedEntry,
   slotExtras,
   toISODate,
@@ -17,11 +19,14 @@ import {
 } from '../weekUtils'
 import ActualEntryModal from './ActualEntryModal'
 import FadeScrollX from './FadeScrollX'
+import PortionBadge from './PortionBadge'
 import Toast, { type ToastData } from './Toast'
 
 const GLASS_ML = 250
 
 type CaloriesProps = {
+  onAddRecipe: (recipe: Recipe) => void
+  onAddIngredientDef: (def: IngredientDef) => void
   recipes: Recipe[]
   weeks: Week[]
   setWeeks: React.Dispatch<React.SetStateAction<Week[]>>
@@ -70,6 +75,8 @@ const MACRO_COLUMNS = [
 ] as const
 
 function Calories({
+  onAddRecipe,
+  onAddIngredientDef,
   recipes,
   weeks,
   setWeeks,
@@ -106,9 +113,10 @@ function Calories({
   const waterTargetMl = profile ? calculateWaterTargetMl(profile) : null
 
   function plannedMacros(recipeIds: string[]): Macros {
-    return recipeIds.reduce((sum, id) => {
+    return recipeIds.reduce((sum, entry) => {
+      const { id, portion } = parseSlotEntry(entry)
       const recipe = recipes.find((r) => r.id === id)
-      return recipe ? addMacros(sum, recipeMacros(recipe, ingredientCatalog)) : sum
+      return recipe ? addMacros(sum, scaleMacros(recipeMacros(recipe, ingredientCatalog), portion)) : sum
     }, ZERO)
   }
 
@@ -178,7 +186,14 @@ function Calories({
 
   // "✓ Ate this": log the planned recipe(s) as eaten, as-is.
   function plannedEntry(ids: string[]): ActualEntry {
-    const titles = ids.map((id) => recipes.find((r) => r.id === id)?.title).filter(Boolean)
+    const titles = ids
+      .map((entry) => {
+        const { id, portion } = parseSlotEntry(entry)
+        const title = recipes.find((r) => r.id === id)?.title
+        const label = portionLabel(portion)
+        return title && label ? `${title} (${label})` : title
+      })
+      .filter(Boolean)
     const m = plannedMacros(ids)
     return {
       description: titles.join(', '),
@@ -456,8 +471,12 @@ function Calories({
                   const planned = todayDay.slots[slot.key]
                   const entry = todayDay.actual[slot.key]
                   const plannedRecipes = planned
-                    .map((id) => recipes.find((r) => r.id === id))
-                    .filter((r): r is Recipe => !!r)
+                    .map((entry) => {
+                      const { id, portion } = parseSlotEntry(entry)
+                      const recipe = recipes.find((r) => r.id === id)
+                      return recipe ? Object.assign({}, recipe, { portion }) : null
+                    })
+                    .filter((r): r is Recipe & { portion: number } => !!r)
                   return (
                     <div
                       key={slot.key}
@@ -521,14 +540,16 @@ function Calories({
                             <span className="flex-1 min-w-[200px] flex flex-wrap items-baseline justify-between gap-x-10 bg-white border-2 border-black px-10 py-5">
                               <span className="flex flex-wrap gap-x-10">
                                 {plannedRecipes.map((recipe, i) => (
-                                  <button
-                                    key={i}
-                                    type="button"
-                                    onClick={() => onOpenRecipe(recipe.id)}
-                                    className="text-14 font-title font-bold text-left hover:underline cursor-pointer"
-                                  >
-                                    {recipe.title}
-                                  </button>
+                                  <span key={i} className="inline-flex flex-wrap items-center gap-5">
+                                    <button
+                                      type="button"
+                                      onClick={() => onOpenRecipe(recipe.id)}
+                                      className="text-14 font-title font-bold text-left hover:underline cursor-pointer"
+                                    >
+                                      {recipe.title}
+                                    </button>
+                                    <PortionBadge portion={recipe.portion} />
+                                  </span>
                                 ))}
                               </span>
                               <span className="text-12 font-title text-neutral-500 whitespace-nowrap">
@@ -622,6 +643,8 @@ function Calories({
 
       {loggingExtra && todayDay && (
         <ActualEntryModal
+          onAddRecipe={onAddRecipe}
+          onAddIngredientDef={onAddIngredientDef}
           slotLabel={`έξτρα στο ${SLOTS.find((s) => s.key === loggingExtra.slot)?.label.toLowerCase() ?? ''}`}
           recipes={recipes}
           ingredientCatalog={ingredientCatalog}
@@ -642,6 +665,8 @@ function Calories({
 
       {loggingSlot && (
         <ActualEntryModal
+          onAddRecipe={onAddRecipe}
+          onAddIngredientDef={onAddIngredientDef}
           slotLabel={SLOTS.find((s) => s.key === loggingSlot)?.label ?? ''}
           recipes={recipes}
           ingredientCatalog={ingredientCatalog}
